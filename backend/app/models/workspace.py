@@ -1,0 +1,58 @@
+import uuid
+from datetime import datetime, time
+
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Time, func
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
+
+
+class Workspace(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
+    __tablename__ = "workspaces"
+
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    owner_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("app_users.id"),
+        nullable=False,
+        index=True,
+    )
+    default_follow_up_delay_days: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
+    default_acceptance_check_delay_days: Mapped[int] = mapped_column(
+        Integer, default=1, nullable=False
+    )
+    daily_reminder_time: Mapped[time] = mapped_column(Time, default=time(9, 0), nullable=False)
+    timezone: Mapped[str] = mapped_column(Text, default="UTC", nullable=False)
+
+    # Relationships
+    owner: Mapped["AppUser"] = relationship("AppUser", lazy="selectin")
+    members: Mapped[list["WorkspaceMember"]] = relationship(
+        "WorkspaceMember", back_populates="workspace", lazy="selectin"
+    )
+    people: Mapped[list["Person"]] = relationship("Person", back_populates="workspace", lazy="selectin")
+    templates: Mapped[list["MessageTemplate"]] = relationship(
+        "MessageTemplate", back_populates="workspace", lazy="selectin"
+    )
+
+
+class WorkspaceMember(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
+    __tablename__ = "workspace_members"
+
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("app_users.id"),
+        nullable=False,
+        index=True,
+    )
+    role: Mapped[str] = mapped_column(Text, nullable=False, default="member")
+
+    # Relationships
+    workspace: Mapped["Workspace"] = relationship("Workspace", back_populates="members")
+    user: Mapped["AppUser"] = relationship("AppUser", back_populates="workspace_memberships")

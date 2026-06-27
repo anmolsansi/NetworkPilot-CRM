@@ -1,0 +1,25 @@
+{
+  "name": "networkpilot-crm",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Personal CRM for tracking LinkedIn outreach follow-ups",
+  "scripts": {
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:extension": "npm run dev --prefix extension",
+    "build:frontend": "npm run build --prefix frontend",
+    "build:extension": "npm run build --prefix extension",
+    "test:frontend": "npm test --prefix frontend",
+    "test:extension": "npm test --prefix extension",
+    "test:backend": "cd backend && pytest",
+    "lint:frontend": "npm run lint --prefix frontend",
+    "lint:extension": "npm run lint --prefix extension",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "install:all": "npm install --prefix frontend && npm install --prefix extension",
+    "install:frontend": "npm install --prefix frontend",
+    "install:extension": "npm install --prefix extension"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.0"
+  }
+}
