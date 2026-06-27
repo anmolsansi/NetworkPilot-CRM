@@ -85,6 +85,7 @@ npm run format:check
 
 ## Documentation
 
+### Planning
 - [Product Overview](docs/PRODUCT_OVERVIEW.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Database Schema](docs/DATABASE_SCHEMA.md)
@@ -94,6 +95,17 @@ npm run format:check
 - [Decisions](docs/DECISIONS.md)
 - [Tasks](docs/TASKS.md)
 
+### Setup & Deployment
+- [Supabase Setup](docs/SUPABASE_SETUP.md)
+- [Deployment Guide](docs/DEPLOYMENT.md)
+- [Extension Installation](docs/EXTENSION_INSTALL.md)
+- [Extension QA Checklist](docs/EXTENSION_QA.md)
+
+### User Guide
+- [V1 User Guide](docs/V1_USER_GUIDE.md)
+- [QA Results](docs/QA_RESULTS.md)
+- [Bug Tracker](docs/BUGS_FOUND.md)
+
 ## Implementation Order
 
 1. **Database** — Set up Supabase, create tables, run migrations
@@ -102,6 +114,34 @@ npm run format:check
 4. **Extension** — MV3 extension, quick save/update, template copy
 5. **Testing** — Unit tests, integration tests, smoke tests
 6. **Deployment** — Render (backend), Vercel (frontend), extension package
+
+## V1 Status
+
+**V1 Complete** - All 62 tickets implemented.
+
+### What's Working
+- ✅ User authentication (Supabase)
+- ✅ Workspace management
+- ✅ People tracking with stages
+- ✅ Activity timeline
+- ✅ Stage transition rules
+- ✅ Dashboard with due follow-ups
+- ✅ Message templates with copy
+- ✅ Chrome extension for quick actions
+- ✅ Calendar reminder link
+- ✅ Unit and integration tests
+
+### What's NOT in V1
+- ❌ Automated LinkedIn messaging
+- ❌ Automated connection requests
+- ❌ LinkedIn inbox scraping
+- ❌ LinkedIn DOM scraping
+- ❌ Gmail integration
+- ❌ Google Calendar OAuth
+- ❌ AI-generated messages
+- ❌ CSV import/export
+- ❌ Team features
+- ❌ Billing
 
 ## V1 Scope
 

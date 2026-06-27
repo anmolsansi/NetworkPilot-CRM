@@ -1,0 +1,20 @@
+{
+  "name": "NetworkPilot CRM",
+  "description": "Quick save and update LinkedIn profiles from your browser",
+  "version": "0.1.0",
+  "manifest_version": 3,
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://localhost:8000/*"
+  ],
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "NetworkPilot CRM"
+  },
+  "background": {
+    "service_worker": "src/background/service-worker.ts"
+  }
+}

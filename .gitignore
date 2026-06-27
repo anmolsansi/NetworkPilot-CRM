@@ -53,3 +53,4 @@ backend/app/db/migrations/versions/__pycache__/
 # Frontend/Extension build
 frontend/dist/
 extension/dist/
+*.zip

@@ -6,11 +6,6 @@ from app.core.errors import UnauthorizedError
 from app.core.security import AuthClaims, verify_supabase_token
 from app.db.session import get_db
 from app.models.user import AppUser
-from app.services.workspace_service import (
-    get_workspace_or_404,
-    require_workspace_access,
-    require_workspace_owner,
-)
 
 
 async def get_current_auth(
