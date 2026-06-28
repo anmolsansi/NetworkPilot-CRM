@@ -10,7 +10,8 @@ from app.core.config import settings as app_settings
 from app.db.base import Base
 
 # Import all models here so Alembic can detect them
-from app.models import user, workspace, person, activity, template, settings
+from app.models import user, workspace, person, activity, template
+from app.models import settings as settings_model
 
 config = context.config
 config.set_main_option("sqlalchemy.url", app_settings.DATABASE_URL)

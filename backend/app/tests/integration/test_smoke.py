@@ -30,7 +30,7 @@ class TestMVPSmokeFlow:
         assert resp.json()["found"] is False
 
         # 6. Extension Quick Create
-        resp = await client.post(f"/api/v1/extension/quick-create?workspace_id={workspace_id}", json={
+        resp = await client.post("/api/v1/extension/quick-create", json={
             "workspace_id": workspace_id,
             "name": "Smoke Test Person",
             "linkedin_url": linkedin_url,
@@ -54,7 +54,7 @@ class TestMVPSmokeFlow:
         assert resp.json()["items"][0]["id"] == person_id
 
         # 9. Extension Quick Action
-        resp = await client.post(f"/api/v1/extension/quick-action?workspace_id={workspace_id}", json={
+        resp = await client.post("/api/v1/extension/quick-action", json={
             "workspace_id": workspace_id,
             "person_id": person_id,
             "action_type": "accepted",

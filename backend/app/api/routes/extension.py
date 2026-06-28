@@ -5,9 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.models.user import AppUser
+from app.models.workspace import Workspace
 from app.schemas.activities import ActivityCreate
 from app.schemas.extension import (
-    ExtensionLookupRequest,
     ExtensionLookupResponse,
     ExtensionQuickActionRequest,
     ExtensionQuickActionResponse,
@@ -25,7 +25,7 @@ router = APIRouter()
 async def extension_lookup(
     workspace_id: uuid.UUID = Query(...),
     linkedin_url: str = Query(..., min_length=1),
-    _workspace: Depends = Depends(require_workspace_access),
+    workspace: Workspace = Depends(require_workspace_access),
     db: AsyncSession = Depends(get_db),
 ):
     """Look up a LinkedIn profile in the workspace."""
@@ -67,11 +67,13 @@ async def extension_lookup(
 async def extension_quick_create(
     data: ExtensionQuickCreateRequest,
     user: AppUser = Depends(get_current_user),
-    _workspace: Depends = Depends(require_workspace_access),
     db: AsyncSession = Depends(get_db),
 ):
     """Quick create a person from extension."""
     from app.schemas.people import PersonCreate
+
+    # Verify workspace access from the body payload
+    await require_workspace_access(workspace_id=data.workspace_id, user=user, db=db)
 
     # Create person
     people_service = PeopleService(db)
@@ -116,10 +118,12 @@ async def extension_quick_create(
 async def extension_quick_action(
     data: ExtensionQuickActionRequest,
     user: AppUser = Depends(get_current_user),
-    _workspace: Depends = Depends(require_workspace_access),
     db: AsyncSession = Depends(get_db),
 ):
     """Apply a quick action to an existing person."""
+    # Verify workspace access from the body payload
+    await require_workspace_access(workspace_id=data.workspace_id, user=user, db=db)
+    
     activity_service = ActivityService(db)
     activity_data = ActivityCreate(
         action_type=data.action_type,
