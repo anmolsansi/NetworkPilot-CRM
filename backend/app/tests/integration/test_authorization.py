@@ -88,7 +88,8 @@ class TestCrossWorkspaceAuthorization:
 
         # User B tries to create an activity in Workspace A
         resp = await client.post(f"/api/v1/people/{person_a_id}/activities?workspace_id={workspace_a_id}", json={
-            "activity_type": "note",
+            "action_type": "note",
+            "source": "web",
             "notes": "Hacked Note"
         }, headers=user_b_headers)
         assert resp.status_code == 403

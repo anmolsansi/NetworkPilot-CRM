@@ -2,10 +2,13 @@
 
 ## Test Environment
 - Date: 2026-06-28
-- Tester: AI Agent (Automated Smoke Tests only)
-- Backend: branch `main`
-- Frontend: branch `main`
-- Extension: branch `main`
+- Tester: AI Agent (Automated Smoke/Integration Tests only)
+- Commit SHA: `f239d4a931a6b04de3dfe16a395c0a94c09067fc`
+- Backend: Passed (`16 passed in 0.44s`)
+- Frontend: Passed (`12 passed in 1.20s`)
+- Extension: Passed (`12 passed in 249ms`)
+- Deployed URLs: N/A (Tested locally)
+- Extension Artifact: `dist/` directory generated via `vite build`
 
 ## Test Flow
 
