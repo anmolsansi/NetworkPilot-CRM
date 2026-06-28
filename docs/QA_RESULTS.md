@@ -1,103 +1,103 @@
 # V1 QA Results
 
 ## Test Environment
-- Date: ___________
-- Tester: ___________
-- Backend: ___________
-- Frontend: ___________
-- Extension: ___________
+- Date: 2026-06-28
+- Tester: AI Agent (Automated Smoke Tests only)
+- Backend: branch `main`
+- Frontend: branch `main`
+- Extension: branch `main`
 
 ## Test Flow
 
 ### 1. Authentication
-- [x] Sign up with email/password
-- [x] Log in with credentials
-- [x] Session persists on refresh
-- [x] Logout clears session
+- [ ] Sign up with email/password
+- [ ] Log in with credentials
+- [ ] Session persists on refresh
+- [ ] Logout clears session
 
 ### 2. Workspace Setup
-- [x] Create new workspace
-- [x] Workspace appears in list
-- [x] Can update workspace settings
-- [x] Timezone saves correctly
+- [ ] Create new workspace
+- [ ] Workspace appears in list
+- [ ] Can update workspace settings
+- [ ] Timezone saves correctly
 
 ### 3. Extension Setup
-- [x] Install extension as unpacked
-- [x] Configure API URL and token
-- [x] Extension detects LinkedIn profiles
-- [x] Extension shows "Not a LinkedIn Profile" for non-profiles
+- [ ] Install extension as unpacked
+- [ ] Configure API URL and token
+- [ ] Extension detects LinkedIn profiles
+- [ ] Extension shows "Not a LinkedIn Profile" for non-profiles
 
 ### 4. Save New Profile
-- [x] Navigate to LinkedIn profile
-- [x] Open extension
-- [x] Fill in name, role, company
-- [x] Set priority (A/B/C)
-- [x] Select initial action (Invite Sent)
-- [x] Save profile
-- [x] Profile appears in web app people list
+- [ ] Navigate to LinkedIn profile
+- [ ] Open extension
+- [ ] Fill in name, role, company
+- [ ] Set priority (A/B/C)
+- [ ] Select initial action (Invite Sent)
+- [ ] Save profile
+- [ ] Profile appears in web app people list
 
 ### 5. Mark Accepted
-- [x] Navigate to saved profile
-- [x] Click "Accepted" in extension
-- [x] Stage updates to "Accepted"
-- [x] Next action shows "Send First Message"
+- [ ] Navigate to saved profile
+- [ ] Click "Accepted" in extension
+- [ ] Stage updates to "Accepted"
+- [ ] Next action shows "Send First Message"
 
 ### 6. Send First Message
-- [x] Navigate to profile
-- [x] Click "Message Sent"
-- [x] Stage updates to "Waiting for Reply"
-- [x] Next action shows "Follow-up 1"
-- [x] Due date set based on default delay
+- [ ] Navigate to profile
+- [ ] Click "Message Sent"
+- [ ] Stage updates to "Waiting for Reply"
+- [ ] Next action shows "Follow-up 1"
+- [ ] Due date set based on default delay
 
 ### 7. Follow-up Sequence
-- [x] Click "Follow-up 1 Sent"
-- [x] Next action shows "Follow-up 2"
-- [x] Due date updated
+- [ ] Click "Follow-up 1 Sent"
+- [ ] Next action shows "Follow-up 2"
+- [ ] Due date updated
 
 ### 8. Reply Received
-- [x] Click "Reply Received"
-- [x] Stage updates to "Replied"
-- [x] No more follow-up due
+- [ ] Click "Reply Received"
+- [ ] Stage updates to "Replied"
+- [ ] No more follow-up due
 
 ### 9. Dashboard
-- [x] Due today shows correct count
-- [x] Overdue section shows old items
-- [x] Waiting for reply count accurate
+- [ ] Due today shows correct count
+- [ ] Overdue section shows old items
+- [ ] Waiting for reply count accurate
 
 ### 10. Snooze
-- [x] Snooze person in extension
-- [x] Next action date updates
-- [x] Person moves out of due list
+- [ ] Snooze person in extension
+- [ ] Next action date updates
+- [ ] Person moves out of due list
 
 ### 11. Archive
-- [x] Archive person in extension
-- [x] Person status changes to archived
-- [x] Person disappears from dashboard
+- [ ] Archive person in extension
+- [ ] Person status changes to archived
+- [ ] Person disappears from dashboard
 
 ### 12. Templates
-- [x] Default templates created with workspace
-- [x] Can create new template
-- [x] Can edit template
-- [x] Can delete template
-- [x] Copy button works
-- [x] Variables render correctly
+- [ ] Default templates created with workspace
+- [ ] Can create new template
+- [ ] Can edit template
+- [ ] Can delete template
+- [ ] Copy button works
+- [ ] Variables render correctly
 
 ### 13. Calendar Link
-- [x] Generate calendar reminder link
-- [x] Link opens Google Calendar
-- [x] Event has correct title and description
+- [ ] Generate calendar reminder link
+- [ ] Link opens Google Calendar
+- [ ] Event has correct title and description
 
 ### 14. People List
-- [x] Search by name works
-- [x] Filter by stage works
-- [x] Filter by priority works
-- [x] Pagination works
+- [ ] Search by name works
+- [ ] Filter by stage works
+- [ ] Filter by priority works
+- [ ] Pagination works
 
 ### 15. Person Detail
-- [x] Profile info displays correctly
-- [x] Can edit profile fields
-- [x] Activity timeline shows all actions
-- [x] Quick actions work from detail page
+- [ ] Profile info displays correctly
+- [ ] Can edit profile fields
+- [ ] Activity timeline shows all actions
+- [ ] Quick actions work from detail page
 
 ## Issues Found
 
@@ -122,6 +122,6 @@
 | E2E Testing | Needs full playwright tests | Open |
 
 ## Sign-off
-- [x] All critical issues resolved
-- [x] Full flow tested end-to-end
-- [x] Ready for V1 launch
+- [ ] All critical issues resolved
+- [ ] Full flow tested end-to-end
+- [ ] Ready for V1 launch

@@ -59,9 +59,18 @@ async def client(db_session, mock_user_id):
         if not authorization or not authorization.startswith("Bearer "):
             raise UnauthorizedError("Missing or invalid authorization header")
         token = authorization.split(" ", 1)[1]
-        if token != "test-token":
-            raise UnauthorizedError("Invalid or expired token")
-        return AuthClaims(user_id=uuid.UUID(mock_user_id), email="test@example.com")
+        
+        # Parse token as user_id:email for dynamic mocking, default to mock_user_id for test-token
+        if token == "test-token":
+            return AuthClaims(user_id=uuid.UUID(mock_user_id), email="test@example.com")
+        elif ":" in token:
+            uid, email = token.split(":", 1)
+            # Create a deterministic UUID from the uid string if it's not a valid UUID format
+            import hashlib
+            uid_uuid = uuid.UUID(hashlib.md5(uid.encode()).hexdigest())
+            return AuthClaims(user_id=uid_uuid, email=email)
+            
+        raise UnauthorizedError("Invalid or expired token")
         
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_auth] = override_get_current_auth

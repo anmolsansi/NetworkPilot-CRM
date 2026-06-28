@@ -52,6 +52,25 @@
 **Why**: Minimal boilerplate, good TypeScript support, simple API.
 **Trade-off**: Smaller ecosystem than Redux, but sufficient for this app size.
 
+### 11. Temporary Extension Auth Setup
+**Decision**: For internal MVP QA, the extension may accept manually pasted API URL, Supabase access token, and workspace ID.
+**Why**: Avoids building full extension OAuth/session handoff before core tracking flow is stable.
+**Follow-up**: Replace or improve before external users; document token storage risk.
+
+### 12. Canonical Workspace ID Transport
+**Decision**: Workspace-scoped API endpoints must consistently pass `workspace_id` in the same location expected by backend authorization.
+**Why**: Prevents extension/web clients from bypassing or breaking `require_workspace_access`.
+**Follow-up**: Update API spec and tests to enforce this.
+
+### 13. QA Evidence Standard
+**Decision**: QA sign-off docs must include date, tester, environment, backend commit/version, frontend build, and extension build.
+**Why**: Prevents stale or aspirational QA docs from being treated as release evidence.
+
+### 14. API Contract Documentation Is Binding
+**Decision**: `API_SPEC.md` must be updated in the same patch whenever frontend, extension, or backend route contracts change.
+**Why**: The extension `workspace_id` mismatch happened because implementation and contract documentation drifted.
+**Follow-up**: Add API spec review to each backend/frontend/extension contract change.
+
 ## Future Considerations (V2+)
 
 - Gmail notification parsing

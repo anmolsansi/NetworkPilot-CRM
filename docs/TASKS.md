@@ -8,20 +8,22 @@ See `DEVELOPMENT_BACKLOG.md` for the full ticket list with dependencies.
 
 | Phase | Name | Tickets | Status |
 |-------|------|---------|--------|
-| 1 | Project Setup | 1-3 | In Progress |
-| 2 | Database Setup | 4-8 | Pending |
-| 3 | Backend Foundation | 9-11 | Pending |
-| 4 | Auth & Authorization | 12-15 | Pending |
-| 5 | Core Backend Domain | 16-24 | Pending |
-| 6 | Dashboard, Templates, Calendar | 25-29 | Pending |
-| 7 | Extension Backend Endpoints | 30-32 | Pending |
-| 8 | Web Frontend Foundation | 33-37 | Pending |
-| 9 | Web Frontend Features | 38-42 | Pending |
-| 10 | Extension Foundation | 43-46 | Pending |
-| 11 | Extension Features | 47-50 | Pending |
-| 12 | Testing | 51-54 | Pending |
-| 13 | Deployment | 55-59 | Pending |
-| 14 | V1 Validation | 60-62 | Pending |
+| 1 | Project Setup | 1-3 | Completed |
+| 2 | Database Setup | 4-8 | Completed |
+| 3 | Backend Foundation | 9-11 | Completed |
+| 4 | Auth & Authorization | 12-15 | Completed |
+| 5 | Core Backend Domain | 16-24 | Completed |
+| 6 | Dashboard, Templates, Calendar | 25-29 | Completed |
+| 7 | Extension Backend Endpoints | 30-32 | Completed |
+| 8 | Web Frontend Foundation | 33-37 | Completed |
+| 9 | Web Frontend Features | 38-42 | Completed |
+| 10 | Extension Foundation | 43-46 | Completed |
+| 11 | Extension Features | 47-50 | Completed |
+| 12 | Testing | 51-54 | In Progress (Adding cross-workspace auth tests) |
+| 13 | Deployment | 55-59 | Completed |
+| 14 | V1 Validation | 60-62 | Incomplete (Awaiting valid QA evidence) |
+
+*Note: The broad V1 implementation is marked as incomplete until the extension authentication, workspace contract, cross-workspace tests, and verifiable QA evidence are fully corrected and recorded.*
 
 ## Quick Reference
 
