@@ -12,7 +12,7 @@ class TransitionResult(BaseModel):
 
 class ActivityCreate(BaseModel):
     action_type: str = Field(..., min_length=1, max_length=50)
-    source: str = Field(..., pattern=r"^(web_app|chrome_extension|system)$")
+    source: str = Field(..., pattern=r"^(web_app|chrome_extension|system|csv_import)$")
     message: str | None = Field(None, max_length=5000)
     notes: str | None = Field(None, max_length=5000)
     next_action_date: date | None = None

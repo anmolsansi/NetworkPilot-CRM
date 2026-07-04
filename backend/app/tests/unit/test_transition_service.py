@@ -1,7 +1,9 @@
-import pytest
 from datetime import date, timedelta
-from app.services.transition_service import calculate_transition, ACTION_TRANSITIONS
+
+import pytest
+
 from app.core.errors import ValidationError
+from app.services.transition_service import ACTION_TRANSITIONS, calculate_transition
 
 
 class TestCalculateTransition:
@@ -10,6 +12,12 @@ class TestCalculateTransition:
         assert result.new_stage == "invite_pending"
         assert result.next_action_type == "acceptance_check"
         assert result.next_action_date == date.today() + timedelta(days=1)
+
+    def test_saved_for_later(self):
+        result = calculate_transition("saved_for_later")
+        assert result.new_stage == "saved_for_later"
+        assert result.next_action_type is None
+        assert result.next_action_date is None
 
     def test_invite_sent_custom_delay(self):
         result = calculate_transition("invite_sent", acceptance_check_delay_days=3)
