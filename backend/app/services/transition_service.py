@@ -5,6 +5,11 @@ from app.schemas.activities import TransitionResult
 
 # V1 action types and their transitions
 ACTION_TRANSITIONS = {
+    "saved_for_later": {
+        "new_stage": "saved_for_later",
+        "next_action_type": None,
+        "next_action_date": None,
+    },
     "invite_sent": {
         "new_stage": "invite_pending",
         "next_action_type": "acceptance_check",
