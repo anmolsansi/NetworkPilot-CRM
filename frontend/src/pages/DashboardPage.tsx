@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useWorkspaceStore } from '../stores/workspaceStore'
-import { dashboardApi } from '../api/httpClient'
+import { dashboardApi, exportsApi } from '../api/httpClient'
+import { downloadCsvBlob } from '../api/csvDownload'
 import { DuePersonCard } from '../components/people/DuePersonCard'
 import { EmptyState } from '../components/common/EmptyState'
 import { ErrorAlert } from '../components/common/ErrorAlert'
 import { Skeleton } from '../components/common/Skeleton'
+import { Button } from '../components/common/Button'
 
 interface DashboardSummary {
   due_today: number
@@ -19,6 +21,7 @@ export function DashboardPage() {
   const [duePeople, setDuePeople] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [exporting, setExporting] = useState<string | null>(null)
 
   const fetchData = async () => {
     if (!currentWorkspace) return
@@ -42,6 +45,24 @@ export function DashboardPage() {
   useEffect(() => {
     fetchData()
   }, [currentWorkspace])
+
+  const handleExport = async (name: string, params: Record<string, string>) => {
+    if (!currentWorkspace) return
+
+    setExporting(name)
+    setError(null)
+    try {
+      const blob = await exportsApi.peopleCsv({
+        workspace_id: currentWorkspace.id,
+        ...params,
+      })
+      downloadCsvBlob(blob, `networkpilot-${name}.csv`)
+    } catch (err: any) {
+      setError(err.message || 'Failed to export people')
+    } finally {
+      setExporting(null)
+    }
+  }
 
   if (loading) {
     return (
@@ -78,6 +99,41 @@ export function DashboardPage() {
       <p className="mt-2 text-sm text-gray-600">
         Who needs follow-up today
       </p>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => handleExport('today-follow-ups', { due: 'today' })}
+          disabled={!!exporting}
+        >
+          {exporting === 'today-follow-ups' ? 'Exporting...' : 'Export Today'}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => handleExport('overdue-follow-ups', { due: 'overdue' })}
+          disabled={!!exporting}
+        >
+          {exporting === 'overdue-follow-ups' ? 'Exporting...' : 'Export Overdue'}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => handleExport('second-follow-up-due', { next_action_type: 'follow_up_2', due: 'today' })}
+          disabled={!!exporting}
+        >
+          {exporting === 'second-follow-up-due' ? 'Exporting...' : 'Export Second Follow-up'}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => handleExport('accepted-not-messaged', { stage: 'accepted', next_action_type: 'send_first_message' })}
+          disabled={!!exporting}
+        >
+          {exporting === 'accepted-not-messaged' ? 'Exporting...' : 'Export Accepted'}
+        </Button>
+      </div>
 
       {/* Summary Cards */}
       {summary && (

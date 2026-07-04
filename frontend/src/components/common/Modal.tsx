@@ -4,10 +4,17 @@ interface ModalProps {
   isOpen: boolean
   onClose: () => void
   title?: string
+  size?: 'md' | 'lg' | 'xl'
   children: React.ReactNode
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+const sizes = {
+  md: 'sm:max-w-lg',
+  lg: 'sm:max-w-3xl',
+  xl: 'sm:max-w-5xl',
+}
+
+export function Modal({ isOpen, onClose, title, size = 'md', children }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -41,7 +48,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
           className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
           onClick={onClose}
         />
-        <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+        <div className={`inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:w-full sm:p-6 ${sizes[size]}`}>
           {title && (
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900">{title}</h3>
