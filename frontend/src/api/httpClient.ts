@@ -12,10 +12,13 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const token = await getToken()
+  const isFormData = options.body instanceof FormData
 
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
+  }
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json'
   }
 
   if (token) {
@@ -49,6 +52,34 @@ async function request<T>(
   return response.json()
 }
 
+async function requestBlob(path: string): Promise<Blob> {
+  const token = await getToken()
+  const headers: Record<string, string> = {}
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, { headers })
+
+  if (response.status === 401) {
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+    throw new Error('Unauthorized')
+  }
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null)
+    throw {
+      code: errorData?.error?.code || 'HTTP_ERROR',
+      message: errorData?.error?.message || `Request failed with status ${response.status}`,
+      details: errorData?.error?.details,
+    }
+  }
+
+  return response.blob()
+}
+
 // User API
 export const userApi = {
   getMe: () => request<any>('/me'),
@@ -79,6 +110,22 @@ export const peopleApi = {
     request<any>(`/people/${id}/snooze?workspace_id=${workspaceId}`, { method: 'POST', body: JSON.stringify(data) }),
   archive: (id: string, data: any, workspaceId: string) =>
     request<any>(`/people/${id}/archive?workspace_id=${workspaceId}`, { method: 'POST', body: JSON.stringify(data) }),
+}
+
+// CSV Import API
+export const importsApi = {
+  previewPeople: (data: FormData) =>
+    request<any>('/imports/people/preview', { method: 'POST', body: data }),
+  commitPeople: (data: any) =>
+    request<any>('/imports/people/commit', { method: 'POST', body: JSON.stringify(data) }),
+}
+
+// CSV Export API
+export const exportsApi = {
+  peopleCsv: (params: Record<string, string>) => {
+    const query = new URLSearchParams(params).toString()
+    return requestBlob(`/exports/people.csv?${query}`)
+  },
 }
 
 // Activities API

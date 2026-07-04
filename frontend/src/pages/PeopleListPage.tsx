@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWorkspaceStore } from '../stores/workspaceStore'
-import { peopleApi } from '../api/httpClient'
+import { exportsApi, peopleApi } from '../api/httpClient'
+import { downloadCsvBlob } from '../api/csvDownload'
 import { Button } from '../components/common/Button'
 import { Input } from '../components/common/Input'
 import { Select } from '../components/common/Select'
@@ -9,6 +10,7 @@ import { Badge } from '../components/common/Badge'
 import { EmptyState } from '../components/common/EmptyState'
 import { ErrorAlert } from '../components/common/ErrorAlert'
 import { Skeleton } from '../components/common/Skeleton'
+import { ImportCsvModal } from '../components/imports/ImportCsvModal'
 
 interface Person {
   id: string
@@ -61,6 +63,8 @@ export function PeopleListPage() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   // Filters
   const [search, setSearch] = useState('')
@@ -102,6 +106,26 @@ export function PeopleListPage() {
     fetchPeople()
   }
 
+  const handleExport = async () => {
+    if (!currentWorkspace) return
+
+    setExporting(true)
+    setError(null)
+    try {
+      const params: Record<string, string> = {
+        workspace_id: currentWorkspace.id,
+      }
+      if (stageFilter) params.stage = stageFilter
+      if (priorityFilter) params.priority = priorityFilter
+      const blob = await exportsApi.peopleCsv(params)
+      downloadCsvBlob(blob, 'networkpilot-people-export.csv')
+    } catch (err: any) {
+      setError(err.message || 'Failed to export people')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const totalPages = Math.ceil(total / 20)
 
   if (loading) {
@@ -121,7 +145,13 @@ export function PeopleListPage() {
     <div>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-gray-900">People</h1>
-        <Button onClick={() => navigate('/people/new')}>Add Person</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => setImportOpen(true)}>Import CSV</Button>
+          <Button variant="secondary" onClick={handleExport} disabled={exporting}>
+            {exporting ? 'Exporting...' : 'Export CSV'}
+          </Button>
+          <Button onClick={() => navigate('/people/new')}>Add Person</Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -250,6 +280,15 @@ export function PeopleListPage() {
           </div>
         )}
       </div>
+
+      {currentWorkspace && (
+        <ImportCsvModal
+          isOpen={importOpen}
+          workspaceId={currentWorkspace.id}
+          onClose={() => setImportOpen(false)}
+          onImported={fetchPeople}
+        />
+      )}
     </div>
   )
 }
