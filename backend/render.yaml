@@ -3,8 +3,8 @@ services:
     name: networkpilot-api
     runtime: python
     plan: free
-    buildCommand: pip install -e .
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install -r requirements.txt
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -22,4 +22,4 @@ services:
         value: INFO
       - key: CORS_ORIGINS
         sync: false
-    healthCheckPath: /health
+    healthCheckPath: /api/v1/health
