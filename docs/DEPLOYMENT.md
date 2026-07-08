@@ -38,7 +38,7 @@ See [SUPABASE_SETUP.md](SUPABASE_SETUP.md) for details.
    - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 4. Add environment variables:
    ```
-   DATABASE_URL=postgresql+asyncpg://postgres:password@db.xxx.supabase.co:5432/postgres
+   DATABASE_URL=postgresql://postgres:password@db.xxx.supabase.co:5432/postgres?sslmode=require
    SUPABASE_URL=https://xxx.supabase.co
    SUPABASE_ANON_KEY=eyJxxx...
    SUPABASE_SERVICE_ROLE_KEY=eyJxxx...
@@ -108,7 +108,11 @@ See [SUPABASE_SETUP.md](SUPABASE_SETUP.md) for details.
 
 ### Backend won't start
 - Check environment variables are set
-- Verify database URL is correct
+- Verify `DATABASE_URL` points to a reachable primary Postgres host. For
+  Supabase on Render, use the IPv4-compatible pooler URL if the direct database
+  host is not reachable from Render.
+- Include `?sslmode=require` for hosted Supabase connections. The backend
+  accepts plain `postgresql://` URLs and adapts them for asyncpg at runtime.
 - Check Render logs
 
 ### Frontend can't connect to backend

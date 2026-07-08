@@ -31,7 +31,9 @@ pytest
 3. Set build command: `pip install -e .`
 4. Set start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 5. Add environment variables:
-   - `DATABASE_URL` - Supabase Postgres connection string (use `postgresql+asyncpg://`)
+   - `DATABASE_URL` - Supabase Postgres connection string. Plain `postgresql://`,
+     `postgres://`, and `postgresql+asyncpg://` URLs are accepted; include
+     `?sslmode=require` for hosted Supabase connections.
    - `SUPABASE_URL` - Supabase project URL
    - `SUPABASE_ANON_KEY` - Supabase anon key
    - `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key
