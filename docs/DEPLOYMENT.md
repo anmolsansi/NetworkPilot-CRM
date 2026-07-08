@@ -23,7 +23,8 @@ NetworkPilot CRM is deployed as:
    - Anon key
    - Service role key
    - JWT secret
-3. Go to Settings > Database and copy connection string
+3. Go to Settings > Database and copy the Shared Pooler session-mode connection
+   string
 
 See [SUPABASE_SETUP.md](SUPABASE_SETUP.md) for details.
 
@@ -38,7 +39,7 @@ See [SUPABASE_SETUP.md](SUPABASE_SETUP.md) for details.
    - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 4. Add environment variables:
    ```
-   DATABASE_URL=postgresql://postgres:password@db.xxx.supabase.co:5432/postgres?sslmode=require
+   DATABASE_URL=postgres://postgres.xxx:password@aws-[REGION].pooler.supabase.com:5432/postgres?sslmode=require
    SUPABASE_URL=https://xxx.supabase.co
    SUPABASE_ANON_KEY=eyJxxx...
    SUPABASE_SERVICE_ROLE_KEY=eyJxxx...
@@ -82,7 +83,7 @@ See [SUPABASE_SETUP.md](SUPABASE_SETUP.md) for details.
 ### Backend
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string |
+| `DATABASE_URL` | Supabase Shared Pooler session-mode PostgreSQL connection string |
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_ANON_KEY` | Supabase anonymous key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
@@ -108,11 +109,12 @@ See [SUPABASE_SETUP.md](SUPABASE_SETUP.md) for details.
 
 ### Backend won't start
 - Check environment variables are set
-- Verify `DATABASE_URL` points to a reachable primary Postgres host. For
-  Supabase on Render, use the IPv4-compatible pooler URL if the direct database
-  host is not reachable from Render.
-- Include `?sslmode=require` for hosted Supabase connections. The backend
-  accepts plain `postgresql://` URLs and adapts them for asyncpg at runtime.
+- If logs contain `OSError: [Errno 101] Network is unreachable`, `DATABASE_URL`
+  is probably using the Supabase direct host (`db.xxx.supabase.co`), which is
+  IPv6 unless the project has the IPv4 add-on. Use the Shared Pooler
+  session-mode URL instead:
+  `postgres://postgres.xxx:password@aws-[REGION].pooler.supabase.com:5432/postgres?sslmode=require`.
+- Include `?sslmode=require` for hosted Supabase connections.
 - Check Render logs
 
 ### Frontend can't connect to backend

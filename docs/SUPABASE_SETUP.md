@@ -18,15 +18,15 @@ After project creation, go to **Settings > API** and copy:
 | `SUPABASE_URL` | Frontend, Extension | Project URL (e.g., `https://xxx.supabase.co`) |
 | `SUPABASE_ANON_KEY` | Frontend, Extension | Public anonymous key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Backend only | Secret admin key (never expose to frontend) |
-| `DATABASE_URL` | Backend | Direct Postgres connection string |
+| `DATABASE_URL` | Backend | Shared Pooler session-mode Postgres connection string |
 
 ## Getting Database URL
 
-1. Go to **Settings > Database**
-2. Under "Connection string", select "URI"
-3. Copy the connection string
+1. Go to **Connect** > **Connection pooling**
+2. Select **Session mode**
+3. Copy the Shared Pooler connection string
 4. Replace `[YOUR-PASSWORD]` with your database password
-5. Format: `postgresql://postgres:[YOUR-PASSWORD]@db.xxx.supabase.co:5432/postgres?sslmode=require`
+5. Format: `postgres://postgres.[PROJECT-REF]:[YOUR-PASSWORD]@aws-[REGION].pooler.supabase.com:5432/postgres?sslmode=require`
 
 ## Auth Configuration
 
@@ -44,7 +44,7 @@ After project creation, go to **Settings > API** and copy:
 
 ### Backend (.env)
 ```
-DATABASE_URL=postgresql://postgres:password@db.xxx.supabase.co:5432/postgres?sslmode=require
+DATABASE_URL=postgres://postgres.xxx:password@aws-[REGION].pooler.supabase.com:5432/postgres?sslmode=require
 SUPABASE_URL=https://xxx.supabase.co
 SUPABASE_ANON_KEY=eyJxxx...
 SUPABASE_SERVICE_ROLE_KEY=eyJxxx...
@@ -74,8 +74,9 @@ VITE_API_BASE_URL=http://localhost:8000/api/v1
 
 ### Production
 - Use hosted Supabase project
-- Use the IPv4-compatible Supabase pooler URL on platforms that cannot reach
-  the direct database host.
+- Use the IPv4-compatible Shared Pooler session-mode URL on Render. Supabase
+  direct hosts (`db.xxx.supabase.co`) require IPv6 unless the project has the
+  IPv4 add-on.
 - Never commit `.env` files
 - Use Render/Vercel environment variables
 
