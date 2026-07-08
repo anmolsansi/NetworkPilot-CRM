@@ -26,7 +26,7 @@ After project creation, go to **Settings > API** and copy:
 2. Under "Connection string", select "URI"
 3. Copy the connection string
 4. Replace `[YOUR-PASSWORD]` with your database password
-5. Format: `postgresql://postgres:[YOUR-PASSWORD]@db.xxx.supabase.co:5432/postgres`
+5. Format: `postgresql://postgres:[YOUR-PASSWORD]@db.xxx.supabase.co:5432/postgres?sslmode=require`
 
 ## Auth Configuration
 
@@ -44,7 +44,7 @@ After project creation, go to **Settings > API** and copy:
 
 ### Backend (.env)
 ```
-DATABASE_URL=postgresql://postgres:password@db.xxx.supabase.co:5432/postgres
+DATABASE_URL=postgresql://postgres:password@db.xxx.supabase.co:5432/postgres?sslmode=require
 SUPABASE_URL=https://xxx.supabase.co
 SUPABASE_ANON_KEY=eyJxxx...
 SUPABASE_SERVICE_ROLE_KEY=eyJxxx...
@@ -74,6 +74,8 @@ VITE_API_BASE_URL=http://localhost:8000/api/v1
 
 ### Production
 - Use hosted Supabase project
+- Use the IPv4-compatible Supabase pooler URL on platforms that cannot reach
+  the direct database host.
 - Never commit `.env` files
 - Use Render/Vercel environment variables
 

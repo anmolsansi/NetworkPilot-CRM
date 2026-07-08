@@ -4,17 +4,17 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlalchemy.ext.asyncio import create_async_engine
 
+# Import all models here so Alembic can detect them.
+import app.models  # noqa: F401
 from app.core.config import settings as app_settings
 from app.db.base import Base
-
-# Import all models here so Alembic can detect them
-from app.models import user, workspace, person, activity, template
-from app.models import settings as settings_model
+from app.db.database_url import asyncpg_connect_args, normalize_asyncpg_url
 
 config = context.config
-config.set_main_option("sqlalchemy.url", app_settings.DATABASE_URL)
+database_url = normalize_asyncpg_url(app_settings.DATABASE_URL)
+config.set_main_option("sqlalchemy.url", database_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -45,10 +45,10 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     """Run migrations in 'online' mode with async engine."""
-    connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
+    connectable = create_async_engine(
+        database_url,
         poolclass=pool.NullPool,
+        connect_args=asyncpg_connect_args(app_settings.DATABASE_URL),
     )
 
     async with connectable.connect() as connection:
