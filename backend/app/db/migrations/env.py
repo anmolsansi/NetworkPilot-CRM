@@ -1,4 +1,5 @@
 import asyncio
+import errno
 from logging.config import fileConfig
 
 from alembic import context
@@ -20,6 +21,14 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
+
+NETWORK_UNREACHABLE_MESSAGE = (
+    "Database network is unreachable. If DATABASE_URL uses a Supabase direct "
+    "host such as db.[project-id].supabase.co, Render may be unable to reach "
+    "it over IPv6. Use the Supabase Shared Pooler session-mode URL instead: "
+    "postgres://postgres.[project-ref]:[PASSWORD]@aws-[REGION].pooler.supabase.com:"
+    "5432/postgres?sslmode=require, or enable the Supabase IPv4 add-on."
+)
 
 
 def run_migrations_offline() -> None:
@@ -51,10 +60,15 @@ async def run_async_migrations() -> None:
         connect_args=asyncpg_connect_args(app_settings.DATABASE_URL),
     )
 
-    async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations)
-
-    await connectable.dispose()
+    try:
+        async with connectable.connect() as connection:
+            await connection.run_sync(do_run_migrations)
+    except OSError as exc:
+        if exc.errno == errno.ENETUNREACH:
+            raise RuntimeError(NETWORK_UNREACHABLE_MESSAGE) from exc
+        raise
+    finally:
+        await connectable.dispose()
 
 
 def run_migrations_online() -> None:
