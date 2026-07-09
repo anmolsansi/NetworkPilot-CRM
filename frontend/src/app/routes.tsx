@@ -11,7 +11,7 @@ import { AppLayout } from '../components/layout/AppLayout'
 
 export function AppRoutes() {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
       <Routes>
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/login" element={<LoginPage />} />

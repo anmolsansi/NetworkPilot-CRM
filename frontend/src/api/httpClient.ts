@@ -1,6 +1,43 @@
 import { supabase } from '../auth/supabaseClient'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+const API_VERSION_PREFIX = '/api/v1'
+const API_LOG_PREFIX = '[NetworkPilot API]'
+
+export const API_BASE_URL = resolveApiBaseUrl(import.meta.env.VITE_API_BASE_URL)
+
+if (import.meta.env.VITE_API_BASE_URL && API_BASE_URL !== trimTrailingSlashes(import.meta.env.VITE_API_BASE_URL)) {
+  console.info(API_LOG_PREFIX, 'Normalized API base URL', {
+    configured: import.meta.env.VITE_API_BASE_URL,
+    resolved: API_BASE_URL,
+  })
+}
+
+export function resolveApiBaseUrl(configuredUrl?: string): string {
+  const fallbackUrl = configuredUrl?.trim() || API_VERSION_PREFIX
+  const normalizedUrl = trimTrailingSlashes(fallbackUrl)
+
+  if (normalizedUrl.endsWith(API_VERSION_PREFIX)) return normalizedUrl
+  if (normalizedUrl.endsWith('/api')) return `${normalizedUrl}/v1`
+  if (normalizedUrl.startsWith('/')) return normalizedUrl
+
+  try {
+    const url = new URL(normalizedUrl)
+    if (!url.pathname || url.pathname === '/') {
+      return `${url.origin}${API_VERSION_PREFIX}`
+    }
+  } catch {
+    console.warn(API_LOG_PREFIX, 'Using API base URL without URL normalization', {
+      configured: configuredUrl,
+      resolved: normalizedUrl,
+    })
+  }
+
+  return normalizedUrl
+}
+
+function trimTrailingSlashes(value: string): string {
+  return value.replace(/\/+$/, '')
+}
 
 async function getToken(): Promise<string | null> {
   const { data: { session } } = await supabase.auth.getSession()
@@ -25,12 +62,25 @@ async function request<T>(
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const url = `${API_BASE_URL}${path}`
+  console.debug(API_LOG_PREFIX, 'Request', {
+    method: options.method || 'GET',
+    path,
+    url,
+    authenticated: Boolean(token),
+  })
+
+  const response = await fetch(url, {
     ...options,
     headers,
   })
 
   if (response.status === 401) {
+    console.warn(API_LOG_PREFIX, 'Unauthorized response; signing out', {
+      method: options.method || 'GET',
+      path,
+      status: response.status,
+    })
     await supabase.auth.signOut()
     window.location.href = '/login'
     throw new Error('Unauthorized')
@@ -38,6 +88,13 @@ async function request<T>(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => null)
+    console.error(API_LOG_PREFIX, 'Request failed', {
+      method: options.method || 'GET',
+      path,
+      url,
+      status: response.status,
+      error: errorData?.error || null,
+    })
     throw {
       code: errorData?.error?.code || 'HTTP_ERROR',
       message: errorData?.error?.message || `Request failed with status ${response.status}`,
@@ -60,9 +117,22 @@ async function requestBlob(path: string): Promise<Blob> {
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, { headers })
+  const url = `${API_BASE_URL}${path}`
+  console.debug(API_LOG_PREFIX, 'Blob request', {
+    method: 'GET',
+    path,
+    url,
+    authenticated: Boolean(token),
+  })
+
+  const response = await fetch(url, { headers })
 
   if (response.status === 401) {
+    console.warn(API_LOG_PREFIX, 'Unauthorized blob response; signing out', {
+      method: 'GET',
+      path,
+      status: response.status,
+    })
     await supabase.auth.signOut()
     window.location.href = '/login'
     throw new Error('Unauthorized')
@@ -70,6 +140,13 @@ async function requestBlob(path: string): Promise<Blob> {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => null)
+    console.error(API_LOG_PREFIX, 'Blob request failed', {
+      method: 'GET',
+      path,
+      url,
+      status: response.status,
+      error: errorData?.error || null,
+    })
     throw {
       code: errorData?.error?.code || 'HTTP_ERROR',
       message: errorData?.error?.message || `Request failed with status ${response.status}`,
