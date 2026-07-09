@@ -38,7 +38,7 @@ npm run build
 |----------|-------------|---------|
 | `VITE_SUPABASE_URL` | Supabase project URL | `https://xxx.supabase.co` |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anon key | `eyJxxx...` |
-| `VITE_API_BASE_URL` | Backend API URL | `https://your-app.onrender.com/api/v1` |
+| `VITE_API_BASE_URL` | Backend API URL. The frontend appends `/api/v1` automatically when only the backend origin is configured. | `https://your-app.onrender.com/api/v1` |
 
 ### Post-Deploy
 1. Update backend `CORS_ORIGINS` to include your Vercel URL
