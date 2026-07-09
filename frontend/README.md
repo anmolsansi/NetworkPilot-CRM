@@ -43,3 +43,4 @@ npm run build
 ### Post-Deploy
 1. Update backend `CORS_ORIGINS` to include your Vercel URL
 2. Update Supabase Auth redirect URLs to include your Vercel URL
+3. Enable Google under Supabase Auth providers for OAuth login

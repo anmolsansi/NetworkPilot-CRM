@@ -78,6 +78,44 @@ export interface Template {
   variables: string[] | null
 }
 
+export interface Workspace {
+  id: string
+  name: string
+}
+
+async function setupRequest<T>(
+  apiUrl: string,
+  token: string,
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const response = await fetch(`${apiUrl.replace(/\/$/, '')}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      ...(options.headers as Record<string, string>),
+    },
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null)
+    throw errorData?.error || { code: 'HTTP_ERROR', message: `Request failed: ${response.status}` }
+  }
+
+  return response.json()
+}
+
+export const authSetupApi = {
+  listWorkspaces: (apiUrl: string, token: string) =>
+    setupRequest<Workspace[]>(apiUrl, token, '/workspaces'),
+  createWorkspace: (apiUrl: string, token: string, name: string) =>
+    setupRequest<Workspace>(apiUrl, token, '/workspaces', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+}
+
 export const extensionApi = {
   lookup: async (linkedinUrl: string) => {
     const authData = await getToken()
