@@ -22,9 +22,11 @@ export function PopupApp() {
   }, [])
 
   const init = async () => {
+    console.info('[NetworkPilot Extension Popup]', 'Initializing popup')
     // Check authentication
     const authed = await isAuthenticated()
     if (!authed) {
+      console.info('[NetworkPilot Extension Popup]', 'Popup unauthenticated')
       setViewState('unauthenticated')
       return
     }
@@ -32,6 +34,7 @@ export function PopupApp() {
     // Get active tab
     const tab = await getActiveTab()
     if (!tab) {
+      console.error('[NetworkPilot Extension Popup]', 'Could not access current tab')
       setError('Could not access current tab')
       setViewState('error')
       return
@@ -41,6 +44,9 @@ export function PopupApp() {
 
     // Validate LinkedIn profile URL
     if (!isLinkedInProfileUrl(tab.url)) {
+      console.info('[NetworkPilot Extension Popup]', 'Active tab is not a LinkedIn profile', {
+        urlLength: tab.url.length,
+      })
       setViewState('invalid_page')
       return
     }
@@ -48,12 +54,14 @@ export function PopupApp() {
     // Get workspace ID from storage
     const authData = await getToken()
     if (!authData) {
+      console.info('[NetworkPilot Extension Popup]', 'Auth data missing after auth check')
       setViewState('unauthenticated')
       return
     }
 
     const wsId = authData.workspaceId
     if (!wsId) {
+      console.error('[NetworkPilot Extension Popup]', 'Workspace ID missing in extension settings')
       setError('Please set workspace ID in extension settings')
       setViewState('error')
       return
@@ -63,25 +71,43 @@ export function PopupApp() {
     try {
       const normalized = normalizeLinkedInUrl(tab.url)
       if (!normalized) {
+        console.info('[NetworkPilot Extension Popup]', 'LinkedIn URL normalization failed')
         setViewState('invalid_page')
         return
       }
 
+      console.info('[NetworkPilot Extension Popup]', 'Looking up active LinkedIn profile', {
+        workspaceId: wsId.slice(-8),
+        slug: normalized.slug,
+      })
       const lookup = await extensionApi.lookup(tab.url)
       setLookupResult(lookup)
 
       if (lookup.found) {
+        console.info('[NetworkPilot Extension Popup]', 'Existing profile found', {
+          workspaceId: wsId.slice(-8),
+          personId: lookup.person_id?.slice(-8) || null,
+        })
         setViewState('existing_profile')
       } else {
+        console.info('[NetworkPilot Extension Popup]', 'New profile flow selected', {
+          workspaceId: wsId.slice(-8),
+          slug: normalized.slug,
+        })
         setViewState('new_profile')
       }
     } catch (err: any) {
+      console.error('[NetworkPilot Extension Popup]', 'Popup initialization failed', {
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Failed to lookup profile')
       setViewState('error')
     }
   }
 
   const handleSuccess = () => {
+    console.info('[NetworkPilot Extension Popup]', 'Action succeeded; refreshing popup state')
     init()
   }
 
@@ -113,3 +139,5 @@ export function PopupApp() {
       return <LoadingView />
   }
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=extension/src/popup/PopupApp.tsx')

@@ -1,10 +1,11 @@
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_db
-from app.models.user import AppUser
+from app.api.deps import get_db
+from app.core.logging import get_logger, mask_id
 from app.schemas.people import (
     ArchiveRequest,
     PersonCreate,
@@ -16,7 +17,10 @@ from app.schemas.people import (
 from app.services.people_service import PeopleService
 from app.services.workspace_service import require_workspace_access
 
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 router = APIRouter()
+logger = get_logger(__name__)
 
 
 @router.get("", response_model=PersonListResponse)
@@ -32,6 +36,15 @@ async def list_people(
     db: AsyncSession = Depends(get_db),
 ):
     """List people in workspace with filters."""
+    logger.info(
+        "people.list.started workspace_id=%s page=%s limit=%s stage=%s priority=%s status=%s",
+        mask_id(str(workspace_id)),
+        page,
+        limit,
+        stage,
+        priority,
+        status,
+    )
     service = PeopleService(db)
     people, total = await service.list(
         workspace_id=workspace_id,
@@ -41,6 +54,12 @@ async def list_people(
         search=search,
         page=page,
         limit=limit,
+    )
+    logger.info(
+        "people.list.completed workspace_id=%s count=%s total=%s",
+        mask_id(str(workspace_id)),
+        len(people),
+        total,
     )
     return PersonListResponse(
         items=[PersonResponse.model_validate(p) for p in people],
@@ -58,8 +77,20 @@ async def create_person(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new person."""
+    logger.info(
+        "people.create.started workspace_id=%s priority=%s url_present=%s",
+        mask_id(str(workspace_id)),
+        data.priority,
+        bool(data.linkedin_url),
+    )
     service = PeopleService(db)
     person = await service.create(workspace_id, data)
+    logger.info(
+        "people.create.completed workspace_id=%s person_id=%s stage=%s",
+        mask_id(str(workspace_id)),
+        mask_id(str(person.id)),
+        person.stage,
+    )
     return person
 
 
@@ -71,8 +102,19 @@ async def get_person(
     db: AsyncSession = Depends(get_db),
 ):
     """Get a person by ID."""
+    logger.info(
+        "people.get.started workspace_id=%s person_id=%s",
+        mask_id(str(workspace_id)),
+        mask_id(str(person_id)),
+    )
     service = PeopleService(db)
     person = await service.get(workspace_id, person_id)
+    logger.info(
+        "people.get.completed workspace_id=%s person_id=%s stage=%s",
+        mask_id(str(workspace_id)),
+        mask_id(str(person.id)),
+        person.stage,
+    )
     return person
 
 
@@ -85,8 +127,19 @@ async def update_person(
     db: AsyncSession = Depends(get_db),
 ):
     """Update a person."""
+    logger.info(
+        "people.update.started workspace_id=%s person_id=%s fields=%s",
+        mask_id(str(workspace_id)),
+        mask_id(str(person_id)),
+        sorted(data.model_dump(exclude_unset=True).keys()),
+    )
     service = PeopleService(db)
     person = await service.update(workspace_id, person_id, data)
+    logger.info(
+        "people.update.completed workspace_id=%s person_id=%s",
+        mask_id(str(workspace_id)),
+        mask_id(str(person.id)),
+    )
     return person
 
 
@@ -98,8 +151,18 @@ async def delete_person(
     db: AsyncSession = Depends(get_db),
 ):
     """Soft delete a person."""
+    logger.info(
+        "people.delete.started workspace_id=%s person_id=%s",
+        mask_id(str(workspace_id)),
+        mask_id(str(person_id)),
+    )
     service = PeopleService(db)
     await service.soft_delete(workspace_id, person_id)
+    logger.info(
+        "people.delete.completed workspace_id=%s person_id=%s",
+        mask_id(str(workspace_id)),
+        mask_id(str(person_id)),
+    )
 
 
 @router.post("/{person_id}/snooze", response_model=PersonResponse)
@@ -111,8 +174,19 @@ async def snooze_person(
     db: AsyncSession = Depends(get_db),
 ):
     """Snooze a person until a date."""
+    logger.info(
+        "people.snooze.started workspace_id=%s person_id=%s until_date=%s",
+        mask_id(str(workspace_id)),
+        mask_id(str(person_id)),
+        data.until_date,
+    )
     service = PeopleService(db)
     person = await service.snooze(workspace_id, person_id, data.until_date)
+    logger.info(
+        "people.snooze.completed workspace_id=%s person_id=%s",
+        mask_id(str(workspace_id)),
+        mask_id(str(person.id)),
+    )
     return person
 
 
@@ -125,6 +199,17 @@ async def archive_person(
     db: AsyncSession = Depends(get_db),
 ):
     """Archive a person."""
+    logger.info(
+        "people.archive.started workspace_id=%s person_id=%s notes_present=%s",
+        mask_id(str(workspace_id)),
+        mask_id(str(person_id)),
+        bool(data.notes),
+    )
     service = PeopleService(db)
     person = await service.archive(workspace_id, person_id)
+    logger.info(
+        "people.archive.completed workspace_id=%s person_id=%s",
+        mask_id(str(workspace_id)),
+        mask_id(str(person.id)),
+    )
     return person

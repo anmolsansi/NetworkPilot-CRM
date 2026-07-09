@@ -8,3 +8,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <App />
   </React.StrictMode>,
 )
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/main.tsx')

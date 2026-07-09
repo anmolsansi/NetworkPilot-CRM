@@ -1,9 +1,11 @@
+import logging
 import uuid
 from datetime import date
 
 from pydantic import BaseModel, Field
 
-
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 class ExtensionLookupRequest(BaseModel):
     linkedin_url: str = Field(..., min_length=1)
     workspace_id: uuid.UUID

@@ -23,10 +23,14 @@ export function TemplateCopyPanel({ person }: Props) {
   const fetchTemplates = async () => {
     setLoading(true)
     try {
+      console.info('[NetworkPilot Extension Templates]', 'Loading templates')
       const data = await extensionApi.getTemplates()
       setTemplates(data)
+      console.info('[NetworkPilot Extension Templates]', 'Templates loaded', {
+        count: data.length,
+      })
     } catch (error) {
-      console.error('Failed to fetch templates:', error)
+      console.error('[NetworkPilot Extension Templates]', 'Failed to fetch templates', { error })
     } finally {
       setLoading(false)
     }
@@ -34,6 +38,11 @@ export function TemplateCopyPanel({ person }: Props) {
 
   const handleCopy = async (template: Template) => {
     const rendered = person ? renderTemplate(template.body, person) : template.body
+    console.info('[NetworkPilot Extension Templates]', 'Copying rendered template', {
+      templateId: template.id.slice(-8),
+      category: template.category,
+      renderedLength: rendered.length,
+    })
     await navigator.clipboard.writeText(rendered)
     setCopiedId(template.id)
     setTimeout(() => setCopiedId(null), 2000)
@@ -99,3 +108,5 @@ export function TemplateCopyPanel({ person }: Props) {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=extension/src/popup/TemplateCopyPanel.tsx')

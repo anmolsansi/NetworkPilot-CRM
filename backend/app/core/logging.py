@@ -3,7 +3,8 @@ import sys
 
 from app.core.config import settings
 
-
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 def setup_logging() -> None:
     log_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
 
@@ -22,3 +23,11 @@ def setup_logging() -> None:
 
 def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
+
+
+def mask_id(value: str | None) -> str | None:
+    if not value:
+        return None
+    if len(value) <= 8:
+        return value
+    return f"...{value[-8:]}"

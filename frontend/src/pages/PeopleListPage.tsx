@@ -74,6 +74,13 @@ export function PeopleListPage() {
   const fetchPeople = async () => {
     if (!currentWorkspace) return
 
+    console.info('[NetworkPilot PeopleList]', 'Loading people', {
+      workspaceId: currentWorkspace.id.slice(-8),
+      page,
+      hasSearch: Boolean(search),
+      stageFilter,
+      priorityFilter,
+    })
     setLoading(true)
     setError(null)
     try {
@@ -89,7 +96,17 @@ export function PeopleListPage() {
       const response: PeopleResponse = await peopleApi.list(params)
       setPeople(response.items)
       setTotal(response.total)
+      console.info('[NetworkPilot PeopleList]', 'People loaded', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        count: response.items.length,
+        total: response.total,
+      })
     } catch (err: any) {
+      console.error('[NetworkPilot PeopleList]', 'Failed to load people', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Failed to load people')
     } finally {
       setLoading(false)
@@ -109,6 +126,11 @@ export function PeopleListPage() {
   const handleExport = async () => {
     if (!currentWorkspace) return
 
+    console.info('[NetworkPilot PeopleList]', 'Exporting people CSV', {
+      workspaceId: currentWorkspace.id.slice(-8),
+      stageFilter,
+      priorityFilter,
+    })
     setExporting(true)
     setError(null)
     try {
@@ -119,7 +141,16 @@ export function PeopleListPage() {
       if (priorityFilter) params.priority = priorityFilter
       const blob = await exportsApi.peopleCsv(params)
       downloadCsvBlob(blob, 'networkpilot-people-export.csv')
+      console.info('[NetworkPilot PeopleList]', 'People CSV exported', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        byteSize: blob.size,
+      })
     } catch (err: any) {
+      console.error('[NetworkPilot PeopleList]', 'People CSV export failed', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Failed to export people')
     } finally {
       setExporting(false)
@@ -292,3 +323,5 @@ export function PeopleListPage() {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/pages/PeopleListPage.tsx')

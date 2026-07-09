@@ -1,6 +1,9 @@
+import logging
 import re
 from urllib.parse import urlparse
 
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 # Valid LinkedIn profile URL patterns
 LINKEDIN_PROFILE_PATTERN = re.compile(r"^linkedin\.com/in/[a-zA-Z0-9_-]+/?$")
 

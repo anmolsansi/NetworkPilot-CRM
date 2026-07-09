@@ -84,3 +84,5 @@ describe('AuthCallbackPage', () => {
     expect(navigateMock).not.toHaveBeenCalled()
   })
 })
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/pages/AuthCallbackPage.test.tsx')

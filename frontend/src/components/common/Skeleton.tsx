@@ -9,3 +9,5 @@ export function Skeleton({ className = '' }: SkeletonProps) {
     />
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/components/common/Skeleton.tsx')

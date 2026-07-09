@@ -14,3 +14,5 @@ describe('Badge', () => {
     expect(badge.className).toContain('bg-green-100')
   })
 })
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/components/common/Badge.test.tsx')

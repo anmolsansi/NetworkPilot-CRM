@@ -1,3 +1,4 @@
+import logging
 import base64
 import uuid
 
@@ -9,6 +10,9 @@ from app.core import security
 from app.core.config import settings
 
 
+
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 def test_verify_supabase_token_accepts_hs256(monkeypatch):
     user_id = uuid.uuid4()
     monkeypatch.setattr(settings, "JWT_SECRET", "test-secret")

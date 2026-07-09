@@ -14,3 +14,5 @@ export function renderTemplate(body: string, person: PersonData): string {
     .replace(/\{\{role\}\}/g, person.role || '')
     .replace(/\{\{.*?\}\}/g, '')
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=extension/src/utils/templateRender.ts')

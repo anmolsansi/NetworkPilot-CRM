@@ -88,3 +88,5 @@ function getCallbackParams(): URLSearchParams {
 
   return hashParams
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/pages/AuthCallbackPage.tsx')

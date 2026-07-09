@@ -20,3 +20,5 @@ export function Badge({ variant, children }: BadgeProps) {
     </span>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/components/common/Badge.tsx')

@@ -1,3 +1,4 @@
+import logging
 import time
 import uuid
 
@@ -15,6 +16,8 @@ from app.core.errors import (
 )
 from app.core.logging import get_logger, setup_logging
 
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 logger = get_logger(__name__)
 
 

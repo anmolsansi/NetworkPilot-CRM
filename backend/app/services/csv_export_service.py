@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import date
 
@@ -9,6 +10,8 @@ from app.models.person import Person
 from app.schemas.exports import PeopleExportFilters
 from app.services.csv_sanitizer import write_csv
 
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 DEFAULT_EXPORT_FIELDS = [
     "name",
     "linkedin_url",

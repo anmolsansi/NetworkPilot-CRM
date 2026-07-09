@@ -43,3 +43,5 @@ function sanitizeDetails(details: Record<string, unknown>): Record<string, unkno
     })
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/utils/logger.ts')

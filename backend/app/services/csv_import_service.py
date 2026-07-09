@@ -1,4 +1,5 @@
 import csv
+import logging
 import uuid
 from datetime import date
 from io import StringIO
@@ -24,6 +25,8 @@ from app.services.activity_service import ActivityService
 from app.services.people_service import PeopleService
 from app.services.url_normalizer import normalize_linkedin_url
 
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 FIELD_ALIASES = {
     "current_role": "current_role",
     "role": "current_role",

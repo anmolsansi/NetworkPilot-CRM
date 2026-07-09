@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -5,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.core.config import settings
 from app.db.database_url import asyncpg_connect_args, normalize_asyncpg_url
 
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 engine = create_async_engine(
     normalize_asyncpg_url(settings.DATABASE_URL),
     echo=False,

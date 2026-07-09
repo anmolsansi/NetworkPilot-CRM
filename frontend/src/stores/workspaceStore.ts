@@ -61,3 +61,5 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     set({ currentWorkspace: workspace })
   },
 }))
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/stores/workspaceStore.ts')

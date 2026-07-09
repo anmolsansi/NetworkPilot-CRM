@@ -1,9 +1,20 @@
+import logging
+
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
+
 
 class AppError(Exception):
-    def __init__(self, code: str, message: str, details: dict | None = None, status_code: int = 400):
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        details: dict | None = None,
+        status_code: int = 400,
+    ):
         self.code = code
         self.message = message
         self.details = details

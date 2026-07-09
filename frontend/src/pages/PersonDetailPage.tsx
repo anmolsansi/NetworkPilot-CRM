@@ -47,6 +47,10 @@ export function PersonDetailPage() {
   const fetchData = async () => {
     if (!currentWorkspace || !id) return
 
+    console.info('[NetworkPilot PersonDetail]', 'Loading person detail', {
+      workspaceId: currentWorkspace.id.slice(-8),
+      personId: id.slice(-8),
+    })
     setLoading(true)
     setError(null)
     try {
@@ -62,7 +66,19 @@ export function PersonDetailPage() {
         company: personData.company || '',
         notes: personData.notes || '',
       })
+      console.info('[NetworkPilot PersonDetail]', 'Person detail loaded', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        personId: id.slice(-8),
+        activityCount: activitiesData.length,
+        stage: personData.stage,
+      })
     } catch (err: any) {
+      console.error('[NetworkPilot PersonDetail]', 'Failed to load person detail', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        personId: id.slice(-8),
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Failed to load person')
     } finally {
       setLoading(false)
@@ -77,10 +93,20 @@ export function PersonDetailPage() {
     if (!currentWorkspace || !id) return
 
     try {
+      console.info('[NetworkPilot PersonDetail]', 'Saving person profile', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        personId: id.slice(-8),
+      })
       await peopleApi.update(id, editForm, currentWorkspace.id)
       setEditing(false)
       fetchData()
     } catch (err: any) {
+      console.error('[NetworkPilot PersonDetail]', 'Failed to save person profile', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        personId: id.slice(-8),
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Failed to update person')
     }
   }
@@ -89,6 +115,11 @@ export function PersonDetailPage() {
     if (!currentWorkspace || !id) return
 
     try {
+      console.info('[NetworkPilot PersonDetail]', 'Recording quick action', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        personId: id.slice(-8),
+        actionType,
+      })
       await activitiesApi.create(id, {
         action_type: actionType,
         source: 'web_app',
@@ -97,6 +128,13 @@ export function PersonDetailPage() {
       setActionNote('')
       fetchData()
     } catch (err: any) {
+      console.error('[NetworkPilot PersonDetail]', 'Failed to record quick action', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        personId: id.slice(-8),
+        actionType,
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Failed to record action')
     }
   }
@@ -105,9 +143,19 @@ export function PersonDetailPage() {
     if (!currentWorkspace || !id) return
 
     try {
+      console.info('[NetworkPilot PersonDetail]', 'Archiving person', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        personId: id.slice(-8),
+      })
       await peopleApi.archive(id, {}, currentWorkspace.id)
       fetchData()
     } catch (err: any) {
+      console.error('[NetworkPilot PersonDetail]', 'Failed to archive person', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        personId: id.slice(-8),
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Failed to archive person')
     }
   }
@@ -248,3 +296,5 @@ export function PersonDetailPage() {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/pages/PersonDetailPage.tsx')

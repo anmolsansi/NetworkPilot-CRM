@@ -66,3 +66,5 @@ export function Modal({ isOpen, onClose, title, size = 'md', children }: ModalPr
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/components/common/Modal.tsx')

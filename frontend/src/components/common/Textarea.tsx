@@ -28,3 +28,5 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
 )
 
 Textarea.displayName = 'Textarea'
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/components/common/Textarea.tsx')

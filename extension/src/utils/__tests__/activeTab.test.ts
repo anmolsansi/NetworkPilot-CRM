@@ -36,3 +36,5 @@ describe('extractNameFromTitle', () => {
     expect(extractNameFromTitle(title)).toBe('John Doe')
   })
 })
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=extension/src/utils/__tests__/activeTab.test.ts')

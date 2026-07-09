@@ -37,3 +37,5 @@ export function Sidebar() {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/components/layout/Sidebar.tsx')

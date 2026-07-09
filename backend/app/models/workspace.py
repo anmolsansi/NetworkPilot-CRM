@@ -1,11 +1,21 @@
+import logging
 import uuid
-from datetime import datetime, time
+from datetime import time
+from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Time, func
+from sqlalchemy import ForeignKey, Integer, Text, Time
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from app.models.person import Person
+    from app.models.template import MessageTemplate
+    from app.models.user import AppUser
+
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 
 
 class Workspace(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
@@ -30,7 +40,9 @@ class Workspace(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
     members: Mapped[list["WorkspaceMember"]] = relationship(
         "WorkspaceMember", back_populates="workspace", lazy="selectin"
     )
-    people: Mapped[list["Person"]] = relationship("Person", back_populates="workspace", lazy="selectin")
+    people: Mapped[list["Person"]] = relationship(
+        "Person", back_populates="workspace", lazy="selectin"
+    )
     templates: Mapped[list["MessageTemplate"]] = relationship(
         "MessageTemplate", back_populates="workspace", lazy="selectin"
     )

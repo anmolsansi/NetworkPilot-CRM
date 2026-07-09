@@ -269,3 +269,5 @@ export const calendarApi = {
   getReminderLink: (workspaceId: string) =>
     request<any>(`/calendar/daily-reminder-link?workspace_id=${workspaceId}`),
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/api/httpClient.ts')

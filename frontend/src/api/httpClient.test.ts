@@ -24,3 +24,5 @@ describe('resolveApiBaseUrl', () => {
     )
   })
 })
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/api/httpClient.test.ts')

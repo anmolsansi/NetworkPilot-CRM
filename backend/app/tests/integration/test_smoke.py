@@ -1,6 +1,10 @@
+import logging
 import pytest
 from httpx import AsyncClient
 
+
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 @pytest.mark.anyio
 class TestMVPSmokeFlow:
     async def test_mvp_flow(self, client: AsyncClient, mock_headers: dict):

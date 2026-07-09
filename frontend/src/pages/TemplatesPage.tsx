@@ -44,12 +44,24 @@ export function TemplatesPage() {
   const fetchTemplates = async () => {
     if (!currentWorkspace) return
 
+    console.info('[NetworkPilot Templates]', 'Loading templates', {
+      workspaceId: currentWorkspace.id.slice(-8),
+    })
     setLoading(true)
     setError(null)
     try {
       const data = await templatesApi.list(currentWorkspace.id)
       setTemplates(data)
+      console.info('[NetworkPilot Templates]', 'Templates loaded', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        count: data.length,
+      })
     } catch (err: any) {
+      console.error('[NetworkPilot Templates]', 'Failed to load templates', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Failed to load templates')
     } finally {
       setLoading(false)
@@ -75,6 +87,11 @@ export function TemplatesPage() {
     if (!currentWorkspace) return
 
     try {
+      console.info('[NetworkPilot Templates]', 'Saving template', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        templateId: editingTemplate?.id.slice(-8) || null,
+        category: form.category,
+      })
       if (editingTemplate) {
         await templatesApi.update(editingTemplate.id, form, currentWorkspace.id)
       } else {
@@ -83,6 +100,12 @@ export function TemplatesPage() {
       setShowModal(false)
       fetchTemplates()
     } catch (err: any) {
+      console.error('[NetworkPilot Templates]', 'Failed to save template', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        templateId: editingTemplate?.id.slice(-8) || null,
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Failed to save template')
     }
   }
@@ -91,14 +114,28 @@ export function TemplatesPage() {
     if (!currentWorkspace || !confirm('Delete this template?')) return
 
     try {
+      console.info('[NetworkPilot Templates]', 'Deleting template', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        templateId: id.slice(-8),
+      })
       await templatesApi.delete(id, currentWorkspace.id)
       fetchTemplates()
     } catch (err: any) {
+      console.error('[NetworkPilot Templates]', 'Failed to delete template', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        templateId: id.slice(-8),
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Failed to delete template')
     }
   }
 
   const handleCopy = async (template: Template) => {
+    console.info('[NetworkPilot Templates]', 'Copying template body', {
+      templateId: template.id.slice(-8),
+      category: template.category,
+    })
     await navigator.clipboard.writeText(template.body)
     setCopiedId(template.id)
     setTimeout(() => setCopiedId(null), 2000)
@@ -224,3 +261,5 @@ export function TemplatesPage() {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/pages/TemplatesPage.tsx')

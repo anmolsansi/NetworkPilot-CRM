@@ -1,6 +1,10 @@
+import logging
 from app.db.database_url import asyncpg_connect_args, normalize_asyncpg_url
 
 
+
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 def test_normalizes_plain_postgresql_url_to_asyncpg() -> None:
     url = "postgresql://postgres:secret@db.example.supabase.co:5432/postgres"
 

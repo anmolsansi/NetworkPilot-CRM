@@ -8,3 +8,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <PopupApp />
   </React.StrictMode>,
 )
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=extension/src/popup/main.tsx')

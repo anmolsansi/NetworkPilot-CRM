@@ -53,10 +53,20 @@ export function ImportCsvModal({ isOpen, workspaceId, onClose, onImported }: Imp
 
   const handlePreview = async () => {
     if (!file) {
+      console.warn('[NetworkPilot ImportCsv]', 'Preview requested without a file', {
+        workspaceId: workspaceId.slice(-8),
+      })
       setError('Choose a CSV file first.')
       return
     }
 
+    console.info('[NetworkPilot ImportCsv]', 'Previewing CSV import', {
+      workspaceId: workspaceId.slice(-8),
+      filename: file.name,
+      defaultAction,
+      defaultPriority,
+      byteSize: file.size,
+    })
     setImporting(true)
     setError(null)
     try {
@@ -69,7 +79,18 @@ export function ImportCsvModal({ isOpen, workspaceId, onClose, onImported }: Imp
       const result = await importsApi.previewPeople(formData)
       setPreview(result)
       setSummary(null)
+      console.info('[NetworkPilot ImportCsv]', 'CSV import preview loaded', {
+        workspaceId: workspaceId.slice(-8),
+        totalRows: result.summary.total_rows,
+        validRows: result.summary.valid_rows,
+        invalidRows: result.summary.invalid_rows,
+      })
     } catch (err: any) {
+      console.error('[NetworkPilot ImportCsv]', 'CSV import preview failed', {
+        workspaceId: workspaceId.slice(-8),
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Preview failed')
     } finally {
       setImporting(false)
@@ -79,6 +100,10 @@ export function ImportCsvModal({ isOpen, workspaceId, onClose, onImported }: Imp
   const handleCommit = async () => {
     if (!preview) return
 
+    console.info('[NetworkPilot ImportCsv]', 'Committing CSV import', {
+      workspaceId: workspaceId.slice(-8),
+      importBatchId: preview.import_batch_id?.slice(-8) || null,
+    })
     setImporting(true)
     setError(null)
     try {
@@ -109,7 +134,17 @@ export function ImportCsvModal({ isOpen, workspaceId, onClose, onImported }: Imp
       setSummary(result.summary)
       setPreview(null)
       onImported()
+      console.info('[NetworkPilot ImportCsv]', 'CSV import committed', {
+        workspaceId: workspaceId.slice(-8),
+        created: result.summary.created_count,
+        failed: result.summary.failed_count,
+      })
     } catch (err: any) {
+      console.error('[NetworkPilot ImportCsv]', 'CSV import commit failed', {
+        workspaceId: workspaceId.slice(-8),
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Import failed')
     } finally {
       setImporting(false)
@@ -118,6 +153,10 @@ export function ImportCsvModal({ isOpen, workspaceId, onClose, onImported }: Imp
 
   const downloadErrorReport = () => {
     if (!preview) return
+    console.info('[NetworkPilot ImportCsv]', 'Downloading import error report', {
+      workspaceId: workspaceId.slice(-8),
+      importBatchId: preview.import_batch_id?.slice(-8) || null,
+    })
     const rows = preview.rows.filter((row: any) => row.status !== 'valid')
     const csv = [
       'row_number,status,name,linkedin_url,errors',
@@ -240,3 +279,5 @@ function Summary({ label, value }: { label: string; value: number }) {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/components/imports/ImportCsvModal.tsx')
