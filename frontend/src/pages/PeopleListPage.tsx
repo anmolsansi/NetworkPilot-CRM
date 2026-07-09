@@ -159,6 +159,19 @@ export function PeopleListPage() {
 
   const totalPages = Math.ceil(total / 20)
 
+  if (!currentWorkspace) {
+    return (
+      <div>
+        <h1 className="text-2xl font-semibold text-gray-900">People</h1>
+        <EmptyState
+          title="Create a workspace first"
+          description="Create a workspace before adding people, importing CSVs, or exporting contacts."
+          action={<Button onClick={() => navigate('/')}>Go to Dashboard</Button>}
+        />
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useWorkspaceStore } from '../stores/workspaceStore'
 import { templatesApi } from '../api/httpClient'
 import { Button } from '../components/common/Button'
@@ -32,6 +33,7 @@ const categoryLabels: Record<string, string> = {
 }
 
 export function TemplatesPage() {
+  const navigate = useNavigate()
   const { currentWorkspace } = useWorkspaceStore()
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
@@ -147,6 +149,19 @@ export function TemplatesPage() {
       .replace(/\{\{name\}\}/g, '{{name}}')
       .replace(/\{\{company\}\}/g, '{{company}}')
       .replace(/\{\{role\}\}/g, '{{role}}')
+  }
+
+  if (!currentWorkspace) {
+    return (
+      <div>
+        <h1 className="text-2xl font-semibold text-gray-900">Templates</h1>
+        <EmptyState
+          title="Create a workspace first"
+          description="Create a workspace before managing message templates."
+          action={<Button onClick={() => navigate('/')}>Go to Dashboard</Button>}
+        />
+      </div>
+    )
   }
 
   if (loading) {

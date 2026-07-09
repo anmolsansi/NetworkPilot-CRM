@@ -4,6 +4,7 @@ import { LoginPage } from '../pages/LoginPage'
 import { AuthCallbackPage } from '../pages/AuthCallbackPage'
 import { DashboardPage } from '../pages/DashboardPage'
 import { PeopleListPage } from '../pages/PeopleListPage'
+import { PersonCreatePage } from '../pages/PersonCreatePage'
 import { PersonDetailPage } from '../pages/PersonDetailPage'
 import { TemplatesPage } from '../pages/TemplatesPage'
 import { SettingsPage } from '../pages/SettingsPage'
@@ -25,6 +26,7 @@ export function AppRoutes() {
         >
           <Route index element={<DashboardPage />} />
           <Route path="people" element={<PeopleListPage />} />
+          <Route path="people/new" element={<PersonCreatePage />} />
           <Route path="people/:id" element={<PersonDetailPage />} />
           <Route path="templates" element={<TemplatesPage />} />
           <Route path="settings" element={<SettingsPage />} />

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useWorkspaceStore } from '../stores/workspaceStore'
 import { workspaceApi, calendarApi } from '../api/httpClient'
 import { Button } from '../components/common/Button'
 import { Input } from '../components/common/Input'
 import { Select } from '../components/common/Select'
-import { Skeleton } from '../components/common/Skeleton'
 import { ErrorAlert } from '../components/common/ErrorAlert'
+import { EmptyState } from '../components/common/EmptyState'
 
 const timezones = [
   { value: 'UTC', label: 'UTC' },
@@ -19,6 +20,7 @@ const timezones = [
 ]
 
 export function SettingsPage() {
+  const navigate = useNavigate()
   const { currentWorkspace, fetchWorkspaces } = useWorkspaceStore()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -95,7 +97,16 @@ export function SettingsPage() {
   }
 
   if (!currentWorkspace) {
-    return <Skeleton className="h-64 rounded-lg" />
+    return (
+      <div>
+        <h1 className="text-2xl font-semibold text-gray-900">Settings</h1>
+        <EmptyState
+          title="Create a workspace first"
+          description="Create a workspace before configuring workspace settings and reminders."
+          action={<Button onClick={() => navigate('/')}>Go to Dashboard</Button>}
+        />
+      </div>
+    )
   }
 
   return (
