@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../auth/supabaseClient'
+import { logError, logInfo } from '../utils/logger'
 
 export function LoginPage() {
   const [email, setEmail] = useState('')
@@ -15,15 +16,27 @@ export function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    logInfo('LoginPage', 'Submitting email auth form', {
+      mode: isSignUp ? 'sign-up' : 'sign-in',
+      identifierProvided: Boolean(email),
+    })
 
     const { error } = isSignUp
       ? await supabase.auth.signUp({ email, password })
       : await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
+      logError('LoginPage', 'Email auth failed', {
+        mode: isSignUp ? 'sign-up' : 'sign-in',
+        message: error.message,
+        name: error.name,
+      })
       setError(error.message)
       setLoading(false)
     } else {
+      logInfo('LoginPage', 'Email auth succeeded; entering app', {
+        mode: isSignUp ? 'sign-up' : 'sign-in',
+      })
       navigate('/')
     }
   }
@@ -31,6 +44,9 @@ export function LoginPage() {
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true)
     setError(null)
+    logInfo('LoginPage', 'Starting Google OAuth redirect', {
+      redirectTo: `${window.location.origin}/auth/callback`,
+    })
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -40,6 +56,10 @@ export function LoginPage() {
     })
 
     if (error) {
+      logError('LoginPage', 'Google OAuth redirect failed', {
+        message: error.message,
+        name: error.name,
+      })
       setError(error.message)
       setGoogleLoading(false)
     }

@@ -5,12 +5,15 @@ import { Topbar } from './Topbar'
 import { ErrorAlert } from '../common/ErrorAlert'
 import { Skeleton } from '../common/Skeleton'
 import { useWorkspaceStore } from '../../stores/workspaceStore'
+import { logError, logInfo } from '../../utils/logger'
 
 export function AppLayout() {
   const { loading, error, fetchWorkspaces } = useWorkspaceStore()
 
   useEffect(() => {
+    logInfo('AppLayout', 'Authenticated layout mounted; loading workspaces')
     fetchWorkspaces().catch(() => {
+      logError('AppLayout', 'Workspace loading failed in authenticated layout')
       // The store owns the visible error state.
     })
   }, [fetchWorkspaces])

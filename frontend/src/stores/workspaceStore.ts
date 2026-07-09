@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { workspaceApi } from '../api/httpClient'
+import { logError, logInfo, maskId } from '../utils/logger'
 
 interface Workspace {
   id: string
@@ -26,6 +27,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   loading: false,
   error: null,
   fetchWorkspaces: async () => {
+    logInfo('WorkspaceStore', 'Loading workspaces')
     set({ loading: true, error: null })
     try {
       const workspaces = await workspaceApi.list()
@@ -35,14 +37,27 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
         workspaces[0] ??
         null
 
+      logInfo('WorkspaceStore', 'Workspaces loaded', {
+        count: workspaces.length,
+        previousWorkspaceId: maskId(currentWorkspace?.id),
+        selectedWorkspaceId: maskId(selectedWorkspace?.id),
+      })
       set({ workspaces, currentWorkspace: selectedWorkspace, loading: false })
     } catch (error: any) {
       const message = error?.message || 'Failed to load workspaces'
+      logError('WorkspaceStore', 'Failed to load workspaces', {
+        message,
+        code: error?.code,
+        details: error?.details,
+      })
       set({ loading: false, error: message })
       throw error
     }
   },
   setCurrentWorkspace: (workspace) => {
+    logInfo('WorkspaceStore', 'Current workspace changed', {
+      selectedWorkspaceId: maskId(workspace?.id),
+    })
     set({ currentWorkspace: workspace })
   },
 }))

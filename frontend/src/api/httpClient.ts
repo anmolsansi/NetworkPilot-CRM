@@ -63,6 +63,7 @@ async function request<T>(
   }
 
   const url = `${API_BASE_URL}${path}`
+  const startedAt = Date.now()
   console.debug(API_LOG_PREFIX, 'Request', {
     method: options.method || 'GET',
     path,
@@ -80,6 +81,7 @@ async function request<T>(
       method: options.method || 'GET',
       path,
       status: response.status,
+      durationMs: Date.now() - startedAt,
     })
     await supabase.auth.signOut()
     window.location.href = '/login'
@@ -93,6 +95,7 @@ async function request<T>(
       path,
       url,
       status: response.status,
+      durationMs: Date.now() - startedAt,
       error: errorData?.error || null,
     })
     throw {
@@ -103,9 +106,21 @@ async function request<T>(
   }
 
   if (response.status === 204) {
+    console.debug(API_LOG_PREFIX, 'Request succeeded with no content', {
+      method: options.method || 'GET',
+      path,
+      status: response.status,
+      durationMs: Date.now() - startedAt,
+    })
     return undefined as T
   }
 
+  console.debug(API_LOG_PREFIX, 'Request succeeded', {
+    method: options.method || 'GET',
+    path,
+    status: response.status,
+    durationMs: Date.now() - startedAt,
+  })
   return response.json()
 }
 
@@ -118,6 +133,7 @@ async function requestBlob(path: string): Promise<Blob> {
   }
 
   const url = `${API_BASE_URL}${path}`
+  const startedAt = Date.now()
   console.debug(API_LOG_PREFIX, 'Blob request', {
     method: 'GET',
     path,
@@ -132,6 +148,7 @@ async function requestBlob(path: string): Promise<Blob> {
       method: 'GET',
       path,
       status: response.status,
+      durationMs: Date.now() - startedAt,
     })
     await supabase.auth.signOut()
     window.location.href = '/login'
@@ -145,6 +162,7 @@ async function requestBlob(path: string): Promise<Blob> {
       path,
       url,
       status: response.status,
+      durationMs: Date.now() - startedAt,
       error: errorData?.error || null,
     })
     throw {
@@ -154,7 +172,15 @@ async function requestBlob(path: string): Promise<Blob> {
     }
   }
 
-  return response.blob()
+  const blob = await response.blob()
+  console.debug(API_LOG_PREFIX, 'Blob request succeeded', {
+    method: 'GET',
+    path,
+    status: response.status,
+    durationMs: Date.now() - startedAt,
+    byteSize: blob.size,
+  })
+  return blob
 }
 
 // User API
