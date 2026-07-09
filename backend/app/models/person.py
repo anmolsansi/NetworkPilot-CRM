@@ -1,11 +1,20 @@
+import logging
 import uuid
-from datetime import date, datetime
+from datetime import date
+from typing import TYPE_CHECKING
 
-from sqlalchemy import ARRAY, DateTime, Date, ForeignKey, String, Text, func
+from sqlalchemy import ARRAY, Date, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from app.models.activity import Activity
+    from app.models.workspace import Workspace
+
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 
 
 class Person(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):

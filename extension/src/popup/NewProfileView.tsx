@@ -32,6 +32,7 @@ export function NewProfileView({ url, suggestedName, onSuccess }: Props) {
 
   const handleSave = async () => {
     if (!name.trim()) {
+      console.warn('[NetworkPilot Extension NewProfile]', 'Save blocked; missing profile name')
       setError('Name is required')
       return
     }
@@ -40,6 +41,11 @@ export function NewProfileView({ url, suggestedName, onSuccess }: Props) {
     setError(null)
 
     try {
+      console.info('[NetworkPilot Extension NewProfile]', 'Saving new profile', {
+        urlLength: url.length,
+        priority,
+        initialAction,
+      })
       await extensionApi.quickCreate({
         linkedin_url: url,
         name: name.trim(),
@@ -50,8 +56,13 @@ export function NewProfileView({ url, suggestedName, onSuccess }: Props) {
         notes: notes.trim() || undefined,
       })
       setSuccess(true)
+      console.info('[NetworkPilot Extension NewProfile]', 'New profile saved')
       setTimeout(onSuccess, 1500)
     } catch (err: any) {
+      console.error('[NetworkPilot Extension NewProfile]', 'Failed to save new profile', {
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Failed to save profile')
       setLoading(false)
     }
@@ -151,3 +162,5 @@ export function NewProfileView({ url, suggestedName, onSuccess }: Props) {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=extension/src/popup/NewProfileView.tsx')

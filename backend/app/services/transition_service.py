@@ -1,8 +1,11 @@
+import logging
 from datetime import date, timedelta
 
 from app.core.errors import ValidationError
 from app.schemas.activities import TransitionResult
 
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 # V1 action types and their transitions
 ACTION_TRANSITIONS = {
     "saved_for_later": {

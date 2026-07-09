@@ -8,3 +8,5 @@ export function LoadingView() {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=extension/src/popup/LoadingView.tsx')

@@ -57,3 +57,5 @@ supabase.auth.onAuthStateChange((event, session) => {
   })
   useAuthStore.getState().setSession(session)
 })
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/stores/authStore.ts')

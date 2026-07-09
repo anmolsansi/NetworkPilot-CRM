@@ -1,7 +1,11 @@
+import logging
 import uuid
 import pytest
 from httpx import AsyncClient
 
+
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 @pytest.mark.anyio
 class TestCrossWorkspaceAuthorization:
     async def test_cross_workspace_access_denied(self, client: AsyncClient, mock_headers: dict):

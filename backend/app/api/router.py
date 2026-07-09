@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter
 
 from app.api.routes.activities import router as activities_router
@@ -12,6 +14,8 @@ from app.api.routes.people import router as people_router
 from app.api.routes.templates import router as templates_router
 from app.api.routes.workspaces import router as workspaces_router
 
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(health_router, tags=["health"])
 api_router.include_router(me_router, prefix="/me", tags=["users"])

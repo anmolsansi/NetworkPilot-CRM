@@ -20,3 +20,5 @@ export function ErrorView({ message, onRetry }: Props) {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=extension/src/popup/ErrorView.tsx')

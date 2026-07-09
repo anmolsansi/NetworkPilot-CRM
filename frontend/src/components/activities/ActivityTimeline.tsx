@@ -75,3 +75,5 @@ export function ActivityTimeline({ activities }: { activities: Activity[] }) {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/components/activities/ActivityTimeline.tsx')

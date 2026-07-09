@@ -26,3 +26,5 @@ export function ErrorAlert({ message, onRetry }: ErrorAlertProps) {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/components/common/ErrorAlert.tsx')

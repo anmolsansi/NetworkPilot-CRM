@@ -1,7 +1,11 @@
+import logging
 import pytest
 from httpx import AsyncClient
 
 
+
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 @pytest.mark.anyio
 class TestDashboardAPI:
     async def test_summary_requires_auth(self, client: AsyncClient):

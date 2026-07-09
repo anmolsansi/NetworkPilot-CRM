@@ -77,3 +77,5 @@ describe('LoginPage', () => {
     })
   })
 })
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/pages/LoginPage.test.tsx')

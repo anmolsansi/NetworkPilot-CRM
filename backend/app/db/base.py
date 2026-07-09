@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime
 
@@ -5,7 +6,8 @@ from sqlalchemy import DateTime, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 class Base(DeclarativeBase):
     pass
 

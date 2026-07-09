@@ -1,8 +1,11 @@
+import logging
 import uuid
 from datetime import date
 
 from pydantic import BaseModel, Field
 
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 IMPORT_ACTION_TYPES = {
     "saved_for_later",
     "invite_sent",

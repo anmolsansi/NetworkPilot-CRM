@@ -4,12 +4,15 @@ Revision ID: 002_import_batches
 Revises: 001_initial
 Create Date: 2026-07-03 00:00:00.000000
 """
+import logging
 from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 revision: str = "002_import_batches"
 down_revision: Union[str, None] = "001_initial"
 branch_labels: Union[str, Sequence[str], None] = None

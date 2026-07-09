@@ -16,3 +16,5 @@ export function InvalidPageView({ url }: Props) {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=extension/src/popup/InvalidPageView.tsx')

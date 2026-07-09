@@ -11,3 +11,5 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
   },
 })
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/auth/supabaseClient.ts')

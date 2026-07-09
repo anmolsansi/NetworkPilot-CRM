@@ -28,3 +28,5 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 )
 
 Input.displayName = 'Input'
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/components/common/Input.tsx')

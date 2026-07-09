@@ -1,5 +1,8 @@
+import logging
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 ASYNC_PG_SCHEME = "postgresql+asyncpg"
 POSTGRES_SCHEMES = {"postgres", "postgresql"}
 LIBPQ_ONLY_QUERY_PARAMS = {

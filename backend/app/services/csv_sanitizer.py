@@ -1,7 +1,10 @@
 import csv
+import logging
 from io import StringIO
 from typing import Any
 
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 FORMULA_PREFIXES = ("=", "+", "-", "@")
 
 

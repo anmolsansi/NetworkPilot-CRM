@@ -44,3 +44,5 @@ export function extractNameFromTitle(title: string): string {
   const name = title.split(' - ')[0]?.split(' | ')[0]?.trim()
   return name || title
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=extension/src/utils/activeTab.ts')

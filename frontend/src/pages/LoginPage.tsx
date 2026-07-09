@@ -155,3 +155,5 @@ export function LoginPage() {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/pages/LoginPage.tsx')

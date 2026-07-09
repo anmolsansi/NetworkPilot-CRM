@@ -1,3 +1,4 @@
+import logging
 import uuid
 from typing import TYPE_CHECKING
 
@@ -7,6 +8,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
 
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 if TYPE_CHECKING:
     from app.models.user import AppUser
     from app.models.workspace import Workspace

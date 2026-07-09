@@ -43,14 +43,26 @@ export function DuePersonCard({ person, onUpdate }: DuePersonCardProps) {
     if (!currentWorkspace) return
 
     try {
+      console.info('[NetworkPilot DuePersonCard]', 'Snoozing due person', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        personId: person.id.slice(-8),
+      })
       await peopleApi.snooze(
         person.id,
         { until_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] },
         currentWorkspace.id
       )
       onUpdate()
+      console.info('[NetworkPilot DuePersonCard]', 'Due person snoozed', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        personId: person.id.slice(-8),
+      })
     } catch (error) {
-      console.error('Failed to snooze:', error)
+      console.error('[NetworkPilot DuePersonCard]', 'Failed to snooze due person', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        personId: person.id.slice(-8),
+        error,
+      })
     }
   }
 
@@ -100,3 +112,5 @@ export function DuePersonCard({ person, onUpdate }: DuePersonCardProps) {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/components/people/DuePersonCard.tsx')

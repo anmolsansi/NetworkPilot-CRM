@@ -27,3 +27,5 @@ export function Topbar() {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/components/layout/Topbar.tsx')

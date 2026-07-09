@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends
@@ -5,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
-from app.core.errors import ForbiddenError, NotFoundError
+from app.core.logging import get_logger, mask_id
 from app.models.user import AppUser
 from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.workspaces import (
@@ -15,7 +16,10 @@ from app.schemas.workspaces import (
 )
 from app.services.workspace_service import require_workspace_owner
 
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 router = APIRouter()
+logger = get_logger(__name__)
 
 
 @router.get("", response_model=list[WorkspaceResponse])
@@ -24,6 +28,7 @@ async def list_workspaces(
     db: AsyncSession = Depends(get_db),
 ):
     """List workspaces the user is a member of."""
+    logger.info("workspaces.list.started user_id=%s", mask_id(str(user.id)))
     result = await db.execute(
         select(Workspace)
         .join(WorkspaceMember)
@@ -33,7 +38,13 @@ async def list_workspaces(
             Workspace.deleted_at.is_(None),
         )
     )
-    return result.scalars().all()
+    workspaces = result.scalars().all()
+    logger.info(
+        "workspaces.list.completed user_id=%s count=%s",
+        mask_id(str(user.id)),
+        len(workspaces),
+    )
+    return workspaces
 
 
 @router.post("", response_model=WorkspaceResponse, status_code=201)
@@ -43,6 +54,12 @@ async def create_workspace(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new workspace and add user as owner."""
+    logger.info(
+        "workspaces.create.started user_id=%s name_length=%s timezone=%s",
+        mask_id(str(user.id)),
+        len(data.name),
+        data.timezone,
+    )
     workspace = Workspace(
         name=data.name,
         owner_id=user.id,
@@ -62,6 +79,11 @@ async def create_workspace(
     db.add(membership)
     await db.flush()
 
+    logger.info(
+        "workspaces.create.completed user_id=%s workspace_id=%s",
+        mask_id(str(user.id)),
+        mask_id(str(workspace.id)),
+    )
     return workspace
 
 
@@ -74,6 +96,11 @@ async def update_workspace(
 ):
     """Update workspace settings (owner only)."""
     update_data = data.model_dump(exclude_unset=True)
+    logger.info(
+        "workspaces.update.started workspace_id=%s fields=%s",
+        mask_id(str(workspace_id)),
+        sorted(update_data.keys()),
+    )
 
     # Handle daily_reminder_time string -> time conversion
     if "daily_reminder_time" in update_data and update_data["daily_reminder_time"] is not None:
@@ -86,4 +113,5 @@ async def update_workspace(
         setattr(workspace, field, value)
 
     await db.flush()
+    logger.info("workspaces.update.completed workspace_id=%s", mask_id(str(workspace.id)))
     return workspace

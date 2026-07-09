@@ -1,3 +1,4 @@
+import logging
 import pytest
 import uuid
 import asyncio
@@ -14,6 +15,9 @@ from app.core.errors import UnauthorizedError
 from app.core.security import AuthClaims
 
 
+
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 @compiles(ARRAY, "sqlite")
 def compile_array_sqlite(type_, compiler, **kw):
     return "JSON"

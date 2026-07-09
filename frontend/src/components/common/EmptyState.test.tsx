@@ -18,3 +18,5 @@ describe('EmptyState', () => {
     expect(screen.getByText('Try adding some items')).toBeInTheDocument()
   })
 })
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/components/common/EmptyState.test.tsx')

@@ -1,7 +1,11 @@
+import logging
 import pytest
 from httpx import AsyncClient
 
 
+
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 @pytest.mark.anyio
 class TestCsvImportExportAPI:
     async def test_preview_commit_and_export_people_csv(

@@ -39,3 +39,5 @@ export function AppLayout() {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/components/layout/AppLayout.tsx')

@@ -15,3 +15,5 @@ export function EmptyState({ title, description, action }: EmptyStateProps) {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/components/common/EmptyState.tsx')

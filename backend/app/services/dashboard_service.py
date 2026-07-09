@@ -1,13 +1,15 @@
+import logging
 import uuid
 from datetime import date
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.person import Person
 from app.schemas.dashboard import DashboardSummary, DuePersonCard
 
-
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 class DashboardService:
     def __init__(self, db: AsyncSession):
         self.db = db

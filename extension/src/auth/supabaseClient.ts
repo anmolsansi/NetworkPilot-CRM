@@ -29,3 +29,5 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 export function hasSupabaseConfig(): boolean {
   return Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY)
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=extension/src/auth/supabaseClient.ts')

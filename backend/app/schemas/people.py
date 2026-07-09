@@ -1,9 +1,11 @@
+import logging
 import uuid
 from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
-
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 class PersonCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     linkedin_url: str = Field(..., min_length=1)

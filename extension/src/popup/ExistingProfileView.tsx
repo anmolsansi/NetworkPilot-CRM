@@ -26,6 +26,11 @@ export function ExistingProfileView({ lookupResult, onSuccess }: Props) {
     setError(null)
 
     try {
+      console.info('[NetworkPilot Extension ExistingProfile]', 'Recording quick action', {
+        personId: lookupResult.person_id?.slice(-8) || null,
+        actionType,
+        hasNotes: Boolean(notes.trim()),
+      })
       await extensionApi.quickAction({
         person_id: lookupResult.person_id!,
         action_type: actionType,
@@ -37,7 +42,17 @@ export function ExistingProfileView({ lookupResult, onSuccess }: Props) {
         setSuccess(null)
         onSuccess()
       }, 1500)
+      console.info('[NetworkPilot Extension ExistingProfile]', 'Quick action recorded', {
+        personId: lookupResult.person_id?.slice(-8) || null,
+        actionType,
+      })
     } catch (err: any) {
+      console.error('[NetworkPilot Extension ExistingProfile]', 'Quick action failed', {
+        personId: lookupResult.person_id?.slice(-8) || null,
+        actionType,
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Failed to perform action')
       setLoading(null)
     }
@@ -130,3 +145,5 @@ export function ExistingProfileView({ lookupResult, onSuccess }: Props) {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=extension/src/popup/ExistingProfileView.tsx')

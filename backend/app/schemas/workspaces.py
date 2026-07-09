@@ -1,9 +1,11 @@
+import logging
 import uuid
 from datetime import datetime, time
 
 from pydantic import BaseModel, Field
 
-
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 class WorkspaceCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     default_follow_up_delay_days: int = Field(default=3, ge=1, le=30)

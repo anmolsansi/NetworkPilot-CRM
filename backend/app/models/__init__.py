@@ -1,3 +1,5 @@
+import logging
+
 from app.models.activity import Activity
 from app.models.import_batch import ImportBatch
 from app.models.person import Person
@@ -6,6 +8,8 @@ from app.models.template import MessageTemplate
 from app.models.user import AppUser
 from app.models.workspace import Workspace, WorkspaceMember
 
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 __all__ = [
     "AppUser",
     "Workspace",

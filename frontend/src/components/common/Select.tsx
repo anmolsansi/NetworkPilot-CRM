@@ -35,3 +35,5 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
 )
 
 Select.displayName = 'Select'
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/components/common/Select.tsx')

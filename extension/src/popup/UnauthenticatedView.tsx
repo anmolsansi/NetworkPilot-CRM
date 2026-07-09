@@ -17,6 +17,7 @@ export function UnauthenticatedView({ onAuth }: Props) {
 
   const handleGoogleSignIn = async () => {
     if (!apiUrl.trim()) {
+      console.warn('[NetworkPilot Extension Setup]', 'Google sign-in blocked; missing API URL')
       setError('Please enter your API URL')
       return
     }
@@ -25,14 +26,21 @@ export function UnauthenticatedView({ onAuth }: Props) {
     setError(null)
 
     try {
+      console.info('[NetworkPilot Extension Setup]', 'Starting Google sign-in from popup')
       const session = await signInWithGoogle(apiUrl)
       const token = session.access_token
       setAccessToken(token)
       const workspaceList = await authSetupApi.listWorkspaces(apiUrl, token)
       setWorkspaces(workspaceList)
+      console.info('[NetworkPilot Extension Setup]', 'Workspaces loaded after sign-in', {
+        count: workspaceList.length,
+      })
 
       if (workspaceList.length === 1) {
         await setWorkspaceSettings(apiUrl, workspaceList[0].id)
+        console.info('[NetworkPilot Extension Setup]', 'Auto-selected only workspace', {
+          workspaceId: workspaceList[0].id.slice(-8),
+        })
         onAuth()
       } else if (workspaceList.length > 0) {
         setWorkspaceId(workspaceList[0].id)
@@ -41,6 +49,10 @@ export function UnauthenticatedView({ onAuth }: Props) {
         setSaving(false)
       }
     } catch (err: any) {
+      console.error('[NetworkPilot Extension Setup]', 'Google sign-in setup failed', {
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Failed to sign in with Google')
       setSaving(false)
     }
@@ -48,10 +60,14 @@ export function UnauthenticatedView({ onAuth }: Props) {
 
   const handleUseWorkspace = async () => {
     if (!workspaceId) {
+      console.warn('[NetworkPilot Extension Setup]', 'Workspace selection blocked; no workspace selected')
       setError('Select a workspace')
       return
     }
 
+    console.info('[NetworkPilot Extension Setup]', 'Using selected workspace', {
+      workspaceId: workspaceId.slice(-8),
+    })
     await setWorkspaceSettings(apiUrl, workspaceId)
     onAuth()
   }
@@ -63,10 +79,20 @@ export function UnauthenticatedView({ onAuth }: Props) {
     setSaving(true)
     setError(null)
     try {
+      console.info('[NetworkPilot Extension Setup]', 'Creating workspace from extension setup', {
+        nameLength: name.length,
+      })
       const workspace = await authSetupApi.createWorkspace(apiUrl, accessToken, name)
       await setWorkspaceSettings(apiUrl, workspace.id)
+      console.info('[NetworkPilot Extension Setup]', 'Workspace created from extension setup', {
+        workspaceId: workspace.id.slice(-8),
+      })
       onAuth()
     } catch (err: any) {
+      console.error('[NetworkPilot Extension Setup]', 'Failed to create workspace from setup', {
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Failed to create workspace')
       setSaving(false)
     }
@@ -150,3 +176,5 @@ export function UnauthenticatedView({ onAuth }: Props) {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=extension/src/popup/UnauthenticatedView.tsx')

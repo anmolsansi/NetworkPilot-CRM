@@ -38,3 +38,5 @@ describe('renderTemplate', () => {
     expect(result).toBe('Hi John, ')
   })
 })
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=extension/src/utils/__tests__/templateRender.test.ts')

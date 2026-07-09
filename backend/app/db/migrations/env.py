@@ -1,5 +1,6 @@
 import asyncio
 import errno
+import logging
 from logging.config import fileConfig
 
 from alembic import context
@@ -12,6 +13,9 @@ import app.models  # noqa: F401
 from app.core.config import settings as app_settings
 from app.db.base import Base
 from app.db.database_url import asyncpg_connect_args, normalize_asyncpg_url
+
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 
 config = context.config
 database_url = normalize_asyncpg_url(app_settings.DATABASE_URL)

@@ -26,3 +26,5 @@ describe('Button', () => {
     expect(button).toBeDisabled()
   })
 })
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/components/common/Button.test.tsx')

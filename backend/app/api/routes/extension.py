@@ -1,9 +1,11 @@
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
+from app.core.logging import get_logger, mask_id
 from app.models.user import AppUser
 from app.models.workspace import Workspace
 from app.schemas.activities import ActivityCreate
@@ -18,7 +20,10 @@ from app.services.activity_service import ActivityService
 from app.services.people_service import PeopleService
 from app.services.workspace_service import require_workspace_access
 
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 router = APIRouter()
+logger = get_logger(__name__)
 
 
 @router.get("/extension/lookup", response_model=ExtensionLookupResponse)
@@ -31,9 +36,19 @@ async def extension_lookup(
     """Look up a LinkedIn profile in the workspace."""
     from app.services.url_normalizer import normalize_linkedin_url
 
+    logger.info(
+        "extension.lookup.started workspace_id=%s url_length=%s",
+        mask_id(str(workspace_id)),
+        len(linkedin_url),
+    )
     # Normalize URL
     result = normalize_linkedin_url(linkedin_url)
     if not result:
+        logger.warning(
+            "extension.lookup.invalid_url workspace_id=%s url_length=%s",
+            mask_id(str(workspace_id)),
+            len(linkedin_url),
+        )
         return ExtensionLookupResponse(found=False)
 
     normalized_url, slug = result
@@ -43,6 +58,11 @@ async def extension_lookup(
     person = await service._find_by_url(workspace_id, normalized_url)
 
     if person:
+        logger.info(
+            "extension.lookup.found workspace_id=%s person_id=%s",
+            mask_id(str(workspace_id)),
+            mask_id(str(person.id)),
+        )
         return ExtensionLookupResponse(
             found=True,
             person_id=person.id,
@@ -56,6 +76,11 @@ async def extension_lookup(
             last_action_type=person.last_action_type,
         )
 
+    logger.info(
+        "extension.lookup.not_found workspace_id=%s linkedin_slug=%s",
+        mask_id(str(workspace_id)),
+        slug,
+    )
     return ExtensionLookupResponse(
         found=False,
         linkedin_url=normalized_url,
@@ -72,6 +97,13 @@ async def extension_quick_create(
     """Quick create a person from extension."""
     from app.schemas.people import PersonCreate
 
+    logger.info(
+        "extension.quick_create.started workspace_id=%s user_id=%s priority=%s action=%s",
+        mask_id(str(data.workspace_id)),
+        mask_id(str(user.id)),
+        data.priority,
+        data.initial_action,
+    )
     # Verify workspace access from the body payload
     await require_workspace_access(workspace_id=data.workspace_id, user=user, db=db)
 
@@ -103,6 +135,12 @@ async def extension_quick_create(
         data=activity_data,
     )
 
+    logger.info(
+        "extension.quick_create.completed workspace_id=%s person_id=%s activity_id=%s",
+        mask_id(str(data.workspace_id)),
+        mask_id(str(person.id)),
+        mask_id(str(activity.id)),
+    )
     return ExtensionQuickCreateResponse(
         person_id=person.id,
         name=person.name,
@@ -121,9 +159,16 @@ async def extension_quick_action(
     db: AsyncSession = Depends(get_db),
 ):
     """Apply a quick action to an existing person."""
+    logger.info(
+        "extension.quick_action.started workspace_id=%s person_id=%s user_id=%s action=%s",
+        mask_id(str(data.workspace_id)),
+        mask_id(str(data.person_id)),
+        mask_id(str(user.id)),
+        data.action_type,
+    )
     # Verify workspace access from the body payload
     await require_workspace_access(workspace_id=data.workspace_id, user=user, db=db)
-    
+
     activity_service = ActivityService(db)
     activity_data = ActivityCreate(
         action_type=data.action_type,
@@ -140,6 +185,13 @@ async def extension_quick_action(
         data=activity_data,
     )
 
+    logger.info(
+        "extension.quick_action.completed workspace_id=%s person_id=%s activity_id=%s stage=%s",
+        mask_id(str(data.workspace_id)),
+        mask_id(str(person.id)),
+        mask_id(str(activity.id)),
+        person.stage,
+    )
     return ExtensionQuickActionResponse(
         person_id=person.id,
         stage=person.stage,

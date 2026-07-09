@@ -1,11 +1,18 @@
+import logging
 import uuid
-from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import ARRAY, Boolean, DateTime, ForeignKey, Text, func
+from sqlalchemy import ARRAY, Boolean, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
+
+if TYPE_CHECKING:
+    from app.models.workspace import Workspace
+
+_module_logger = logging.getLogger(__name__)
+_module_logger.debug("module.loaded module=%s", __name__)
 
 
 class MessageTemplate(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):

@@ -33,3 +33,5 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 )
 
 Button.displayName = 'Button'
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/components/common/Button.tsx')

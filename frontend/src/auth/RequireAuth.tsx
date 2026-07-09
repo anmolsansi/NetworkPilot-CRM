@@ -29,3 +29,5 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/auth/RequireAuth.tsx')

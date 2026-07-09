@@ -45,12 +45,24 @@ export function SettingsPage() {
   const handleSave = async () => {
     if (!currentWorkspace) return
 
+    console.info('[NetworkPilot Settings]', 'Saving workspace settings', {
+      workspaceId: currentWorkspace.id.slice(-8),
+      timezone: form.timezone,
+    })
     setSaving(true)
     setError(null)
     try {
       await workspaceApi.update(currentWorkspace.id, form)
       await fetchWorkspaces()
+      console.info('[NetworkPilot Settings]', 'Workspace settings saved', {
+        workspaceId: currentWorkspace.id.slice(-8),
+      })
     } catch (err: any) {
+      console.error('[NetworkPilot Settings]', 'Failed to save workspace settings', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Failed to save settings')
     } finally {
       setSaving(false)
@@ -60,11 +72,22 @@ export function SettingsPage() {
   const handleGenerateCalendarLink = async () => {
     if (!currentWorkspace) return
 
+    console.info('[NetworkPilot Settings]', 'Generating calendar link', {
+      workspaceId: currentWorkspace.id.slice(-8),
+    })
     setLoadingCalendar(true)
     try {
       const response = await calendarApi.getReminderLink(currentWorkspace.id)
       setCalendarLink(response.url)
+      console.info('[NetworkPilot Settings]', 'Calendar link generated', {
+        workspaceId: currentWorkspace.id.slice(-8),
+      })
     } catch (err: any) {
+      console.error('[NetworkPilot Settings]', 'Failed to generate calendar link', {
+        workspaceId: currentWorkspace.id.slice(-8),
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Failed to generate calendar link')
     } finally {
       setLoadingCalendar(false)
@@ -163,3 +186,5 @@ export function SettingsPage() {
     </div>
   )
 }
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/pages/SettingsPage.tsx')

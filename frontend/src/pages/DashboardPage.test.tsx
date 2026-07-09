@@ -67,3 +67,5 @@ describe('DashboardPage', () => {
     })
   })
 })
+
+console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/pages/DashboardPage.test.tsx')
