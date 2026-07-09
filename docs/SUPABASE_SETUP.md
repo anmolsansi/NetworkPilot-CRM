@@ -30,10 +30,22 @@ After project creation, go to **Settings > API** and copy:
 
 ## Auth Configuration
 
-### Enable Email Auth
+### Enable Email and Google Auth
 1. Go to **Authentication > Providers**
 2. Ensure "Email" is enabled
-3. Configure email templates if desired
+3. Enable **Google**
+4. Add your Google OAuth client ID and secret
+5. Configure email templates if desired
+
+### Redirect URLs
+Add every frontend and extension redirect URL under **Authentication > URL Configuration**:
+
+- Local web app: `http://localhost:5173`
+- Production web app: `https://your-app.vercel.app`
+- Chrome extension OAuth: `https://[EXTENSION_ID].chromiumapp.org/auth`
+
+For unpacked local extension testing, Chrome shows the extension ID at
+`chrome://extensions/` after loading `extension/dist`.
 
 ### JWT Settings
 - The `jwt_secret` is in **Settings > API > JWT Settings**
@@ -87,3 +99,6 @@ VITE_API_BASE_URL=http://localhost:8000/api/v1
 - Backend uses service role for admin operations
 - Frontend/extension use anon key for public operations
 - JWT verification uses `JWT_SECRET`
+- Frontend and extension both use Supabase Google OAuth. Data sync is account
+  scoped by the Supabase JWT `sub` claim and workspace membership checks in the
+  backend.

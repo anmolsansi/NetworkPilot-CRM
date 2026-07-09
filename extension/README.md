@@ -22,7 +22,8 @@ The built extension will be in the `dist/` folder.
 ### Prerequisites
 - Google Chrome browser
 - Backend API deployed and running
-- User account created in the web app
+- Supabase Google OAuth enabled
+- User account created in the web app or through the extension
 
 ### Steps
 1. Run `npm run build` to build the extension
@@ -35,9 +36,23 @@ The built extension will be in the `dist/` folder.
 ### First Time Setup
 1. Click the extension icon
 2. Enter your API URL (e.g., `https://your-app.onrender.com/api/v1`)
-3. Enter your access token (get from browser DevTools > Application > Local Storage after logging into web app)
-4. Enter your workspace ID (found in web app URL when viewing a workspace)
-5. Click "Connect"
+3. Click "Continue with Google"
+4. Pick an existing workspace or create the first one
+
+The extension uses the same Supabase account as the frontend. Profiles saved
+from the extension are stored through the backend API in the selected workspace,
+so they appear in the frontend People list. Updates made in the frontend are
+visible from the extension when viewing the same LinkedIn profile.
+
+### Google OAuth Redirect
+For Chrome extension OAuth, add this redirect URL in Supabase:
+
+```text
+https://[EXTENSION_ID].chromiumapp.org/auth
+```
+
+For unpacked local testing, find `[EXTENSION_ID]` at `chrome://extensions/`
+after loading the built `dist/` folder.
 
 ## Usage
 
@@ -65,8 +80,9 @@ The built extension will be in the `dist/` folder.
 ## Permissions
 
 This extension requests minimal permissions:
-- `storage` - Store auth token and settings
+- `storage` - Store Supabase session and selected workspace
 - `activeTab` - Read current tab URL for LinkedIn profile detection
+- `identity` - Run Google OAuth in Chrome
 
 The extension does NOT:
 - Inject scripts into LinkedIn pages
@@ -81,11 +97,12 @@ The extension does NOT:
 - Company pages, job listings, and feed are not supported
 
 ### Authentication errors
-- Ensure your access token is valid
-- Try logging out and back into the web app
-- Generate a new token from browser DevTools
+- Ensure Google OAuth is enabled in Supabase
+- Ensure the Chrome extension redirect URL is allowed in Supabase
+- Confirm the extension uses the same Supabase URL/anon key as the frontend
 
 ### Extension not saving
 - Check that backend is running and accessible
 - Verify API URL is correct
+- Confirm the selected workspace exists in the web app
 - Check browser console for errors

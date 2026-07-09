@@ -5,10 +5,14 @@
   "manifest_version": 3,
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "identity"
   ],
   "host_permissions": [
-    "http://localhost:8000/*"
+    "http://localhost:8000/*",
+    "http://localhost:54321/*",
+    "https://*.onrender.com/*",
+    "https://*.supabase.co/*"
   ],
   "action": {
     "default_popup": "index.html",

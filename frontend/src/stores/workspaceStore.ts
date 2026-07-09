@@ -15,6 +15,7 @@ interface WorkspaceState {
   workspaces: Workspace[]
   currentWorkspace: Workspace | null
   loading: boolean
+  error: string | null
   fetchWorkspaces: () => Promise<void>
   setCurrentWorkspace: (workspace: Workspace | null) => void
 }
@@ -23,18 +24,25 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   workspaces: [],
   currentWorkspace: null,
   loading: false,
+  error: null,
   fetchWorkspaces: async () => {
-    set({ loading: true })
+    set({ loading: true, error: null })
     try {
       const workspaces = await workspaceApi.list()
-      set({ workspaces, loading: false })
-      // Auto-select first workspace
-      if (workspaces.length > 0 && !useWorkspaceStore.getState().currentWorkspace) {
-        set({ currentWorkspace: workspaces[0] })
-      }
-    } catch (error) {
-      set({ loading: false })
+      const currentWorkspace = useWorkspaceStore.getState().currentWorkspace
+      const selectedWorkspace =
+        workspaces.find((workspace) => workspace.id === currentWorkspace?.id) ??
+        workspaces[0] ??
+        null
+
+      set({ workspaces, currentWorkspace: selectedWorkspace, loading: false })
+    } catch (error: any) {
+      const message = error?.message || 'Failed to load workspaces'
+      set({ loading: false, error: message })
+      throw error
     }
   },
-  setCurrentWorkspace: (workspace) => set({ currentWorkspace: workspace }),
+  setCurrentWorkspace: (workspace) => {
+    set({ currentWorkspace: workspace })
+  },
 }))

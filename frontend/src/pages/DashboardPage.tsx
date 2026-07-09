@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useWorkspaceStore } from '../stores/workspaceStore'
-import { dashboardApi, exportsApi } from '../api/httpClient'
+import { dashboardApi, exportsApi, workspaceApi } from '../api/httpClient'
 import { downloadCsvBlob } from '../api/csvDownload'
 import { DuePersonCard } from '../components/people/DuePersonCard'
 import { EmptyState } from '../components/common/EmptyState'
 import { ErrorAlert } from '../components/common/ErrorAlert'
 import { Skeleton } from '../components/common/Skeleton'
 import { Button } from '../components/common/Button'
+import { Input } from '../components/common/Input'
 
 interface DashboardSummary {
   due_today: number
@@ -16,15 +17,20 @@ interface DashboardSummary {
 }
 
 export function DashboardPage() {
-  const { currentWorkspace } = useWorkspaceStore()
+  const { currentWorkspace, fetchWorkspaces } = useWorkspaceStore()
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [duePeople, setDuePeople] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [exporting, setExporting] = useState<string | null>(null)
+  const [workspaceName, setWorkspaceName] = useState('My Workspace')
+  const [creatingWorkspace, setCreatingWorkspace] = useState(false)
 
   const fetchData = async () => {
-    if (!currentWorkspace) return
+    if (!currentWorkspace) {
+      setLoading(false)
+      return
+    }
 
     setLoading(true)
     setError(null)
@@ -45,6 +51,22 @@ export function DashboardPage() {
   useEffect(() => {
     fetchData()
   }, [currentWorkspace])
+
+  const handleCreateWorkspace = async () => {
+    const name = workspaceName.trim()
+    if (!name) return
+
+    setCreatingWorkspace(true)
+    setError(null)
+    try {
+      await workspaceApi.create({ name })
+      await fetchWorkspaces()
+    } catch (err: any) {
+      setError(err.message || 'Failed to create workspace')
+    } finally {
+      setCreatingWorkspace(false)
+    }
+  }
 
   const handleExport = async (name: string, params: Record<string, string>) => {
     if (!currentWorkspace) return
@@ -77,6 +99,32 @@ export function DashboardPage() {
           {[...Array(3)].map((_, i) => (
             <Skeleton key={i} className="h-32 rounded-lg" />
           ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (!currentWorkspace) {
+    return (
+      <div>
+        <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+        <div className="mt-6 max-w-xl bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+          <h2 className="text-lg font-medium text-gray-900">Create your workspace</h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Workspaces keep your people, templates, and reminders organized.
+          </p>
+          {error && <div className="mt-4"><ErrorAlert message={error} /></div>}
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <Input
+              aria-label="Workspace name"
+              value={workspaceName}
+              onChange={(event) => setWorkspaceName(event.target.value)}
+              className="sm:w-72"
+            />
+            <Button onClick={handleCreateWorkspace} disabled={creatingWorkspace || !workspaceName.trim()}>
+              {creatingWorkspace ? 'Creating...' : 'Create workspace'}
+            </Button>
+          </div>
         </div>
       </div>
     )
