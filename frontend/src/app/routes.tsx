@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { RequireAuth } from '../auth/RequireAuth'
 import { LoginPage } from '../pages/LoginPage'
+import { AuthCallbackPage } from '../pages/AuthCallbackPage'
 import { DashboardPage } from '../pages/DashboardPage'
 import { PeopleListPage } from '../pages/PeopleListPage'
 import { PersonDetailPage } from '../pages/PersonDetailPage'
@@ -12,6 +13,7 @@ export function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route
           path="/"

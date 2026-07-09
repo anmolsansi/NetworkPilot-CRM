@@ -40,8 +40,8 @@ After project creation, go to **Settings > API** and copy:
 ### Redirect URLs
 Add every frontend and extension redirect URL under **Authentication > URL Configuration**:
 
-- Local web app: `http://localhost:5173`
-- Production web app: `https://your-app.vercel.app`
+- Local web app: `http://localhost:5173/auth/callback`
+- Production web app: `https://your-app.vercel.app/auth/callback`
 - Chrome extension OAuth: `https://[EXTENSION_ID].chromiumapp.org/auth`
 
 For unpacked local extension testing, Chrome shows the extension ID at
