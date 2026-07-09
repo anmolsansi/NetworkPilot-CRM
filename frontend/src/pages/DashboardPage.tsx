@@ -8,6 +8,7 @@ import { ErrorAlert } from '../components/common/ErrorAlert'
 import { Skeleton } from '../components/common/Skeleton'
 import { Button } from '../components/common/Button'
 import { Input } from '../components/common/Input'
+import { logError, logInfo, maskId } from '../utils/logger'
 
 interface DashboardSummary {
   due_today: number
@@ -28,10 +29,14 @@ export function DashboardPage() {
 
   const fetchData = async () => {
     if (!currentWorkspace) {
+      logInfo('DashboardPage', 'Skipping dashboard data load; no workspace selected')
       setLoading(false)
       return
     }
 
+    logInfo('DashboardPage', 'Loading dashboard data', {
+      workspaceId: maskId(currentWorkspace.id),
+    })
     setLoading(true)
     setError(null)
     try {
@@ -41,7 +46,18 @@ export function DashboardPage() {
       ])
       setSummary(summaryData)
       setDuePeople(dueData)
+      logInfo('DashboardPage', 'Dashboard data loaded', {
+        workspaceId: maskId(currentWorkspace.id),
+        dueCount: dueData.length,
+        activeTotal: summaryData.active_total,
+        overdue: summaryData.overdue,
+      })
     } catch (err: any) {
+      logError('DashboardPage', 'Failed to load dashboard data', {
+        workspaceId: maskId(currentWorkspace.id),
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Failed to load dashboard')
     } finally {
       setLoading(false)
@@ -59,9 +75,17 @@ export function DashboardPage() {
     setCreatingWorkspace(true)
     setError(null)
     try {
+      logInfo('DashboardPage', 'Creating first workspace', {
+        nameLength: name.length,
+      })
       await workspaceApi.create({ name })
       await fetchWorkspaces()
+      logInfo('DashboardPage', 'First workspace created and workspace list refreshed')
     } catch (err: any) {
+      logError('DashboardPage', 'Failed to create workspace', {
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Failed to create workspace')
     } finally {
       setCreatingWorkspace(false)
@@ -71,6 +95,10 @@ export function DashboardPage() {
   const handleExport = async (name: string, params: Record<string, string>) => {
     if (!currentWorkspace) return
 
+    logInfo('DashboardPage', 'Starting people CSV export', {
+      exportName: name,
+      workspaceId: maskId(currentWorkspace.id),
+    })
     setExporting(name)
     setError(null)
     try {
@@ -79,7 +107,18 @@ export function DashboardPage() {
         ...params,
       })
       downloadCsvBlob(blob, `networkpilot-${name}.csv`)
+      logInfo('DashboardPage', 'People CSV export completed', {
+        exportName: name,
+        workspaceId: maskId(currentWorkspace.id),
+        byteSize: blob.size,
+      })
     } catch (err: any) {
+      logError('DashboardPage', 'People CSV export failed', {
+        exportName: name,
+        workspaceId: maskId(currentWorkspace.id),
+        message: err.message,
+        code: err.code,
+      })
       setError(err.message || 'Failed to export people')
     } finally {
       setExporting(null)

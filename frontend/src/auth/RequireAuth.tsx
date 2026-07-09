@@ -1,8 +1,18 @@
+import { useEffect } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
+import { logInfo, maskId } from '../utils/logger'
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuthStore()
+
+  useEffect(() => {
+    logInfo('RequireAuth', 'Route guard evaluated', {
+      loading,
+      hasSession: Boolean(session),
+      userId: maskId(session?.user.id),
+    })
+  }, [loading, session])
 
   if (loading) {
     return (
@@ -13,6 +23,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   }
 
   if (!session) {
+    logInfo('RequireAuth', 'Redirecting unauthenticated user to login')
     return <Navigate to="/login" replace />
   }
 
