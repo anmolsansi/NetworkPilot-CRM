@@ -20,6 +20,8 @@
     "install:extension": "npm install --prefix extension"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@types/node": "^26.1.1",
     "prettier": "^3.2.0"
   }
 }
