@@ -1,5 +1,7 @@
 import logging
 import uuid
+from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +32,20 @@ async def list_people(
     priority: str | None = Query(None),
     status: str | None = Query(None),
     search: str | None = Query(None),
+    company: str | None = Query(None),
+    role: str | None = Query(None),
+    email: str | None = Query(None),
+    location: str | None = Query(None),
+    premium: bool | None = Query(None),
+    processed_from: datetime | None = Query(None),
+    processed_to: datetime | None = Query(None),
+    sort_by: Literal[
+        "linkedin_url", "first_name", "last_name", "company", "role", "email",
+        "phone_number", "premium", "location", "company_website", "processed_at",
+        "processed_at_millis", "invite_accepted_at", "invite_accepted_at_millis",
+        "created_at",
+    ] = Query("created_at"),
+    sort_order: Literal["asc", "desc"] = Query("desc"),
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
     _workspace: Depends = Depends(require_workspace_access),
@@ -52,6 +68,15 @@ async def list_people(
         priority=priority,
         status=status,
         search=search,
+        company=company,
+        role=role,
+        email=email,
+        location=location,
+        premium=premium,
+        processed_from=processed_from,
+        processed_to=processed_to,
+        sort_by=sort_by,
+        sort_order=sort_order,
         page=page,
         limit=limit,
     )
