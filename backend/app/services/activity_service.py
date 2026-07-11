@@ -27,6 +27,9 @@ class ActivityService:
         person_id: uuid.UUID,
         actor_user_id: uuid.UUID,
         data: ActivityCreate,
+        *,
+        person: Person | None = None,
+        workspace: Workspace | None = None,
     ) -> tuple[Activity, Person]:
         """
         Create an activity and update person state in one transaction.
@@ -43,14 +46,15 @@ class ActivityService:
             data.action_type,
         )
         # Load person with workspace check
-        result = await self.db.execute(
-            select(Person).where(
-                Person.id == person_id,
-                Person.workspace_id == workspace_id,
-                Person.deleted_at.is_(None),
+        if person is None:
+            result = await self.db.execute(
+                select(Person).where(
+                    Person.id == person_id,
+                    Person.workspace_id == workspace_id,
+                    Person.deleted_at.is_(None),
+                )
             )
-        )
-        person = result.scalar_one_or_none()
+            person = result.scalar_one_or_none()
         if not person:
             _module_logger.warning(
                 "activity_service.create.person_missing workspace_id=%s person_id=%s",
@@ -63,10 +67,11 @@ class ActivityService:
         previous_stage = person.stage
 
         # Calculate transition
-        workspace_result = await self.db.execute(
-            select(Workspace).where(Workspace.id == workspace_id)
-        )
-        workspace = workspace_result.scalar_one()
+        if workspace is None:
+            workspace_result = await self.db.execute(
+                select(Workspace).where(Workspace.id == workspace_id)
+            )
+            workspace = workspace_result.scalar_one()
 
         transition = calculate_transition(
             action_type=data.action_type,

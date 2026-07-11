@@ -56,5 +56,5 @@ class Person(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
     # Relationships
     workspace: Mapped["Workspace"] = relationship("Workspace", back_populates="people")
     activities: Mapped[list["Activity"]] = relationship(
-        "Activity", back_populates="person", lazy="selectin"
+        "Activity", back_populates="person", lazy="raise"
     )
