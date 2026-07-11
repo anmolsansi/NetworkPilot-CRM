@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -51,6 +51,44 @@ describe('workspace-required pages', () => {
     expect(screen.getByText('Create a workspace first')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Go to Dashboard' })).toBeInTheDocument()
     expect(peopleApi.list).not.toHaveBeenCalled()
+  })
+
+  it('applies column filters and sorting to People requests', async () => {
+    useWorkspaceStore.setState({
+      currentWorkspace: {
+        id: 'workspace-1', name: 'Workspace', owner_id: 'user-1',
+        default_follow_up_delay_days: 3, default_acceptance_check_delay_days: 7,
+        daily_reminder_time: '09:00', timezone: 'UTC',
+      },
+    })
+    vi.mocked(peopleApi.list).mockResolvedValue({
+      total: 1, page: 1, limit: 20,
+      items: [{
+        id: 'person-1', name: 'Ada Lovelace', first_name: 'Ada', last_name: 'Lovelace',
+        company: 'Acme', role: 'Engineer', location: 'London', email: 'ada@example.com',
+        phone_number: null, premium: true, company_website: null, processed_at: null,
+        processed_at_millis: null, invite_accepted_at: null, invite_accepted_at_millis: null,
+        linkedin_url: 'linkedin.com/in/ada', stage: 'invite_sent', priority: 'B', status: 'active',
+        next_action_type: null, next_action_date: null,
+      }],
+    })
+
+    renderPage(<PeopleListPage />)
+    await screen.findByText('Ada')
+
+    fireEvent.change(screen.getByLabelText('Company'), { target: { value: 'Acme' } })
+    fireEvent.change(screen.getByLabelText('Premium'), { target: { value: 'true' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Filters' }))
+    await waitFor(() => expect(peopleApi.list).toHaveBeenLastCalledWith(expect.objectContaining({
+      company: 'Acme',
+      premium: 'true',
+    })))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by Company' }))
+    await waitFor(() => expect(peopleApi.list).toHaveBeenLastCalledWith(expect.objectContaining({
+      sort_by: 'company',
+      sort_order: 'asc',
+    })))
   })
 
   it('shows a no-workspace state on Templates without loading templates', () => {

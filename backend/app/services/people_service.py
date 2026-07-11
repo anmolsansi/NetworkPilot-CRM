@@ -1,6 +1,6 @@
 import logging
 import uuid
-from datetime import date
+from datetime import date, datetime
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -123,6 +123,15 @@ class PeopleService:
         priority: str | None = None,
         status: str | None = None,
         search: str | None = None,
+        company: str | None = None,
+        role: str | None = None,
+        email: str | None = None,
+        location: str | None = None,
+        premium: bool | None = None,
+        processed_from: datetime | None = None,
+        processed_to: datetime | None = None,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
         page: int = 1,
         limit: int = 50,
     ) -> tuple[list[Person], int]:
@@ -157,6 +166,20 @@ class PeopleService:
                     Person.location.ilike(search_pattern),
                 )
             )
+        if company:
+            query = query.where(Person.company.ilike(f"%{company}%"))
+        if role:
+            query = query.where(Person.role.ilike(f"%{role}%"))
+        if email:
+            query = query.where(Person.email.ilike(f"%{email}%"))
+        if location:
+            query = query.where(Person.location.ilike(f"%{location}%"))
+        if premium is not None:
+            query = query.where(Person.premium == premium)
+        if processed_from:
+            query = query.where(Person.processed_at >= processed_from)
+        if processed_to:
+            query = query.where(Person.processed_at <= processed_to)
 
         # Count total
         count_query = select(func.count()).select_from(query.subquery())
@@ -165,7 +188,26 @@ class PeopleService:
 
         # Paginate
         offset = (page - 1) * limit
-        query = query.offset(offset).limit(limit).order_by(Person.created_at.desc())
+        sort_columns = {
+            "linkedin_url": Person.linkedin_url,
+            "first_name": Person.first_name,
+            "last_name": Person.last_name,
+            "company": Person.company,
+            "role": Person.role,
+            "email": Person.email,
+            "phone_number": Person.phone_number,
+            "premium": Person.premium,
+            "location": Person.location,
+            "company_website": Person.company_website,
+            "processed_at": Person.processed_at,
+            "processed_at_millis": Person.processed_at_millis,
+            "invite_accepted_at": Person.invite_accepted_at,
+            "invite_accepted_at_millis": Person.invite_accepted_at_millis,
+            "created_at": Person.created_at,
+        }
+        sort_column = sort_columns.get(sort_by, Person.created_at)
+        ordering = sort_column.asc() if sort_order == "asc" else sort_column.desc()
+        query = query.offset(offset).limit(limit).order_by(ordering.nullslast(), Person.id.asc())
 
         result = await self.db.execute(query)
         people = result.scalars().all()

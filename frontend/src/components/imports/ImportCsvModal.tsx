@@ -27,7 +27,7 @@ const priorityOptions = [
   { value: 'C', label: 'C - Low' },
 ]
 
-const IMPORT_CHUNK_SIZE = 100
+const IMPORT_CHUNK_SIZE = 40
 
 export function ImportCsvModal({ isOpen, workspaceId, onClose, onImported }: ImportCsvModalProps) {
   const [file, setFile] = useState<File | null>(null)
