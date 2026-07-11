@@ -1,7 +1,7 @@
 import csv
 import logging
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 from io import StringIO
 from typing import Any
 
@@ -38,6 +38,8 @@ FIELD_ALIASES = {
     "linkedin": "linkedin_url",
     "linkedin_url": "linkedin_url",
     "profile_url": "linkedin_url",
+    "link": "linkedin_url",
+    "position": "current_role",
 }
 
 ACTION_TO_ACTIVITY = {
@@ -120,10 +122,20 @@ class CsvImportService:
                     data.workspace_id,
                     PersonCreate(
                         name=row.name or "",
+                        first_name=row.first_name,
+                        last_name=row.last_name,
                         linkedin_url=row.linkedin_url or "",
                         role=row.current_role,
                         company=row.current_company,
                         location=row.location,
+                        email=row.email,
+                        phone_number=row.phone_number,
+                        premium=row.premium,
+                        company_website=row.company_website,
+                        processed_at=row.processed_at,
+                        processed_at_millis=row.processed_at_millis,
+                        invite_accepted_at=row.invite_accepted_at,
+                        invite_accepted_at_millis=row.invite_accepted_at_millis,
                         priority=row.priority or data.default_priority,
                         connection_note=row.connection_note,
                         notes=row.conversation_context,
@@ -216,7 +228,11 @@ class CsvImportService:
 
         for index, row in enumerate(rows, start=2):
             errors: list[str] = []
-            name = self._clean(row.get("name"))
+            first_name = self._clean(row.get("first_name"))
+            last_name = self._clean(row.get("last_name"))
+            name = self._clean(row.get("name")) or " ".join(
+                part for part in (first_name, last_name) if part
+            ) or None
             linkedin_url = self._clean(row.get("linkedin_url"))
             normalized = normalize_linkedin_url(linkedin_url or "")
             normalized_url = normalized[0] if normalized else None
@@ -243,6 +259,16 @@ class CsvImportService:
                 errors.append("initial_action_type is invalid")
 
             next_action_date = self._parse_date(row.get("next_action_date"), errors)
+            processed_at_millis = self._parse_millis(row.get("processed_at_millis"), "processed_at_millis", errors)
+            invite_accepted_at_millis = self._parse_millis(
+                row.get("invite_accepted_at_millis"), "invite_accepted_at_millis", errors
+            )
+            processed_at = self._parse_octopus_datetime(
+                row.get("processed_at"), processed_at_millis, "processed_at", errors
+            )
+            invite_accepted_at = self._parse_octopus_datetime(
+                row.get("invite_accepted_at"), invite_accepted_at_millis, "invite_accepted_at", errors
+            )
 
             status = "invalid" if errors else "valid"
             if not errors and normalized_url:
@@ -256,12 +282,22 @@ class CsvImportService:
                     row_number=index,
                     status=status,
                     name=name,
+                    first_name=first_name,
+                    last_name=last_name,
                     linkedin_url=linkedin_url,
                     normalized_profile_url=normalized_url,
                     errors=errors,
                     current_role=self._clean(row.get("current_role")),
                     current_company=self._clean(row.get("current_company")),
                     location=self._clean(row.get("location")),
+                    email=self._clean(row.get("email")),
+                    phone_number=self._clean(row.get("phone_number")),
+                    premium=self._parse_bool(row.get("premium"), errors),
+                    company_website=self._clean(row.get("company_website")),
+                    processed_at=processed_at,
+                    processed_at_millis=processed_at_millis,
+                    invite_accepted_at=invite_accepted_at,
+                    invite_accepted_at_millis=invite_accepted_at_millis,
                     priority=priority,
                     connection_note=self._clean(row.get("connection_note")),
                     conversation_context=self._clean(row.get("conversation_context")),
@@ -329,3 +365,43 @@ class CsvImportService:
         except ValueError:
             errors.append("next_action_date must be YYYY-MM-DD")
             return None
+
+    def _parse_millis(self, value: Any, field: str, errors: list[str]) -> int | None:
+        text = self._clean(value)
+        if not text:
+            return None
+        try:
+            return int(text)
+        except ValueError:
+            errors.append(f"{field} must be an integer")
+            return None
+
+    def _parse_octopus_datetime(
+        self, value: Any, millis: int | None, field: str, errors: list[str]
+    ) -> datetime | None:
+        if millis is not None:
+            try:
+                return datetime.fromtimestamp(millis / 1000, tz=timezone.utc)
+            except (OverflowError, OSError, ValueError):
+                errors.append(f"{field}_millis is outside the supported date range")
+                return None
+        text = self._clean(value)
+        if not text:
+            return None
+        try:
+            return datetime.strptime(text, "%b %d, %Y %I:%M %p").replace(tzinfo=timezone.utc)
+        except ValueError:
+            errors.append(f"{field} must match 'Jul 06, 2026 11:06 PM'")
+            return None
+
+    def _parse_bool(self, value: Any, errors: list[str]) -> bool | None:
+        text = self._clean(value)
+        if not text:
+            return None
+        normalized = text.lower()
+        if normalized in {"true", "yes", "1", "premium"}:
+            return True
+        if normalized in {"false", "no", "0"}:
+            return False
+        errors.append("premium must be true/false, yes/no, or 1/0")
+        return None

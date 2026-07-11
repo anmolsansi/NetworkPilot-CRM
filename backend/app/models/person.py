@@ -1,9 +1,9 @@
 import logging
 import uuid
-from datetime import date
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ARRAY, Date, ForeignKey, String, Text
+from sqlalchemy import ARRAY, BigInteger, Boolean, Date, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -27,11 +27,21 @@ class Person(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
         index=True,
     )
     name: Mapped[str] = mapped_column(Text, nullable=False)
+    first_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     linkedin_url: Mapped[str] = mapped_column(Text, nullable=False)
     linkedin_slug: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     role: Mapped[str | None] = mapped_column(Text, nullable=True)
     company: Mapped[str | None] = mapped_column(Text, nullable=True)
     location: Mapped[str | None] = mapped_column(Text, nullable=True)
+    email: Mapped[str | None] = mapped_column(Text, nullable=True)
+    phone_number: Mapped[str | None] = mapped_column(Text, nullable=True)
+    premium: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    company_website: Mapped[str | None] = mapped_column(Text, nullable=True)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    processed_at_millis: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    invite_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    invite_accepted_at_millis: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     priority: Mapped[str] = mapped_column(String(1), nullable=False, default="B")
     stage: Mapped[str] = mapped_column(Text, nullable=False, default="invite_sent")
     status: Mapped[str] = mapped_column(Text, nullable=False, default="active")

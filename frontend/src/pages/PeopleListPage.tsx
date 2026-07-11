@@ -17,6 +17,8 @@ interface Person {
   name: string
   company: string | null
   role: string | null
+  location: string | null
+  email: string | null
   linkedin_url: string
   stage: string
   priority: string
@@ -203,7 +205,7 @@ export function PeopleListPage() {
         <form onSubmit={handleSearch} className="flex flex-wrap gap-4">
           <div className="flex-1 min-w-[200px]">
             <Input
-              placeholder="Search by name, company, or role..."
+              placeholder="Search by name, company, role, email, or location..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -247,6 +249,7 @@ export function PeopleListPage() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stage</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Action</th>
@@ -267,6 +270,10 @@ export function PeopleListPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {person.company || '-'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      <div>{person.email || '-'}</div>
+                      {person.location && <div className="text-xs text-gray-400">{person.location}</div>}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Badge variant="primary">{person.stage.replace(/_/g, ' ')}</Badge>

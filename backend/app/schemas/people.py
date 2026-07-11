@@ -8,10 +8,20 @@ _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
 class PersonCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
+    first_name: str | None = Field(None, max_length=100)
+    last_name: str | None = Field(None, max_length=100)
     linkedin_url: str = Field(..., min_length=1)
     role: str | None = Field(None, max_length=200)
     company: str | None = Field(None, max_length=200)
     location: str | None = Field(None, max_length=200)
+    email: str | None = Field(None, max_length=320)
+    phone_number: str | None = Field(None, max_length=100)
+    premium: bool | None = None
+    company_website: str | None = None
+    processed_at: datetime | None = None
+    processed_at_millis: int | None = None
+    invite_accepted_at: datetime | None = None
+    invite_accepted_at_millis: int | None = None
     priority: str = Field(default="B", pattern=r"^[ABC]$")
     connection_note: str | None = None
     notes: str | None = None
@@ -20,9 +30,15 @@ class PersonCreate(BaseModel):
 
 class PersonUpdate(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=200)
+    first_name: str | None = Field(None, max_length=100)
+    last_name: str | None = Field(None, max_length=100)
     role: str | None = Field(None, max_length=200)
     company: str | None = Field(None, max_length=200)
     location: str | None = Field(None, max_length=200)
+    email: str | None = Field(None, max_length=320)
+    phone_number: str | None = Field(None, max_length=100)
+    premium: bool | None = None
+    company_website: str | None = None
     priority: str | None = Field(None, pattern=r"^[ABC]$")
     notes: str | None = None
     tags: list[str] | None = Field(None, max_length=20)
@@ -32,11 +48,21 @@ class PersonResponse(BaseModel):
     id: uuid.UUID
     workspace_id: uuid.UUID
     name: str
+    first_name: str | None
+    last_name: str | None
     linkedin_url: str
     linkedin_slug: str
     role: str | None
     company: str | None
     location: str | None
+    email: str | None
+    phone_number: str | None
+    premium: bool | None
+    company_website: str | None
+    processed_at: datetime | None
+    processed_at_millis: int | None
+    invite_accepted_at: datetime | None
+    invite_accepted_at_millis: int | None
     priority: str
     stage: str
     status: str

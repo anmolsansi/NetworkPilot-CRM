@@ -53,11 +53,21 @@ class PeopleService:
         person = Person(
             workspace_id=workspace_id,
             name=data.name,
+            first_name=data.first_name,
+            last_name=data.last_name,
             linkedin_url=normalized_url,
             linkedin_slug=slug,
             role=data.role,
             company=data.company,
             location=data.location,
+            email=data.email,
+            phone_number=data.phone_number,
+            premium=data.premium,
+            company_website=data.company_website,
+            processed_at=data.processed_at,
+            processed_at_millis=data.processed_at_millis,
+            invite_accepted_at=data.invite_accepted_at,
+            invite_accepted_at_millis=data.invite_accepted_at_millis,
             priority=data.priority,
             connection_note=data.connection_note,
             notes=data.notes,
@@ -137,6 +147,8 @@ class PeopleService:
                     Person.name.ilike(search_pattern),
                     Person.company.ilike(search_pattern),
                     Person.role.ilike(search_pattern),
+                    Person.email.ilike(search_pattern),
+                    Person.location.ilike(search_pattern),
                 )
             )
 

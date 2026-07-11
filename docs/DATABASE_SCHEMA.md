@@ -53,11 +53,21 @@ LinkedIn contacts being tracked.
 | id | uuid | Primary key |
 | workspace_id | uuid | FK → workspaces.id |
 | name | text | Not null |
+| first_name | text | Octopus `First name`; nullable |
+| last_name | text | Octopus `Last name`; nullable |
 | linkedin_url | text | Normalized URL |
 | linkedin_slug | text | Extracted slug |
 | role | text | Nullable |
 | company | text | Nullable |
 | location | text | Nullable |
+| email | text | Nullable |
+| phone_number | text | Nullable |
+| premium | boolean | LinkedIn Premium flag; nullable |
+| company_website | text | Nullable |
+| processed_at | timestamptz | Octopus processing time; nullable |
+| processed_at_millis | bigint | Original Octopus epoch milliseconds; nullable |
+| invite_accepted_at | timestamptz | Octopus acceptance time; nullable |
+| invite_accepted_at_millis | bigint | Original Octopus epoch milliseconds; nullable |
 | priority | text | 'A', 'B', or 'C' |
 | stage | text | Current stage |
 | status | text | 'active', 'archived' |
