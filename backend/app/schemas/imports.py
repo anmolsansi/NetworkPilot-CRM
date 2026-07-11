@@ -87,6 +87,8 @@ class ImportCommitRequest(BaseModel):
     default_priority: str = Field(default="B")
     rows: list[ImportCommitRow]
     import_batch_id: uuid.UUID | None = None
+    chunk_index: int = Field(default=0, ge=0)
+    total_chunks: int = Field(default=1, ge=1)
 
 
 class ImportCreatedPerson(BaseModel):

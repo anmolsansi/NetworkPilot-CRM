@@ -27,6 +27,8 @@ const priorityOptions = [
   { value: 'C', label: 'C - Low' },
 ]
 
+const IMPORT_CHUNK_SIZE = 100
+
 export function ImportCsvModal({ isOpen, workspaceId, onClose, onImported }: ImportCsvModalProps) {
   const [file, setFile] = useState<File | null>(null)
   const [defaultAction, setDefaultAction] = useState('invite_sent')
@@ -34,6 +36,7 @@ export function ImportCsvModal({ isOpen, workspaceId, onClose, onImported }: Imp
   const [preview, setPreview] = useState<any | null>(null)
   const [summary, setSummary] = useState<any | null>(null)
   const [importing, setImporting] = useState(false)
+  const [importProgress, setImportProgress] = useState<{ completed: number; total: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const reset = () => {
@@ -44,6 +47,7 @@ export function ImportCsvModal({ isOpen, workspaceId, onClose, onImported }: Imp
     setSummary(null)
     setError(null)
     setImporting(false)
+    setImportProgress(null)
   }
 
   const handleClose = () => {
@@ -133,21 +137,37 @@ export function ImportCsvModal({ isOpen, workspaceId, onClose, onImported }: Imp
           next_action_date: row.next_action_date,
         }))
 
-      const result = await importsApi.commitPeople({
-        workspace_id: workspaceId,
-        default_initial_action_type: defaultAction,
-        duplicate_strategy: 'skip',
-        default_priority: defaultPriority,
-        import_batch_id: preview.import_batch_id,
-        rows,
-      })
-      setSummary(result.summary)
+      const chunks = Array.from(
+        { length: Math.ceil(rows.length / IMPORT_CHUNK_SIZE) },
+        (_, index) => rows.slice(index * IMPORT_CHUNK_SIZE, (index + 1) * IMPORT_CHUNK_SIZE),
+      )
+      const totals = { created_count: 0, skipped_duplicates: 0, failed_count: 0 }
+      setImportProgress({ completed: 0, total: chunks.length })
+
+      for (const [chunkIndex, chunk] of chunks.entries()) {
+        const result = await importsApi.commitPeople({
+          workspace_id: workspaceId,
+          default_initial_action_type: defaultAction,
+          duplicate_strategy: 'skip',
+          default_priority: defaultPriority,
+          import_batch_id: preview.import_batch_id,
+          chunk_index: chunkIndex,
+          total_chunks: chunks.length,
+          rows: chunk,
+        })
+        totals.created_count += result.summary.created_count
+        totals.skipped_duplicates += result.summary.skipped_duplicates
+        totals.failed_count += result.summary.failed_count
+        setImportProgress({ completed: chunkIndex + 1, total: chunks.length })
+      }
+
+      setSummary(totals)
       setPreview(null)
       onImported()
       console.info('[NetworkPilot ImportCsv]', 'CSV import committed', {
         workspaceId: workspaceId.slice(-8),
-        created: result.summary.created_count,
-        failed: result.summary.failed_count,
+        created: totals.created_count,
+        failed: totals.failed_count,
       })
     } catch (err: any) {
       console.error('[NetworkPilot ImportCsv]', 'CSV import commit failed', {
@@ -158,6 +178,7 @@ export function ImportCsvModal({ isOpen, workspaceId, onClose, onImported }: Imp
       setError(err.message || 'Import failed')
     } finally {
       setImporting(false)
+      setImportProgress(null)
     }
   }
 
@@ -257,6 +278,21 @@ export function ImportCsvModal({ isOpen, workspaceId, onClose, onImported }: Imp
           </div>
         )}
 
+        {importProgress && (
+          <div className="space-y-2" role="status" aria-live="polite">
+            <div className="flex justify-between text-sm text-gray-600">
+              <span>Importing profiles in batches of {IMPORT_CHUNK_SIZE}</span>
+              <span>{importProgress.completed} of {importProgress.total} batches</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+              <div
+                className="h-full bg-blue-600 transition-all"
+                style={{ width: `${(importProgress.completed / importProgress.total) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-wrap justify-end gap-3">
           {issueRows.length > 0 && (
             <Button type="button" variant="secondary" onClick={downloadErrorReport}>
@@ -272,7 +308,9 @@ export function ImportCsvModal({ isOpen, workspaceId, onClose, onImported }: Imp
             </Button>
           ) : (
             <Button type="button" onClick={handleCommit} disabled={importing || validRows.length === 0}>
-              {importing ? 'Importing...' : `Confirm Import (${validRows.length})`}
+              {importing && importProgress
+                ? `Importing batch ${Math.min(importProgress.completed + 1, importProgress.total)} of ${importProgress.total}...`
+                : importing ? 'Importing...' : `Confirm Import (${validRows.length})`}
             </Button>
           )}
         </div>

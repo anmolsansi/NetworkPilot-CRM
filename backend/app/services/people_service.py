@@ -19,7 +19,13 @@ class PeopleService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create(self, workspace_id: uuid.UUID, data: PersonCreate) -> Person:
+    async def create(
+        self,
+        workspace_id: uuid.UUID,
+        data: PersonCreate,
+        *,
+        check_duplicate: bool = True,
+    ) -> Person:
         """Create a person with URL normalization and duplicate detection."""
         _module_logger.info(
             "people_service.create.started workspace_id=%s priority=%s url_present=%s",
@@ -38,7 +44,7 @@ class PeopleService:
         normalized_url, slug = result
 
         # Check for duplicate
-        existing = await self._find_by_url(workspace_id, normalized_url)
+        existing = await self._find_by_url(workspace_id, normalized_url) if check_duplicate else None
         if existing:
             _module_logger.warning(
                 "people_service.create.duplicate workspace_id=%s existing_person_id=%s",

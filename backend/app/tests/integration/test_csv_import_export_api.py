@@ -8,6 +8,51 @@ _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
 @pytest.mark.anyio
 class TestCsvImportExportAPI:
+    async def test_commits_a_preview_in_multiple_chunks(
+        self,
+        client: AsyncClient,
+        mock_headers: dict,
+    ):
+        workspace_response = await client.post(
+            "/api/v1/workspaces",
+            json={"name": "Batched Import Workspace"},
+            headers=mock_headers,
+        )
+        workspace_id = workspace_response.json()["id"]
+        csv_content = (
+            "name,linkedin_url\n"
+            "Batch One,https://linkedin.com/in/batch-one/\n"
+            "Batch Two,https://linkedin.com/in/batch-two/\n"
+        )
+        preview_response = await client.post(
+            "/api/v1/imports/people/preview",
+            data={"workspace_id": workspace_id},
+            files={"file": ("batched.csv", csv_content, "text/csv")},
+            headers=mock_headers,
+        )
+        preview = preview_response.json()
+
+        for chunk_index, row in enumerate(preview["rows"]):
+            response = await client.post(
+                "/api/v1/imports/people/commit",
+                json={
+                    "workspace_id": workspace_id,
+                    "import_batch_id": preview["import_batch_id"],
+                    "chunk_index": chunk_index,
+                    "total_chunks": 2,
+                    "rows": [row],
+                },
+                headers=mock_headers,
+            )
+            assert response.status_code == 200
+            assert response.json()["summary"]["created_count"] == 1
+
+        people_response = await client.get(
+            f"/api/v1/people?workspace_id={workspace_id}",
+            headers=mock_headers,
+        )
+        assert people_response.json()["total"] == 2
+
     async def test_imports_octopus_connect_export_columns(
         self,
         client: AsyncClient,

@@ -64,11 +64,13 @@ async def commit_people_import(
     db: AsyncSession = Depends(get_db),
 ):
     logger.info(
-        "imports.commit.started workspace_id=%s user_id=%s rows=%s import_batch_id=%s",
+        "imports.commit.started workspace_id=%s user_id=%s rows=%s import_batch_id=%s chunk=%s/%s",
         mask_id(str(data.workspace_id)),
         mask_id(str(user.id)),
         len(data.rows),
         mask_id(str(data.import_batch_id)) if data.import_batch_id else None,
+        data.chunk_index + 1,
+        data.total_chunks,
     )
     await require_workspace_access(data.workspace_id, user, db)
     service = CsvImportService(db)

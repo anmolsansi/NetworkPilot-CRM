@@ -6,7 +6,6 @@ import { downloadCsvBlob } from '../api/csvDownload'
 import { Button } from '../components/common/Button'
 import { Input } from '../components/common/Input'
 import { Select } from '../components/common/Select'
-import { Badge } from '../components/common/Badge'
 import { EmptyState } from '../components/common/EmptyState'
 import { ErrorAlert } from '../components/common/ErrorAlert'
 import { Skeleton } from '../components/common/Skeleton'
@@ -15,10 +14,19 @@ import { ImportCsvModal } from '../components/imports/ImportCsvModal'
 interface Person {
   id: string
   name: string
+  first_name: string | null
+  last_name: string | null
   company: string | null
   role: string | null
   location: string | null
   email: string | null
+  phone_number: string | null
+  premium: boolean | null
+  company_website: string | null
+  processed_at: string | null
+  processed_at_millis: number | null
+  invite_accepted_at: string | null
+  invite_accepted_at_millis: number | null
   linkedin_url: string
   stage: string
   priority: string
@@ -51,11 +59,21 @@ const priorityOptions = [
   { value: 'C', label: 'C - Low' },
 ]
 
-const priorityVariant = {
-  A: 'danger',
-  B: 'warning',
-  C: 'default',
-} as const
+function octopusDate(value: string | null) {
+  if (!value) return ''
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(new Date(value))
+}
+
+function octopusLink(value: string) {
+  return `https://${value.replace(/^https?:\/\//, '').replace(/\/$/, '')}/`
+}
 
 export function PeopleListPage() {
   const navigate = useNavigate()
@@ -243,16 +261,13 @@ export function PeopleListPage() {
             action={<Button onClick={() => navigate('/people/new')}>Add Person</Button>}
           />
         ) : (
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="overflow-x-auto bg-white shadow sm:rounded-lg">
+            <table className="min-w-max divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stage</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Action</th>
+                  {['Link', 'First name', 'Last name', 'Company', 'Position', 'Email', 'Phone number', 'Premium', 'Location', 'Company website', 'Processed at', 'Processed at millis', 'Invite accepted at', 'Invite accepted at millis'].map((heading) => (
+                    <th key={heading} className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{heading}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -262,41 +277,20 @@ export function PeopleListPage() {
                     onClick={() => navigate(`/people/${person.id}`)}
                     className="hover:bg-gray-50 cursor-pointer"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{person.name}</div>
-                      {person.role && (
-                        <div className="text-sm text-gray-500">{person.role}</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {person.company || '-'}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      <div>{person.email || '-'}</div>
-                      {person.location && <div className="text-xs text-gray-400">{person.location}</div>}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge variant="primary">{person.stage.replace(/_/g, ' ')}</Badge>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge variant={priorityVariant[person.priority as keyof typeof priorityVariant]}>
-                        {person.priority}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {person.next_action_type ? (
-                        <span>
-                          {person.next_action_type.replace(/_/g, ' ')}
-                          {person.next_action_date && (
-                            <span className="ml-1 text-gray-400">
-                              ({new Date(person.next_action_date).toLocaleDateString()})
-                            </span>
-                          )}
-                        </span>
-                      ) : (
-                        '-'
-                      )}
-                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-blue-600 underline">{octopusLink(person.linkedin_url)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-gray-900">{person.first_name || ''}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-gray-900">{person.last_name || ''}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-gray-600">{person.company || ''}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-gray-600">{person.role || ''}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-gray-600">{person.email || ''}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-gray-600">{person.phone_number || ''}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-gray-600">{person.premium === null ? '' : person.premium ? 'TRUE' : 'FALSE'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-gray-600">{person.location || ''}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-gray-600">{person.company_website || ''}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-gray-600">{octopusDate(person.processed_at)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 font-mono text-gray-600">{person.processed_at_millis ?? ''}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-gray-600">{octopusDate(person.invite_accepted_at)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 font-mono text-gray-600">{person.invite_accepted_at_millis ?? ''}</td>
                   </tr>
                 ))}
               </tbody>

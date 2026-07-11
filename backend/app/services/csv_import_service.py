@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import ConflictError, ValidationError
 from app.models.import_batch import ImportBatch
 from app.models.person import Person
+from app.models.workspace import Workspace
 from app.schemas.activities import ActivityCreate
 from app.schemas.imports import (
     IMPORT_ACTION_TYPES,
@@ -109,6 +110,7 @@ class CsvImportService:
 
         people_service = PeopleService(self.db)
         activity_service = ActivityService(self.db)
+        workspace = await self.db.get(Workspace, data.workspace_id)
         created_people: list[ImportCreatedPerson] = []
         errors: list[ImportPreviewRow] = []
 
@@ -141,6 +143,7 @@ class CsvImportService:
                         notes=row.conversation_context,
                         tags=row.tags or None,
                     ),
+                    check_duplicate=False,
                 )
                 action_type = ACTION_TO_ACTIVITY[
                     row.initial_action_type or data.default_initial_action_type
@@ -155,6 +158,8 @@ class CsvImportService:
                         notes="Created from CSV import",
                         next_action_date=row.next_action_date,
                     ),
+                    person=person,
+                    workspace=workspace,
                 )
                 created_people.append(
                     ImportCreatedPerson(
@@ -174,8 +179,12 @@ class CsvImportService:
         if data.import_batch_id:
             batch = await self.db.get(ImportBatch, data.import_batch_id)
             if batch and batch.workspace_id == data.workspace_id:
-                batch.created_count = len(created_people)
-                batch.status = "committed"
+                batch.created_count += len(created_people)
+                batch.status = (
+                    "committed"
+                    if data.chunk_index + 1 >= data.total_chunks
+                    else "importing"
+                )
 
         return {
             "summary": {
