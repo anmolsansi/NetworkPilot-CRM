@@ -17,6 +17,12 @@ interface Person {
   company: string | null
   role: string | null
   location: string | null
+  email: string | null
+  phone_number: string | null
+  premium: boolean | null
+  company_website: string | null
+  processed_at: string | null
+  invite_accepted_at: string | null
   priority: string
   stage: string
   status: string
@@ -245,6 +251,36 @@ export function PersonDetailPage() {
               <div>
                 <span className="text-sm text-gray-500">Location</span>
                 <p className="text-sm text-gray-900">{person.location || '-'}</p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-500">Email</span>
+                <p className="text-sm text-gray-900">{person.email || '-'}</p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-500">Phone</span>
+                <p className="text-sm text-gray-900">{person.phone_number || '-'}</p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-500">Company website</span>
+                <p className="text-sm text-gray-900">
+                  {person.company_website ? (
+                    <a href={person.company_website} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700">
+                      {person.company_website}
+                    </a>
+                  ) : '-'}
+                </p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-500">LinkedIn Premium</span>
+                <p className="text-sm text-gray-900">{person.premium == null ? '-' : person.premium ? 'Yes' : 'No'}</p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-500">Processed</span>
+                <p className="text-sm text-gray-900">{person.processed_at ? new Date(person.processed_at).toLocaleString() : '-'}</p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-500">Invite accepted</span>
+                <p className="text-sm text-gray-900">{person.invite_accepted_at ? new Date(person.invite_accepted_at).toLocaleString() : '-'}</p>
               </div>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-500">Priority</span>

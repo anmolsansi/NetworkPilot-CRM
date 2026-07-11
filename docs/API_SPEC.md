@@ -61,6 +61,11 @@ PATCH  /people/{person_id}?workspace_id=
 DELETE /people/{person_id}?workspace_id=
 ```
 
+CSV import accepts NetworkPilot headers and Octopus Connect exports. Octopus columns map as
+`Link → linkedin_url`, `First name`/`Last name → first_name`/`last_name`,
+`Position → role`, with email, phone, Premium, location, company website, processed time,
+and invite-accepted time preserved on the person record.
+
 ### Activities
 
 *Requires `workspace_id` as a query parameter for all endpoints.*

@@ -1,6 +1,6 @@
 import logging
 import uuid
-from datetime import date
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -26,12 +26,22 @@ class ImportPreviewRow(BaseModel):
     row_number: int
     status: str
     name: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
     linkedin_url: str | None = None
     normalized_profile_url: str | None = None
     errors: list[str] = Field(default_factory=list)
     current_role: str | None = None
     current_company: str | None = None
     location: str | None = None
+    email: str | None = None
+    phone_number: str | None = None
+    premium: bool | None = None
+    company_website: str | None = None
+    processed_at: datetime | None = None
+    processed_at_millis: int | None = None
+    invite_accepted_at: datetime | None = None
+    invite_accepted_at_millis: int | None = None
     priority: str | None = None
     connection_note: str | None = None
     conversation_context: str | None = None
@@ -48,10 +58,20 @@ class ImportPreviewResponse(BaseModel):
 
 class ImportCommitRow(BaseModel):
     name: str
+    first_name: str | None = None
+    last_name: str | None = None
     linkedin_url: str
     current_role: str | None = None
     current_company: str | None = None
     location: str | None = None
+    email: str | None = None
+    phone_number: str | None = None
+    premium: bool | None = None
+    company_website: str | None = None
+    processed_at: datetime | None = None
+    processed_at_millis: int | None = None
+    invite_accepted_at: datetime | None = None
+    invite_accepted_at_millis: int | None = None
     priority: str | None = None
     connection_note: str | None = None
     conversation_context: str | None = None
