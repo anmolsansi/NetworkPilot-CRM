@@ -1,0 +1,65 @@
+name: Apply People filter build fix
+
+on:
+  push:
+    branches:
+      - agent/fix-people-filter-build
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Apply source fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('frontend/src/pages/PeopleListPage.tsx')
+          text = path.read_text()
+          old = """  const handleSearch = (e: React.FormEvent) => {
+            e.preventDefault()
+            setPage(1)
+            setFilters(filterDraft)
+          }
+          """
+          new = """  const applyFilters = () => {
+            setPage(1)
+            setFilters(filterDraft)
+          }
+          """
+          if old not in text:
+              raise SystemExit('Expected handleSearch block was not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Commit validated fix
+        run: |
+          rm .github/workflows/apply-people-filter-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/src/pages/PeopleListPage.tsx .github/workflows/apply-people-filter-fix.yml
+          git commit -m "Fix People filter build"
+          git push
