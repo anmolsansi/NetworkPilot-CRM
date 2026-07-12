@@ -61,6 +61,43 @@ PATCH  /people/{person_id}?workspace_id=
 DELETE /people/{person_id}?workspace_id=
 ```
 
+#### Atomic bulk People actions (`v0.0.1`)
+
+Unlike the single-person endpoints, `workspace_id` is required in the JSON body:
+
+```http
+POST /people/bulk-actions
+```
+
+```json
+{
+  "workspace_id": "uuid",
+  "person_ids": ["uuid"],
+  "action": "set_favorite | add_tags | remove_tags | set_priority | set_stage | archive | set_next_action",
+  "payload": {}
+}
+```
+
+The request accepts 1–100 unique people and is atomic: if any selected person is missing,
+deleted, or outside the workspace, the endpoint returns 404 and changes none of them.
+Action payloads:
+
+- `set_favorite`: `{ "is_favorite": boolean }`
+- `add_tags` / `remove_tags`: `{ "tags": [string] }` (1–20 tags, each 1–50 characters)
+- `set_priority`: `{ "priority": "A" | "B" | "C" }`
+- `set_stage`: `{ "stage": "saved_for_later" | "invite_sent" | "invite_pending" | "accepted" | "waiting_for_reply" | "replied" | "archived" }`
+- `archive`: `{}`
+- `set_next_action`: `{ "next_action_type": string|null, "next_action_date": "YYYY-MM-DD"|null }`
+
+Success returns the selected people in request order:
+
+```json
+{
+  "updated_count": 2,
+  "items": ["PersonResponse", "PersonResponse"]
+}
+```
+
 CSV import accepts NetworkPilot headers and Octopus Connect exports. Octopus columns map as
 `Link → linkedin_url`, `First name`/`Last name → first_name`/`last_name`,
 `Position → role`, with email, phone, Premium, location, company website, processed time,

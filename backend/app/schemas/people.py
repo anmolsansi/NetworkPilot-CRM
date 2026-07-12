@@ -1,8 +1,9 @@
 import logging
 import uuid
 from datetime import date, datetime
+from typing import Annotated, Literal, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
@@ -90,6 +91,130 @@ class PersonListResponse(BaseModel):
     total: int
     page: int
     limit: int
+
+
+class StrictModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class BulkSetFavoritePayload(StrictModel):
+    is_favorite: bool
+
+
+class BulkTagsPayload(StrictModel):
+    tags: list[str] = Field(..., min_length=1, max_length=20)
+
+    @field_validator("tags")
+    @classmethod
+    def normalize_tags(cls, tags: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for tag in tags:
+            value = tag.strip()
+            if not value:
+                raise ValueError("Tags must be 1 to 50 characters.")
+            if len(value) > 50:
+                raise ValueError("Tags must be 1 to 50 characters.")
+            if value not in normalized:
+                normalized.append(value)
+        return normalized
+
+
+class BulkPriorityPayload(StrictModel):
+    priority: Literal["A", "B", "C"]
+
+
+class BulkStagePayload(StrictModel):
+    stage: Literal[
+        "saved_for_later",
+        "invite_sent",
+        "invite_pending",
+        "accepted",
+        "waiting_for_reply",
+        "replied",
+        "archived",
+    ]
+
+
+class BulkArchivePayload(StrictModel):
+    pass
+
+
+class BulkNextActionPayload(StrictModel):
+    next_action_type: str | None = Field(None, max_length=100)
+    next_action_date: date | None = None
+
+    @field_validator("next_action_type", mode="before")
+    @classmethod
+    def normalize_next_action_type(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
+
+
+class BulkPeopleActionBase(StrictModel):
+    workspace_id: uuid.UUID
+    person_ids: list[uuid.UUID] = Field(..., min_length=1, max_length=100)
+
+    @field_validator("person_ids")
+    @classmethod
+    def require_unique_people(cls, person_ids: list[uuid.UUID]) -> list[uuid.UUID]:
+        if len(set(person_ids)) != len(person_ids):
+            raise ValueError("Select each person only once.")
+        return person_ids
+
+
+class BulkSetFavoriteRequest(BulkPeopleActionBase):
+    action: Literal["set_favorite"]
+    payload: BulkSetFavoritePayload
+
+
+class BulkAddTagsRequest(BulkPeopleActionBase):
+    action: Literal["add_tags"]
+    payload: BulkTagsPayload
+
+
+class BulkRemoveTagsRequest(BulkPeopleActionBase):
+    action: Literal["remove_tags"]
+    payload: BulkTagsPayload
+
+
+class BulkSetPriorityRequest(BulkPeopleActionBase):
+    action: Literal["set_priority"]
+    payload: BulkPriorityPayload
+
+
+class BulkSetStageRequest(BulkPeopleActionBase):
+    action: Literal["set_stage"]
+    payload: BulkStagePayload
+
+
+class BulkArchiveRequest(BulkPeopleActionBase):
+    action: Literal["archive"]
+    payload: BulkArchivePayload
+
+
+class BulkSetNextActionRequest(BulkPeopleActionBase):
+    action: Literal["set_next_action"]
+    payload: BulkNextActionPayload
+
+
+BulkPeopleActionRequest = Annotated[
+    Union[
+        BulkSetFavoriteRequest,
+        BulkAddTagsRequest,
+        BulkRemoveTagsRequest,
+        BulkSetPriorityRequest,
+        BulkSetStageRequest,
+        BulkArchiveRequest,
+        BulkSetNextActionRequest,
+    ],
+    Field(discriminator="action"),
+]
+
+
+class BulkPeopleActionResponse(BaseModel):
+    updated_count: int
+    items: list[PersonResponse]
 
 
 class SnoozeRequest(BaseModel):
