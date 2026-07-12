@@ -74,6 +74,8 @@ class PeopleService:
             processed_at_millis=data.processed_at_millis,
             invite_accepted_at=data.invite_accepted_at,
             invite_accepted_at_millis=data.invite_accepted_at_millis,
+            is_favorite=data.is_favorite,
+            favorite_notes=data.favorite_notes,
             priority=data.priority,
             connection_note=data.connection_note,
             notes=data.notes,
@@ -130,6 +132,8 @@ class PeopleService:
         premium: bool | None = None,
         processed_from: datetime | None = None,
         processed_to: datetime | None = None,
+        favorite: bool | None = None,
+        favorite_notes: str | None = None,
         sort_by: str = "created_at",
         sort_order: str = "desc",
         page: int = 1,
@@ -180,6 +184,10 @@ class PeopleService:
             query = query.where(Person.processed_at >= processed_from)
         if processed_to:
             query = query.where(Person.processed_at <= processed_to)
+        if favorite is not None:
+            query = query.where(Person.is_favorite == favorite)
+        if favorite_notes:
+            query = query.where(Person.favorite_notes.ilike(f"%{favorite_notes}%"))
 
         # Count total
         count_query = select(func.count()).select_from(query.subquery())
@@ -204,6 +212,8 @@ class PeopleService:
             "invite_accepted_at": Person.invite_accepted_at,
             "invite_accepted_at_millis": Person.invite_accepted_at_millis,
             "created_at": Person.created_at,
+            "is_favorite": Person.is_favorite,
+            "favorite_notes": Person.favorite_notes,
         }
         sort_column = sort_columns.get(sort_by, Person.created_at)
         ordering = sort_column.asc() if sort_order == "asc" else sort_column.desc()

@@ -42,6 +42,8 @@ class Person(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
     processed_at_millis: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     invite_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     invite_accepted_at_millis: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    is_favorite: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    favorite_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     priority: Mapped[str] = mapped_column(String(1), nullable=False, default="B")
     stage: Mapped[str] = mapped_column(Text, nullable=False, default="invite_sent")
     status: Mapped[str] = mapped_column(Text, nullable=False, default="active")

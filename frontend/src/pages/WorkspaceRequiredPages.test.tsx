@@ -68,6 +68,7 @@ describe('workspace-required pages', () => {
         company: 'Acme', role: 'Engineer', location: 'London', email: 'ada@example.com',
         phone_number: null, premium: true, company_website: null, processed_at: null,
         processed_at_millis: null, invite_accepted_at: null, invite_accepted_at_millis: null,
+        is_favorite: true, favorite_notes: 'Strong candidate',
         linkedin_url: 'linkedin.com/in/ada', stage: 'invite_sent', priority: 'B', status: 'active',
         next_action_type: null, next_action_date: null,
       }],
@@ -78,10 +79,14 @@ describe('workspace-required pages', () => {
 
     fireEvent.change(screen.getByLabelText('Company'), { target: { value: 'Acme' } })
     fireEvent.change(screen.getByLabelText('Premium'), { target: { value: 'true' } })
+    fireEvent.change(screen.getByLabelText('Favourite'), { target: { value: 'true' } })
+    fireEvent.change(screen.getByLabelText('Favourite notes contain'), { target: { value: 'candidate' } })
     fireEvent.click(screen.getByRole('button', { name: 'Apply Filters' }))
     await waitFor(() => expect(peopleApi.list).toHaveBeenLastCalledWith(expect.objectContaining({
       company: 'Acme',
       premium: 'true',
+      favorite: 'true',
+      favorite_notes: 'candidate',
     })))
 
     fireEvent.click(screen.getByRole('button', { name: 'Sort by Company' }))
