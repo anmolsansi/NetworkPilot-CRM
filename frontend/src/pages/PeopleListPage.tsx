@@ -226,8 +226,7 @@ export function PeopleListPage() {
     fetchPeople()
   }, [currentWorkspace, page, filters, sortBy, sortOrder])
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
+  const applyFilters = () => {
     setPage(1)
     setFilters(filterDraft)
   }
