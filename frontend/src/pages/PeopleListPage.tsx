@@ -10,6 +10,10 @@ import { EmptyState } from '../components/common/EmptyState'
 import { ErrorAlert } from '../components/common/ErrorAlert'
 import { Skeleton } from '../components/common/Skeleton'
 import { ImportCsvModal } from '../components/imports/ImportCsvModal'
+import { BulkActionBar } from '../features/bulk-actions/BulkActionBar'
+import { SavedViewsDropdown } from '../features/saved-views/SavedViewsDropdown'
+import { SaveViewModal } from '../features/saved-views/SaveViewModal'
+import { savedViewsApi } from '../api/httpClient'
 
 interface Person {
   id: string
@@ -155,6 +159,10 @@ export function PeopleListPage() {
   const [error, setError] = useState<string | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [selectedPersonIds, setSelectedPersonIds] = useState<string[]>([])
+  
+  const [saveViewOpen, setSaveViewOpen] = useState(false)
+  const [savedViewsRefreshTrigger, setSavedViewsRefreshTrigger] = useState(0)
 
   const [filterDraft, setFilterDraft] = useState<PeopleFilters>(emptyFilters)
   const [filters, setFilters] = useState<PeopleFilters>(emptyFilters)
@@ -230,13 +238,30 @@ export function PeopleListPage() {
     setPage(1)
   }
 
+  const toggleSelectAll = () => {
+    if (people.length === 0) return
+    const allOnPageAreSelected = people.every((p) => selectedPersonIds.includes(p.id))
+    if (allOnPageAreSelected) {
+      setSelectedPersonIds((prev) => prev.filter((id) => !people.find((p) => p.id === id)))
+    } else {
+      const idsToAdd = people.filter((p) => !selectedPersonIds.includes(p.id)).map((p) => p.id)
+      setSelectedPersonIds((prev) => [...prev, ...idsToAdd])
+    }
+  }
+
+  const toggleSelectPerson = (id: string) => {
+    setSelectedPersonIds((prev) =>
+      prev.includes(id) ? prev.filter((pId) => pId !== id) : [...prev, id]
+    )
+  }
+
   const handleSort = (key: SortKey) => {
     setPage(1)
     if (sortBy === key) {
-      setSortOrder((order) => order === 'asc' ? 'desc' : 'asc')
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
     } else {
       setSortBy(key)
-      setSortOrder('asc')
+      setSortOrder('desc')
     }
   }
 
@@ -276,6 +301,25 @@ export function PeopleListPage() {
 
   const totalPages = Math.ceil(total / 20)
 
+  const handleApplySavedView = (newFilters: any, newSortBy: string, newSortOrder: string) => {
+    setFilterDraft(newFilters)
+    setFilters(newFilters)
+    setSortBy(newSortBy as SortKey)
+    setSortOrder(newSortOrder as 'asc' | 'desc')
+    setPage(1)
+  }
+
+  const handleSaveView = async (name: string) => {
+    if (!currentWorkspace) return
+    await savedViewsApi.create({
+      name,
+      filters,
+      sort_by: sortBy,
+      sort_order: sortOrder
+    }, currentWorkspace.id)
+    setSavedViewsRefreshTrigger(prev => prev + 1)
+  }
+
   if (!currentWorkspace) {
     return (
       <div>
@@ -304,9 +348,16 @@ export function PeopleListPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">People</h1>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold text-gray-900">People</h1>
+            <SavedViewsDropdown 
+              workspaceId={currentWorkspace.id} 
+              onSelectView={handleApplySavedView} 
+              refreshTrigger={savedViewsRefreshTrigger} 
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={() => setImportOpen(true)}>Import CSV</Button>
           <Button variant="secondary" onClick={handleExport} disabled={exporting}>
             {exporting ? 'Exporting...' : 'Export CSV'}
@@ -317,7 +368,7 @@ export function PeopleListPage() {
 
       {/* Filters */}
       <div className="mt-6 bg-white shadow rounded-lg p-4">
-        <form onSubmit={handleSearch} className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <form onSubmit={(e) => { e.preventDefault(); applyFilters(); }} className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div className="md:col-span-2">
             <Input
               label="Search"
@@ -366,9 +417,14 @@ export function PeopleListPage() {
             />
           </div>
           <div className="flex items-end gap-2">
-            <Button type="submit" variant="secondary">Apply Filters</Button>
-            <Button type="button" variant="secondary" onClick={clearFilters}>Clear</Button>
-          </div>
+                <Button variant="secondary" onClick={clearFilters}>
+                  Clear
+                </Button>
+                <Button variant="secondary" onClick={() => setSaveViewOpen(true)}>
+                  Save View
+                </Button>
+                <Button onClick={applyFilters}>Apply Filters</Button>
+              </div>
         </form>
       </div>
 
@@ -391,6 +447,14 @@ export function PeopleListPage() {
             <table className="min-w-max divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-4 py-3 text-left w-10">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={people.length > 0 && people.every(p => selectedPersonIds.includes(p.id))}
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
                   {csvColumns.map((column) => (
                     <th key={column.key} className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                       <button
@@ -421,6 +485,14 @@ export function PeopleListPage() {
                     tabIndex={0}
                     className="hover:bg-gray-50 cursor-pointer"
                   >
+                    <td className="px-4 py-3 w-10" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        checked={selectedPersonIds.includes(person.id)}
+                        onChange={() => toggleSelectPerson(person.id)}
+                      />
+                    </td>
                     <td className="whitespace-nowrap px-4 py-3 text-lg" aria-label={person.is_favorite ? 'Favourite status: yes' : 'Favourite status: no'}>
                       {person.is_favorite ? '★' : '☆'}
                     </td>
@@ -482,6 +554,24 @@ export function PeopleListPage() {
           onImported={fetchPeople}
         />
       )}
+
+      {currentWorkspace && (
+        <BulkActionBar
+          workspaceId={currentWorkspace.id}
+          selectedIds={selectedPersonIds}
+          onClearSelection={() => setSelectedPersonIds([])}
+          onSuccess={() => {
+            setSelectedPersonIds([])
+            fetchPeople()
+          }}
+        />
+      )}
+
+      <SaveViewModal
+        isOpen={saveViewOpen}
+        onClose={() => setSaveViewOpen(false)}
+        onSave={handleSaveView}
+      />
     </div>
   )
 }

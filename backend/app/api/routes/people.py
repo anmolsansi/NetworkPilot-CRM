@@ -6,16 +6,20 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db
+from app.api.deps import get_current_user, get_db
 from app.core.logging import get_logger, mask_id
+from app.models.user import AppUser
 from app.schemas.people import (
     ArchiveRequest,
+    BulkPeopleActionRequest,
+    BulkPeopleActionResponse,
     PersonCreate,
     PersonListResponse,
     PersonResponse,
     PersonUpdate,
     SnoozeRequest,
 )
+from app.services.bulk_people_service import BulkPeopleService
 from app.services.people_service import PeopleService
 from app.services.workspace_service import require_workspace_access
 
@@ -121,6 +125,35 @@ async def create_person(
         person.stage,
     )
     return person
+
+
+@router.post("/bulk-actions", response_model=BulkPeopleActionResponse)
+async def bulk_people_action(
+    data: BulkPeopleActionRequest,
+    user: AppUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Apply one atomic action to an explicit workspace-scoped selection."""
+    logger.info(
+        "people.bulk_action.started workspace_id=%s user_id=%s action=%s count=%s",
+        mask_id(str(data.workspace_id)),
+        mask_id(str(user.id)),
+        data.action,
+        len(data.person_ids),
+    )
+    await require_workspace_access(data.workspace_id, user, db)
+    service = BulkPeopleService(db)
+    people = await service.apply(data.workspace_id, user.id, data)
+    logger.info(
+        "people.bulk_action.completed workspace_id=%s action=%s count=%s",
+        mask_id(str(data.workspace_id)),
+        data.action,
+        len(people),
+    )
+    return BulkPeopleActionResponse(
+        updated_count=len(people),
+        items=[PersonResponse.model_validate(person) for person in people],
+    )
 
 
 @router.get("/{person_id}", response_model=PersonResponse)

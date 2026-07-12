@@ -1,20 +1,18 @@
 import logging
-import pytest
 import uuid
-import asyncio
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy import ARRAY
-from sqlalchemy.ext.compiler import compiles
-from fastapi import Header
 
-from app.main import app
-from app.db.base import Base
-from app.api.deps import get_db, get_current_auth
+import pytest
+from fastapi import Header
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import ARRAY, JSON
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.compiler import compiles
+
+from app.api.deps import get_current_auth, get_db
 from app.core.errors import UnauthorizedError
 from app.core.security import AuthClaims
-
-
+from app.db.base import Base
+from app.main import app
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
@@ -45,10 +43,15 @@ def mock_headers(mock_user_id):
 
 @pytest.fixture
 async def db_session():
+    for table in Base.metadata.tables.values():
+        for column in table.columns:
+            if isinstance(column.type, ARRAY):
+                column.type = JSON()
+
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        
+
     session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with session_maker() as session:
         yield session
@@ -63,7 +66,7 @@ async def client(db_session, mock_user_id):
         if not authorization or not authorization.startswith("Bearer "):
             raise UnauthorizedError("Missing or invalid authorization header")
         token = authorization.split(" ", 1)[1]
-        
+
         # Parse token as user_id:email for dynamic mocking, default to mock_user_id for test-token
         if token == "test-token":
             return AuthClaims(user_id=uuid.UUID(mock_user_id), email="test@example.com")
@@ -73,14 +76,14 @@ async def client(db_session, mock_user_id):
             import hashlib
             uid_uuid = uuid.UUID(hashlib.md5(uid.encode()).hexdigest())
             return AuthClaims(user_id=uid_uuid, email=email)
-            
+
         raise UnauthorizedError("Invalid or expired token")
-        
+
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_auth] = override_get_current_auth
-    
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-        
+
     app.dependency_overrides.clear()
