@@ -213,6 +213,8 @@ export const peopleApi = {
     request<any>(`/people/${id}/snooze?workspace_id=${workspaceId}`, { method: 'POST', body: JSON.stringify(data) }),
   archive: (id: string, data: any, workspaceId: string) =>
     request<any>(`/people/${id}/archive?workspace_id=${workspaceId}`, { method: 'POST', body: JSON.stringify(data) }),
+  bulkAction: (data: any) =>
+    request<any>('/people/bulk-actions', { method: 'POST', body: JSON.stringify(data) }),
 }
 
 // CSV Import API
@@ -268,6 +270,18 @@ export const templatesApi = {
 export const calendarApi = {
   getReminderLink: (workspaceId: string) =>
     request<any>(`/calendar/daily-reminder-link?workspace_id=${workspaceId}`),
+}
+
+// Saved Views API
+export const savedViewsApi = {
+  list: (workspaceId: string) =>
+    request<any[]>(`/saved-views?workspace_id=${workspaceId}`),
+  create: (data: any, workspaceId: string) =>
+    request<any>(`/saved-views?workspace_id=${workspaceId}`, { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any, workspaceId: string) =>
+    request<any>(`/saved-views/${id}?workspace_id=${workspaceId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (id: string, workspaceId: string) =>
+    request<void>(`/saved-views/${id}?workspace_id=${workspaceId}`, { method: 'DELETE' }),
 }
 
 console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/api/httpClient.ts')
