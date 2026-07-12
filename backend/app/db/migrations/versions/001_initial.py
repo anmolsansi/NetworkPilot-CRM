@@ -87,6 +87,8 @@ def upgrade() -> None:
         sa.Column("connection_note", sa.Text, nullable=True),
         sa.Column("notes", sa.Text, nullable=True),
         sa.Column("tags", postgresql.ARRAY(sa.Text), nullable=True),
+        sa.Column("is_favorite", sa.Boolean, nullable=False, server_default=sa.text("false")),
+        sa.Column("favorite_notes", sa.Text, nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
@@ -95,6 +97,7 @@ def upgrade() -> None:
     op.create_index("ix_people_status", "people", ["status"])
     op.create_index("ix_people_priority", "people", ["priority"])
     op.create_index("ix_people_next_action_date", "people", ["next_action_date"])
+    op.create_index("ix_people_workspace_favorite", "people", ["workspace_id", "is_favorite"])
     op.create_index(
         "ix_people_workspace_url",
         "people",

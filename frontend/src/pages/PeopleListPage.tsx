@@ -27,6 +27,8 @@ interface Person {
   processed_at_millis: number | null
   invite_accepted_at: string | null
   invite_accepted_at_millis: number | null
+  is_favorite: boolean
+  favorite_notes: string | null
   linkedin_url: string
   stage: string
   priority: string
@@ -47,6 +49,7 @@ type SortKey =
   | 'linkedin_url' | 'first_name' | 'last_name' | 'company' | 'role' | 'email'
   | 'phone_number' | 'premium' | 'location' | 'company_website' | 'processed_at'
   | 'processed_at_millis' | 'invite_accepted_at' | 'invite_accepted_at_millis'
+  | 'is_favorite' | 'favorite_notes'
 
 interface PeopleFilters {
   search: string
@@ -55,6 +58,8 @@ interface PeopleFilters {
   email: string
   location: string
   premium: string
+  favorite: string
+  favoriteNotes: string
   processedFrom: string
   processedTo: string
   stage: string
@@ -68,6 +73,8 @@ const emptyFilters: PeopleFilters = {
   email: '',
   location: '',
   premium: '',
+  favorite: '',
+  favoriteNotes: '',
   processedFrom: '',
   processedTo: '',
   stage: '',
@@ -75,6 +82,8 @@ const emptyFilters: PeopleFilters = {
 }
 
 const csvColumns: { label: string; key: SortKey }[] = [
+  { label: 'Favourite', key: 'is_favorite' },
+  { label: 'Favourite notes', key: 'favorite_notes' },
   { label: 'Link', key: 'linkedin_url' },
   { label: 'First name', key: 'first_name' },
   { label: 'Last name', key: 'last_name' },
@@ -112,6 +121,12 @@ const premiumOptions = [
   { value: '', label: 'All' },
   { value: 'true', label: 'Premium' },
   { value: 'false', label: 'Not premium' },
+]
+
+const favoriteOptions = [
+  { value: '', label: 'All people' },
+  { value: 'true', label: 'Favourites only' },
+  { value: 'false', label: 'Not favourites' },
 ]
 
 function octopusDate(value: string | null) {
@@ -172,6 +187,8 @@ export function PeopleListPage() {
       if (filters.email) params.email = filters.email
       if (filters.location) params.location = filters.location
       if (filters.premium) params.premium = filters.premium
+      if (filters.favorite) params.favorite = filters.favorite
+      if (filters.favoriteNotes) params.favorite_notes = filters.favoriteNotes
       if (filters.processedFrom) params.processed_from = `${filters.processedFrom}T00:00:00.000Z`
       if (filters.processedTo) params.processed_to = `${filters.processedTo}T23:59:59.999Z`
       if (filters.stage) params.stage = filters.stage
@@ -319,6 +336,17 @@ export function PeopleListPage() {
             value={filterDraft.premium}
             onChange={(e) => setFilterDraft({ ...filterDraft, premium: e.target.value })}
           />
+          <Select
+            label="Favourite"
+            options={favoriteOptions}
+            value={filterDraft.favorite}
+            onChange={(e) => setFilterDraft({ ...filterDraft, favorite: e.target.value })}
+          />
+          <Input
+            label="Favourite notes contain"
+            value={filterDraft.favoriteNotes}
+            onChange={(e) => setFilterDraft({ ...filterDraft, favoriteNotes: e.target.value })}
+          />
           <Input label="Processed from" type="date" value={filterDraft.processedFrom} onChange={(e) => setFilterDraft({ ...filterDraft, processedFrom: e.target.value })} />
           <Input label="Processed to" type="date" value={filterDraft.processedTo} onChange={(e) => setFilterDraft({ ...filterDraft, processedTo: e.target.value })} />
           <div>
@@ -393,6 +421,10 @@ export function PeopleListPage() {
                     tabIndex={0}
                     className="hover:bg-gray-50 cursor-pointer"
                   >
+                    <td className="whitespace-nowrap px-4 py-3 text-lg" aria-label={person.is_favorite ? 'Favourite status: yes' : 'Favourite status: no'}>
+                      {person.is_favorite ? '★' : '☆'}
+                    </td>
+                    <td className="max-w-xs truncate px-4 py-3 text-gray-600" title={person.favorite_notes || ''}>{person.favorite_notes || ''}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-blue-600 underline">{octopusLink(person.linkedin_url)}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-gray-900">{person.first_name || ''}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-gray-900">{person.last_name || ''}</td>

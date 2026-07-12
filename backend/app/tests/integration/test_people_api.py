@@ -29,6 +29,8 @@ class TestPeopleAPI:
                 "location": "Boston",
                 "email": "zoe@example.com",
                 "premium": True,
+                "is_favorite": True,
+                "favorite_notes": "Strong AI background",
             },
             {
                 "name": "Amy Alpha",
@@ -86,6 +88,20 @@ class TestPeopleAPI:
         )
         assert premium_response.status_code == 200
         assert [item["first_name"] for item in premium_response.json()["items"]] == ["Bob", "Zoe"]
+
+        favorite_response = await client.get(
+            "/api/v1/people",
+            params={
+                "workspace_id": workspace_id,
+                "favorite": "true",
+                "favorite_notes": "AI background",
+            },
+            headers=mock_headers,
+        )
+        assert favorite_response.status_code == 200
+        assert favorite_response.json()["total"] == 1
+        assert favorite_response.json()["items"][0]["first_name"] == "Zoe"
+        assert favorite_response.json()["items"][0]["favorite_notes"] == "Strong AI background"
 
     async def test_list_people_requires_auth(self, client: AsyncClient):
         response = await client.get(

@@ -28,6 +28,8 @@ interface Person {
   status: string
   notes: string | null
   connection_note: string | null
+  is_favorite: boolean
+  favorite_notes: string | null
   next_action_type: string | null
   next_action_date: string | null
 }
@@ -47,7 +49,9 @@ export function PersonDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
-  const [editForm, setEditForm] = useState({ name: '', role: '', company: '', notes: '' })
+  const [editForm, setEditForm] = useState({
+    name: '', role: '', company: '', notes: '', is_favorite: false, favorite_notes: '',
+  })
   const [actionNote, setActionNote] = useState('')
 
   const fetchData = async () => {
@@ -71,6 +75,8 @@ export function PersonDetailPage() {
         role: personData.role || '',
         company: personData.company || '',
         notes: personData.notes || '',
+        is_favorite: personData.is_favorite,
+        favorite_notes: personData.favorite_notes || '',
       })
       console.info('[NetworkPilot PersonDetail]', 'Person detail loaded', {
         workspaceId: currentWorkspace.id.slice(-8),
@@ -236,10 +242,35 @@ export function PersonDetailPage() {
                 onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
                 rows={3}
               />
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={editForm.is_favorite}
+                  onChange={(e) => setEditForm({ ...editForm, is_favorite: e.target.checked })}
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                Favourite person
+              </label>
+              <Textarea
+                label="Favourite notes"
+                value={editForm.favorite_notes}
+                onChange={(e) => setEditForm({ ...editForm, favorite_notes: e.target.value })}
+                rows={3}
+              />
               <Button onClick={handleSaveProfile}>Save</Button>
             </div>
           ) : (
             <div className="space-y-3">
+              <div>
+                <span className="text-sm text-gray-500">Favourite</span>
+                <p className="text-sm text-gray-900">{person.is_favorite ? '★ Yes' : 'No'}</p>
+              </div>
+              {person.favorite_notes && (
+                <div>
+                  <span className="text-sm text-gray-500">Favourite notes</span>
+                  <p className="whitespace-pre-wrap text-sm text-gray-900">{person.favorite_notes}</p>
+                </div>
+              )}
               <div>
                 <span className="text-sm text-gray-500">Role</span>
                 <p className="text-sm text-gray-900">{person.role || '-'}</p>

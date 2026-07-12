@@ -22,6 +22,8 @@ class PersonCreate(BaseModel):
     processed_at_millis: int | None = None
     invite_accepted_at: datetime | None = None
     invite_accepted_at_millis: int | None = None
+    is_favorite: bool = False
+    favorite_notes: str | None = None
     priority: str = Field(default="B", pattern=r"^[ABC]$")
     connection_note: str | None = None
     notes: str | None = None
@@ -39,6 +41,8 @@ class PersonUpdate(BaseModel):
     phone_number: str | None = Field(None, max_length=100)
     premium: bool | None = None
     company_website: str | None = None
+    is_favorite: bool | None = None
+    favorite_notes: str | None = None
     priority: str | None = Field(None, pattern=r"^[ABC]$")
     notes: str | None = None
     tags: list[str] | None = Field(None, max_length=20)
@@ -63,6 +67,8 @@ class PersonResponse(BaseModel):
     processed_at_millis: int | None
     invite_accepted_at: datetime | None
     invite_accepted_at_millis: int | None
+    is_favorite: bool
+    favorite_notes: str | None
     priority: str
     stage: str
     status: str
