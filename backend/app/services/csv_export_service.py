@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.activity import Activity
 from app.models.person import Person
+from app.models.tag import Tag
 from app.schemas.exports import PeopleExportFilters
 from app.services.csv_sanitizer import write_csv
 
@@ -100,7 +101,7 @@ class CsvExportService:
         if filters.tags:
             tags = [tag.strip() for tag in filters.tags.split(",") if tag.strip()]
             if tags:
-                query = query.where(or_(*(Person.tags.any(tag) for tag in tags)))
+                query = query.where(or_(*(Person.tags.any(Tag.name == tag) for tag in tags)))
 
         result = await self.db.execute(query.order_by(Person.created_at.desc()))
         return list(result.scalars().all())
@@ -153,7 +154,7 @@ class CsvExportService:
             "last_action_type": person.last_action_type,
             "last_action_at": person.last_action_date,
             "follow_up_count": follow_up_count,
-            "tags": person.tags or [],
+            "tags": [tag.name for tag in person.tags],
         }
         if include_private_notes:
             row["connection_note"] = person.connection_note
