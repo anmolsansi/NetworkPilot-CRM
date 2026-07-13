@@ -1,0 +1,172 @@
+name: Apply backend runtime fix
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/apply-backend-runtime-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.head_ref }}
+
+      - name: Apply source fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          person_path = Path('backend/app/models/person.py')
+          person = person_path.read_text()
+          old_import = 'from sqlalchemy import ARRAY, BigInteger, Boolean, Date, DateTime, ForeignKey, String, Text'
+          new_import = 'from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, String, Text'
+          legacy_mapping = '    tags: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)\n'
+          if old_import not in person or legacy_mapping not in person:
+              raise SystemExit('Legacy tags mapping was not found')
+          person_path.write_text(person.replace(old_import, new_import, 1).replace(legacy_mapping, '', 1))
+
+          dashboard_path = Path('backend/app/api/routes/dashboard.py')
+          dashboard = dashboard_path.read_text()
+          route_changes = {
+              '@router.get("/dashboard/summary", response_model=DashboardSummary)': '@router.get("/summary", response_model=DashboardSummary)',
+              '@router.get("/dashboard/due", response_model=list[DuePersonCard])': '@router.get("/due", response_model=list[DuePersonCard])',
+          }
+          for old, new in route_changes.items():
+              if old not in dashboard:
+                  raise SystemExit(f'Missing dashboard route: {old}')
+              dashboard = dashboard.replace(old, new, 1)
+          dashboard_path.write_text(dashboard)
+
+          export_path = Path('backend/app/services/csv_export_service.py')
+          export = export_path.read_text()
+          replacements = {
+              'from app.models.person import Person\n': 'from app.models.person import Person\nfrom app.models.tag import Tag\n',
+              'query = query.where(or_(*(Person.tags.any(tag) for tag in tags)))': 'query = query.where(or_(*(Person.tags.any(Tag.name == tag) for tag in tags)))',
+              '            "tags": person.tags or [],': '            "tags": [tag.name for tag in person.tags],',
+          }
+          for old, new in replacements.items():
+              if old not in export:
+                  raise SystemExit(f'Missing CSV export pattern: {old}')
+              export = export.replace(old, new, 1)
+          export_path.write_text(export)
+          PY
+
+          cat > backend/app/db/migrations/versions/c7f4a1b2d3e4_normalize_person_tags.py <<'PY'
+          """Normalize legacy people tags into tag relationships.
+
+          Revision ID: c7f4a1b2d3e4
+          Revises: 6bfc5792fd2d
+          Create Date: 2026-07-13 13:35:00
+          """
+          import uuid
+          from typing import Sequence, Union
+
+          from alembic import op
+          import sqlalchemy as sa
+          from sqlalchemy.dialects import postgresql
+
+          revision: str = "c7f4a1b2d3e4"
+          down_revision: Union[str, None] = "6bfc5792fd2d"
+          branch_labels: Union[str, Sequence[str], None] = None
+          depends_on: Union[str, Sequence[str], None] = None
+
+
+          def upgrade() -> None:
+              bind = op.get_bind()
+              people = bind.execute(
+                  sa.text("SELECT id, workspace_id, tags FROM people WHERE tags IS NOT NULL")
+              ).mappings()
+
+              for person in people:
+                  names: list[str] = []
+                  for raw_name in person["tags"] or []:
+                      name = raw_name.strip()
+                      if name and name not in names:
+                          names.append(name)
+
+                  for name in names:
+                      tag_id = bind.execute(
+                          sa.text("SELECT id FROM tags WHERE workspace_id = :workspace_id AND name = :name"),
+                          {"workspace_id": person["workspace_id"], "name": name},
+                      ).scalar_one_or_none()
+                      if tag_id is None:
+                          tag_id = uuid.uuid4()
+                          bind.execute(
+                              sa.text("INSERT INTO tags (id, workspace_id, name, color) VALUES (:id, :workspace_id, :name, NULL)"),
+                              {"id": tag_id, "workspace_id": person["workspace_id"], "name": name},
+                          )
+                      bind.execute(
+                          sa.text("INSERT INTO person_tags (person_id, tag_id) VALUES (:person_id, :tag_id) ON CONFLICT DO NOTHING"),
+                          {"person_id": person["id"], "tag_id": tag_id},
+                      )
+
+              op.drop_column("people", "tags")
+
+
+          def downgrade() -> None:
+              op.add_column("people", sa.Column("tags", postgresql.ARRAY(sa.Text()), nullable=True))
+              op.get_bind().execute(
+                  sa.text(
+                      """
+                      UPDATE people AS p
+                      SET tags = values_by_person.names
+                      FROM (
+                          SELECT pt.person_id, array_agg(t.name ORDER BY t.name) AS names
+                          FROM person_tags AS pt
+                          JOIN tags AS t ON t.id = pt.tag_id
+                          GROUP BY pt.person_id
+                      ) AS values_by_person
+                      WHERE p.id = values_by_person.person_id
+                      """
+                  )
+              )
+          PY
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Validate backend fix
+        working-directory: backend
+        run: |
+          python -m compileall -q app
+          python - <<'PY'
+          from pathlib import Path
+          from sqlalchemy import inspect
+          from app.models import Person, Tag
+
+          relationship = inspect(Person).relationships['tags']
+          assert relationship.mapper.class_ is Tag
+          assert Person.__table__.c.get('tags') is None
+
+          dashboard = Path('app/api/routes/dashboard.py').read_text()
+          router = Path('app/api/router.py').read_text()
+          assert '@router.get("/summary"' in dashboard
+          assert '@router.get("/due"' in dashboard
+          assert '@router.get("/dashboard/summary"' not in dashboard
+          assert '@router.get("/dashboard/due"' not in dashboard
+          assert 'include_router(dashboard.router, prefix="/dashboard"' in router
+          print('Tag mapping and dashboard prefix sources validated')
+          PY
+          alembic heads
+          test "$(alembic heads | awk '{print $1}')" = "c7f4a1b2d3e4"
+
+      - name: Commit validated fix
+        run: |
+          rm .github/workflows/apply-backend-runtime-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/app/models/person.py \
+                  backend/app/api/routes/dashboard.py \
+                  backend/app/services/csv_export_service.py \
+                  backend/app/db/migrations/versions/c7f4a1b2d3e4_normalize_person_tags.py \
+                  .github/workflows/apply-backend-runtime-fix.yml
+          git commit -m "Fix people tags and dashboard routes"
+          git push
