@@ -18,10 +18,8 @@ from app.api.routes import (
     people,
     pipeline_stages,
     saved_views,
-    settings,
     tags,
     templates,
-    users,
     workspaces,
     custom_fields,
 )

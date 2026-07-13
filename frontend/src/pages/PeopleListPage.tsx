@@ -44,13 +44,6 @@ interface Person {
   tags: { id: string; name: string; color: string | null }[]
 }
 
-interface PeopleResponse {
-  items: Person[]
-  total: number
-  page: number
-  limit: number
-}
-
 type SortOrder = 'asc' | 'desc'
 type SortKey =
   | 'linkedin_url' | 'first_name' | 'last_name' | 'company' | 'role' | 'email'
@@ -90,7 +83,7 @@ const emptyFilters: PeopleFilters = {
   deleted: false,
 }
 
-const csvColumns: { label: string; key: SortKey | 'tags' }[] = [
+const csvColumns: { label: string; key: SortKey | 'tags' | 'stage' }[] = [
   { label: 'Tags', key: 'tags' },
   { label: 'Favourite', key: 'is_favorite' },
   { label: 'Favourite notes', key: 'favorite_notes' },
@@ -109,16 +102,6 @@ const csvColumns: { label: string; key: SortKey | 'tags' }[] = [
   { label: 'Processed at millis', key: 'processed_at_millis' },
   { label: 'Invite accepted at', key: 'invite_accepted_at' },
   { label: 'Invite accepted at millis', key: 'invite_accepted_at_millis' },
-]
-
-const stageOptions = [
-  { value: '', label: 'All Stages' },
-  { value: 'invite_sent', label: 'Invite Sent' },
-  { value: 'invite_pending', label: 'Invite Pending' },
-  { value: 'accepted', label: 'Accepted' },
-  { value: 'waiting_for_reply', label: 'Waiting for Reply' },
-  { value: 'replied', label: 'Replied' },
-  { value: 'archived', label: 'Archived' },
 ]
 
 const priorityOptions = [
@@ -520,7 +503,7 @@ export function PeopleListPage() {
                   </th>
                   {csvColumns.map((column) => (
                     <th key={column.key} className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      {column.key === 'tags' ? (
+                      {column.key === 'tags' || column.key === 'stage' ? (
                         <span>{column.label}</span>
                       ) : (
                         <button

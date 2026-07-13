@@ -14,16 +14,6 @@ interface BulkActionBarProps {
   pipelineStages: any[]
 }
 
-const stageOptions = [
-  { value: 'saved_for_later', label: 'Saved for Later' },
-  { value: 'invite_sent', label: 'Invite Sent' },
-  { value: 'invite_pending', label: 'Invite Pending' },
-  { value: 'accepted', label: 'Accepted' },
-  { value: 'waiting_for_reply', label: 'Waiting for Reply' },
-  { value: 'replied', label: 'Replied' },
-  { value: 'archived', label: 'Archived' },
-]
-
 const priorityOptions = [
   { value: 'A', label: 'A - High' },
   { value: 'B', label: 'B - Medium' },

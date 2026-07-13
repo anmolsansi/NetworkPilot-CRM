@@ -23,9 +23,7 @@ const timezones = [
 
 export function SettingsPage() {
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState<'profile' | 'workspace' | 'stages' | 'custom_fields'>('profile')
   const { currentWorkspace, fetchWorkspaces } = useWorkspaceStore()
-  const { profile } = useAuthStore()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState({
