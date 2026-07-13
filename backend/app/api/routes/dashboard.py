@@ -17,7 +17,7 @@ router = APIRouter()
 logger = get_logger(__name__)
 
 
-@router.get("/dashboard/summary", response_model=DashboardSummary)
+@router.get("/summary", response_model=DashboardSummary)
 async def get_dashboard_summary(
     workspace_id: uuid.UUID = Query(...),
     _workspace: Depends = Depends(require_workspace_access),
@@ -37,7 +37,7 @@ async def get_dashboard_summary(
     return summary
 
 
-@router.get("/dashboard/due", response_model=list[DuePersonCard])
+@router.get("/due", response_model=list[DuePersonCard])
 async def get_dashboard_due(
     workspace_id: uuid.UUID = Query(...),
     date: date | None = Query(None, alias="date"),
