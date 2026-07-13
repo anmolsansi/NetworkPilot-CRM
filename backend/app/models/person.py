@@ -47,8 +47,10 @@ class Person(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
     priority: Mapped[str] = mapped_column(String(1), nullable=False, default="B")
     stage: Mapped[str] = mapped_column(Text, nullable=False, default="invite_sent")
     status: Mapped[str] = mapped_column(Text, nullable=False, default="active")
-    next_action_type: Mapped[str | None] = mapped_column(Text, nullable=True)
+    next_action_type: Mapped[str | None] = mapped_column(String, nullable=True)
     next_action_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    
+    tags: Mapped[list["Tag"]] = relationship("Tag", secondary="person_tags", lazy="selectin")
     last_action_type: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_action_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     connection_note: Mapped[str | None] = mapped_column(Text, nullable=True)

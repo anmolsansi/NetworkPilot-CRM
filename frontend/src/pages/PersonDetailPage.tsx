@@ -9,6 +9,7 @@ import { Badge } from '../components/common/Badge'
 import { Skeleton } from '../components/common/Skeleton'
 import { ErrorAlert } from '../components/common/ErrorAlert'
 import { ActivityTimeline } from '../components/activities/ActivityTimeline'
+import { TagSelect } from '../components/people/TagSelect'
 
 interface Person {
   id: string
@@ -32,6 +33,7 @@ interface Person {
   favorite_notes: string | null
   next_action_type: string | null
   next_action_date: string | null
+  tags: { id: string; name: string; color: string | null }[]
 }
 
 const priorityVariant = {
@@ -50,7 +52,7 @@ export function PersonDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({
-    name: '', role: '', company: '', notes: '', is_favorite: false, favorite_notes: '',
+    name: '', role: '', company: '', notes: '', is_favorite: false, favorite_notes: '', tag_ids: [] as string[]
   })
   const [actionNote, setActionNote] = useState('')
 
@@ -77,6 +79,7 @@ export function PersonDetailPage() {
         notes: personData.notes || '',
         is_favorite: personData.is_favorite,
         favorite_notes: personData.favorite_notes || '',
+        tag_ids: personData.tags?.map((t: any) => t.id) || [],
       })
       console.info('[NetworkPilot PersonDetail]', 'Person detail loaded', {
         workspaceId: currentWorkspace.id.slice(-8),
@@ -257,10 +260,28 @@ export function PersonDetailPage() {
                 onChange={(e) => setEditForm({ ...editForm, favorite_notes: e.target.value })}
                 rows={3}
               />
+              <TagSelect
+                selectedTagIds={editForm.tag_ids}
+                onChange={(tagIds) => setEditForm({ ...editForm, tag_ids: tagIds })}
+              />
               <Button onClick={handleSaveProfile}>Save</Button>
             </div>
           ) : (
             <div className="space-y-3">
+              <div>
+                <span className="text-sm text-gray-500">Tags</span>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {person.tags?.length > 0 ? (
+                    person.tags.map(t => (
+                      <span key={t.id} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                        {t.name}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-sm text-gray-400">None</span>
+                  )}
+                </div>
+              </div>
               <div>
                 <span className="text-sm text-gray-500">Favourite</span>
                 <p className="text-sm text-gray-900">{person.is_favorite ? '★ Yes' : 'No'}</p>

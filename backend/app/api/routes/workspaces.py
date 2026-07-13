@@ -79,6 +79,26 @@ async def create_workspace(
     db.add(membership)
     await db.flush()
 
+    # Schedule the initial daily digest for this workspace
+    from app.models.background_job import BackgroundJob
+    from datetime import datetime, timedelta
+    
+    # Calculate next run time
+    now = datetime.utcnow()
+    next_run_date = now.date() + timedelta(days=1)
+    
+    # If the workspace has a specific daily_reminder_time (it defaults to 9:00), use it
+    next_run = datetime.combine(next_run_date, workspace.daily_reminder_time)
+    
+    job = BackgroundJob(
+        workspace_id=workspace.id,
+        job_type="daily_digest",
+        status="pending",
+        run_at=next_run
+    )
+    db.add(job)
+    await db.flush()
+
     logger.info(
         "workspaces.create.completed user_id=%s workspace_id=%s",
         mask_id(str(user.id)),
@@ -115,3 +135,23 @@ async def update_workspace(
     await db.flush()
     logger.info("workspaces.update.completed workspace_id=%s", mask_id(str(workspace.id)))
     return workspace
+
+@router.post("/{workspace_id}/trigger_digest")
+async def trigger_digest(
+    workspace_id: uuid.UUID,
+    workspace: Workspace = Depends(require_workspace_owner),
+    db: AsyncSession = Depends(get_db),
+):
+    """Manually trigger a digest email job for testing."""
+    from app.models.background_job import BackgroundJob
+    from datetime import datetime
+    
+    job = BackgroundJob(
+        workspace_id=workspace_id,
+        job_type="daily_digest",
+        status="pending",
+        run_at=datetime.utcnow()
+    )
+    db.add(job)
+    await db.flush()
+    return {"status": "queued", "job_id": str(job.id)}

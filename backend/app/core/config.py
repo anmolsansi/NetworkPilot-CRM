@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str = ""
     JWT_SECRET: str = ""
 
+    # Resend
+    RESEND_API_KEY: str = ""
+    RESEND_FROM_EMAIL: str = "onboarding@resend.dev"
+
     # App
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
