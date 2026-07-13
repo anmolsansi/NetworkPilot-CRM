@@ -40,7 +40,7 @@ async def process_job(db: AsyncSession, job: ImportJob):
     """Validate and import a queued CSV in durable 40-row batches."""
     logger.info("import_job.started job_id=%s attempt=%s", job.id, job.attempt_count)
     service = CsvImportService(db)
-    rows = service._parse_csv(job.file_content.encode("utf-8"))
+    rows, provided_headers = service._parse_csv(job.file_content.encode("utf-8"))
     job.total_rows = len(rows)
     job.processed_rows = 0
     job.failed_rows = 0
@@ -54,6 +54,7 @@ async def process_job(db: AsyncSession, job: ImportJob):
         preview_rows = await service._validate_rows(
             workspace_id=job.workspace_id,
             rows=chunk,
+            duplicate_strategy=job.duplicate_strategy,
             default_initial_action_type=job.default_initial_action_type,
             default_priority=job.default_priority,
         )
@@ -73,6 +74,7 @@ async def process_job(db: AsyncSession, job: ImportJob):
                 default_initial_action_type=job.default_initial_action_type,
                 duplicate_strategy=job.duplicate_strategy,
                 default_priority=job.default_priority,
+                provided_headers=provided_headers,
                 rows=[ImportCommitRow(**row.model_dump()) for row in valid_rows],
                 chunk_index=chunk_index,
                 total_chunks=total_chunks,

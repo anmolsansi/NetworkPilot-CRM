@@ -14,6 +14,7 @@ from app.models.custom_field import CustomField
 from app.models.person import Person
 from app.models.pipeline_stage import PipelineStage
 from app.models.tag import Tag
+from app.models.workspace import WorkspaceMember
 from app.schemas.people import PersonCreate, PersonUpdate
 from app.services.url_normalizer import normalize_linkedin_url
 
@@ -94,12 +95,15 @@ class PeopleService:
             status="active",
             custom_fields_data=custom_fields_data,
             stage_id=data.stage_id,
+            owner_id=data.owner_id,
         )
 
         if data.tag_ids:
             person.tags = await self._resolve_tags(workspace_id, data.tag_ids)
         if data.stage_id:
             await self._require_pipeline_stage(workspace_id, data.stage_id)
+        if data.owner_id:
+            await self._require_workspace_member(workspace_id, data.owner_id)
 
         self.db.add(person)
         await self.db.flush()
@@ -128,6 +132,7 @@ class PeopleService:
             .options(
                 selectinload(Person.tags),
                 selectinload(Person.pipeline_stage),
+                selectinload(Person.owner),
             )
         )
         person = result.scalar_one_or_none()
@@ -145,7 +150,8 @@ class PeopleService:
         workspace_id: uuid.UUID,
         stage: str | None = None,
         stage_id: uuid.UUID | None = None,
-        tag_id: uuid.UUID | None = None,
+        tag_ids: list[uuid.UUID] | None = None,
+        owner_id: uuid.UUID | None = None,
         priority: str | None = None,
         status: str | None = None,
         search: str | None = None,
@@ -181,6 +187,7 @@ class PeopleService:
             .options(
                 selectinload(Person.tags),
                 selectinload(Person.pipeline_stage),
+                selectinload(Person.owner),
             )
         )
         if deleted_only:
@@ -193,8 +200,11 @@ class PeopleService:
             query = query.where(Person.stage == stage)
         if stage_id:
             query = query.where(Person.stage_id == stage_id)
-        if tag_id:
-            query = query.where(Person.tags.any(Tag.id == tag_id))
+        if tag_ids:
+            for t_id in tag_ids:
+                query = query.where(Person.tags.any(Tag.id == t_id))
+        if owner_id:
+            query = query.where(Person.owner_id == owner_id)
         if priority:
             query = query.where(Person.priority == priority)
         if status:
@@ -208,6 +218,8 @@ class PeopleService:
                     Person.role.ilike(search_pattern),
                     Person.email.ilike(search_pattern),
                     Person.location.ilike(search_pattern),
+                    Person.notes.ilike(search_pattern),
+                    Person.connection_note.ilike(search_pattern),
                 )
             )
         if company:
@@ -299,6 +311,10 @@ class PeopleService:
                     ):
                         raise ValidationError("This pipeline stage transition is not allowed.")
                 person.stage_id = value
+            elif field == "owner_id":
+                if value is not None:
+                    await self._require_workspace_member(workspace_id, value)
+                person.owner_id = value
             else:
                 setattr(person, field, value)
 
@@ -334,6 +350,20 @@ class PeopleService:
         if stage is None:
             raise ValidationError("Pipeline stage does not belong to this workspace.")
         return stage
+
+    async def _require_workspace_member(
+        self, workspace_id: uuid.UUID, user_id: uuid.UUID
+    ) -> None:
+        result = await self.db.execute(
+            select(WorkspaceMember).where(
+                WorkspaceMember.workspace_id == workspace_id,
+                WorkspaceMember.user_id == user_id,
+                WorkspaceMember.deleted_at.is_(None)
+            )
+        )
+        member = result.scalar_one_or_none()
+        if member is None:
+            raise ValidationError("Owner must be an active member of this workspace.")
 
     async def _validate_custom_fields(
         self, workspace_id: uuid.UUID, values: dict

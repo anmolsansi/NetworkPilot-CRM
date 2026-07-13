@@ -36,6 +36,7 @@ class PersonCreate(BaseModel):
     tag_ids: list[uuid.UUID] | None = Field(None, max_length=20)
     stage_id: uuid.UUID | None = None
     custom_fields_data: dict | None = None
+    owner_id: uuid.UUID | None = None
 
     @field_validator("tag_ids")
     @classmethod
@@ -63,6 +64,7 @@ class PersonUpdate(BaseModel):
     tag_ids: list[uuid.UUID] | None = Field(None, max_length=20)
     stage_id: uuid.UUID | None = None
     custom_fields_data: dict | None = None
+    owner_id: uuid.UUID | None = None
 
     @field_validator("tag_ids")
     @classmethod
@@ -106,6 +108,7 @@ class PersonResponse(BaseModel):
     stage_id: uuid.UUID | None = None
     pipeline_stage: PipelineStageResponse | None = None
     custom_fields_data: dict | None = None
+    owner_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime
 

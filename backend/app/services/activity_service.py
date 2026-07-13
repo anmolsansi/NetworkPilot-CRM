@@ -75,6 +75,7 @@ class ActivityService:
 
         transition = calculate_transition(
             action_type=data.action_type,
+            previous_stage=previous_stage,
             follow_up_delay_days=workspace.default_follow_up_delay_days,
             acceptance_check_delay_days=workspace.default_acceptance_check_delay_days,
             override_next_action_date=data.next_action_date,

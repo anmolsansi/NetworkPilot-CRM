@@ -14,6 +14,8 @@ if TYPE_CHECKING:
     from app.models.pipeline_stage import PipelineStage
     from app.models.tag import Tag
     from app.models.workspace import Workspace
+    from app.models.user import AppUser
+    from app.models.task import Task
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
@@ -71,9 +73,20 @@ class Person(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
         nullable=True,
     )
 
+    owner_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("app_users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Relationships
     workspace: Mapped["Workspace"] = relationship("Workspace", back_populates="people")
     pipeline_stage: Mapped["PipelineStage"] = relationship("PipelineStage", back_populates="people")
     activities: Mapped[list["Activity"]] = relationship(
         "Activity", back_populates="person", lazy="raise"
+    )
+    owner: Mapped["AppUser | None"] = relationship("AppUser", lazy="selectin")
+    tasks: Mapped[list["Task"]] = relationship(
+        "Task", back_populates="person", lazy="raise"
     )

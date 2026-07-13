@@ -38,11 +38,17 @@ ACTION_TRANSITIONS = {
         "next_action_type": None,
         "next_action_date": None,
     },
+    "note": {
+        "new_stage": "KEEP_CURRENT",
+        "next_action_type": None,
+        "next_action_date": None,
+    },
 }
 
 
 def calculate_transition(
     action_type: str,
+    previous_stage: str,
     follow_up_delay_days: int = 3,
     acceptance_check_delay_days: int = 1,
     override_next_action_date: date | None = None,
@@ -53,6 +59,7 @@ def calculate_transition(
 
     Args:
         action_type: The action being performed
+        previous_stage: The current stage of the person
         follow_up_delay_days: Default days for follow-up
         acceptance_check_delay_days: Default days for acceptance check
         override_next_action_date: Override next action date
@@ -72,6 +79,8 @@ def calculate_transition(
 
     rule = ACTION_TRANSITIONS[action_type]
     new_stage = rule["new_stage"]
+    if new_stage == "KEEP_CURRENT":
+        new_stage = previous_stage
 
     # Determine next action date
     next_action_date = override_next_action_date

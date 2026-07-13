@@ -13,6 +13,7 @@ from app.models.pipeline_stage import PipelineStage
 from app.models.saved_view import SavedPeopleView
 from app.models.settings import UserSettings
 from app.models.tag import Tag
+from app.models.task import Task
 from app.models.template import MessageTemplate
 from app.models.user import AppUser
 from app.models.workspace import Workspace, WorkspaceMember
@@ -37,4 +38,5 @@ __all__ = [
     "PipelineStage",
     "CustomField",
     "Notification",
+    "Task",
 ]
