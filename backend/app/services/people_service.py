@@ -82,6 +82,7 @@ class PeopleService:
             notes=data.notes,
             stage="invite_sent",
             status="active",
+            custom_fields_data=data.custom_fields_data or {},
         )
         
         if data.tag_ids:
@@ -112,6 +113,9 @@ class PeopleService:
                 Person.id == person_id,
                 Person.workspace_id == workspace_id,
                 Person.deleted_at.is_(None),
+            ).options(
+                selectinload(Person.tags),
+                selectinload(Person.pipeline_stage),
             )
         )
         person = result.scalar_one_or_none()
@@ -140,6 +144,7 @@ class PeopleService:
         processed_to: datetime | None = None,
         favorite: bool | None = None,
         favorite_notes: str | None = None,
+        include_deleted: bool = False,
         sort_by: str = "created_at",
         sort_order: str = "desc",
         page: int = 1,
@@ -155,8 +160,12 @@ class PeopleService:
         )
         query = select(Person).where(
             Person.workspace_id == workspace_id,
-            Person.deleted_at.is_(None),
+        ).options(
+            selectinload(Person.tags),
+            selectinload(Person.pipeline_stage),
         )
+        if not include_deleted:
+            query = query.where(Person.deleted_at.is_(None))
 
         # Apply filters
         if stage:
@@ -279,6 +288,27 @@ class PeopleService:
             mask_id(str(workspace_id)),
             mask_id(str(person_id)),
         )
+
+    async def restore(self, workspace_id: uuid.UUID, person_id: uuid.UUID) -> Person:
+        """Restore a soft deleted person."""
+        result = await self.db.execute(
+            select(Person).where(
+                Person.id == person_id,
+                Person.workspace_id == workspace_id,
+            )
+        )
+        person = result.scalar_one_or_none()
+        if not person:
+            raise NotFoundError("Person", str(person_id))
+            
+        person.deleted_at = None
+        await self.db.flush()
+        _module_logger.info(
+            "people_service.restore.completed workspace_id=%s person_id=%s",
+            mask_id(str(workspace_id)),
+            mask_id(str(person_id)),
+        )
+        return person
 
     async def archive(self, workspace_id: uuid.UUID, person_id: uuid.UUID) -> Person:
         """Archive a person."""

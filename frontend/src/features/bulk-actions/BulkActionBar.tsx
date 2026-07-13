@@ -11,6 +11,7 @@ interface BulkActionBarProps {
   selectedIds: string[]
   onClearSelection: () => void
   onSuccess: () => void
+  pipelineStages: any[]
 }
 
 const stageOptions = [
@@ -29,7 +30,7 @@ const priorityOptions = [
   { value: 'C', label: 'C - Low' },
 ]
 
-export function BulkActionBar({ workspaceId, selectedIds, onClearSelection, onSuccess }: BulkActionBarProps) {
+export function BulkActionBar({ workspaceId, selectedIds, onClearSelection, onSuccess, pipelineStages }: BulkActionBarProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -37,7 +38,7 @@ export function BulkActionBar({ workspaceId, selectedIds, onClearSelection, onSu
   const [modalType, setModalType] = useState<'stage' | 'priority' | 'tags_add' | 'tags_remove' | 'next_action' | null>(null)
   
   // Form states
-  const [stageValue, setStageValue] = useState(stageOptions[0].value)
+  const [stageValue, setStageValue] = useState('')
   const [priorityValue, setPriorityValue] = useState(priorityOptions[0].value)
   const [tagsValue, setTagsValue] = useState('')
   const [nextActionType, setNextActionType] = useState('')
@@ -79,7 +80,10 @@ export function BulkActionBar({ workspaceId, selectedIds, onClearSelection, onSu
           {modalType === 'stage' && (
             <Select
               label="New Stage"
-              options={stageOptions}
+              options={[
+                { value: '', label: 'No custom stage (Clear)' },
+                ...pipelineStages.map(s => ({ value: s.id, label: s.name }))
+              ]}
               value={stageValue}
               onChange={(e) => setStageValue(e.target.value)}
             />
@@ -125,7 +129,7 @@ export function BulkActionBar({ workspaceId, selectedIds, onClearSelection, onSu
             <Button
               disabled={loading}
               onClick={() => {
-                if (modalType === 'stage') handleBulkAction('set_stage', { stage: stageValue })
+                if (modalType === 'stage') handleBulkAction('set_stage', { stage_id: stageValue || null })
                 if (modalType === 'priority') handleBulkAction('set_priority', { priority: priorityValue })
                 if (modalType === 'tags_add') handleBulkAction('add_tags', { tags: tagsValue.split(',').map(t => t.trim()).filter(Boolean) })
                 if (modalType === 'tags_remove') handleBulkAction('remove_tags', { tags: tagsValue.split(',').map(t => t.trim()).filter(Boolean) })

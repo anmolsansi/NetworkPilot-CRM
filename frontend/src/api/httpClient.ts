@@ -214,6 +214,8 @@ export const peopleApi = {
     request<any>(`/people/${id}/snooze?workspace_id=${workspaceId}`, { method: 'POST', body: JSON.stringify(data) }),
   archive: (id: string, data: any, workspaceId: string) =>
     request<any>(`/people/${id}/archive?workspace_id=${workspaceId}`, { method: 'POST', body: JSON.stringify(data) }),
+  restore: (id: string, workspaceId: string) =>
+    request<any>(`/people/${id}/restore?workspace_id=${workspaceId}`, { method: 'POST' }),
   bulkAction: (data: any) =>
     request<any>('/people/bulk-actions', { method: 'POST', body: JSON.stringify(data) }),
 }
@@ -325,6 +327,24 @@ export const calendarApi = {
 }
 
 // Saved Views API
+export const activitiesApi = {
+  list: (workspaceId: string, limit = 50) => request<any>(`/activities?workspace_id=${workspaceId}&limit=${limit}`),
+}
+
+export const pipelineStagesApi = {
+  list: (workspaceId: string) => request<any[]>(`/pipeline-stages/?workspace_id=${workspaceId}`),
+  create: (data: any, workspaceId: string) => request<any>(`/pipeline-stages/?workspace_id=${workspaceId}`, { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any, workspaceId: string) => request<any>(`/pipeline-stages/${id}?workspace_id=${workspaceId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (id: string, workspaceId: string) => request<void>(`/pipeline-stages/${id}?workspace_id=${workspaceId}`, { method: 'DELETE' }),
+}
+
+export const customFieldsApi = {
+  list: (workspaceId: string) => request<any[]>(`/custom-fields/?workspace_id=${workspaceId}`),
+  create: (data: any, workspaceId: string) => request<any>(`/custom-fields/?workspace_id=${workspaceId}`, { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any, workspaceId: string) => request<any>(`/custom-fields/${id}?workspace_id=${workspaceId}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string, workspaceId: string) => request<void>(`/custom-fields/${id}?workspace_id=${workspaceId}`, { method: 'DELETE' }),
+}
+
 export const savedViewsApi = {
   list: (workspaceId: string) =>
     request<any[]>(`/saved-views?workspace_id=${workspaceId}`),
