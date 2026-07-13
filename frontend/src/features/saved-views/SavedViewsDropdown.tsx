@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { savedViewsApi } from '../../api/httpClient'
 import { Button } from '../../components/common/Button'
 
@@ -21,7 +21,7 @@ export function SavedViewsDropdown({ workspaceId, onSelectView, refreshTrigger }
   const [loading, setLoading] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
 
-  const fetchViews = async () => {
+  const fetchViews = useCallback(async () => {
     if (!workspaceId) return
     setLoading(true)
     try {
@@ -32,11 +32,11 @@ export function SavedViewsDropdown({ workspaceId, onSelectView, refreshTrigger }
     } finally {
       setLoading(false)
     }
-  }
+  }, [workspaceId])
 
   useEffect(() => {
     fetchViews()
-  }, [workspaceId, refreshTrigger])
+  }, [fetchViews, refreshTrigger])
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation()

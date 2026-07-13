@@ -1,11 +1,15 @@
 import logging
-import pytest
-from app.services.url_normalizer import normalize_linkedin_url, is_valid_linkedin_profile_url, extract_linkedin_slug
 
-
+from app.services.url_normalizer import (
+    extract_linkedin_slug,
+    is_valid_linkedin_profile_url,
+    normalize_linkedin_url,
+)
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
+
+
 class TestNormalizeLinkedinUrl:
     def test_valid_profile_url(self):
         result = normalize_linkedin_url("https://www.linkedin.com/in/johndoe/")

@@ -1,10 +1,11 @@
 import logging
+
 from app.services.csv_sanitizer import sanitize_csv_value, write_csv
-
-
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
+
+
 class TestCsvSanitizer:
     def test_prefixes_formula_like_values(self):
         assert sanitize_csv_value("=IMPORTXML('x')") == "'=IMPORTXML('x')"

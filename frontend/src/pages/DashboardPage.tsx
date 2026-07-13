@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useWorkspaceStore } from '../stores/workspaceStore'
 import { dashboardApi, exportsApi, workspaceApi } from '../api/httpClient'
 import { downloadCsvBlob } from '../api/csvDownload'
@@ -21,13 +21,14 @@ export function DashboardPage() {
   const { currentWorkspace, fetchWorkspaces } = useWorkspaceStore()
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [duePeople, setDuePeople] = useState<any[]>([])
+  const [tagSections, setTagSections] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [exporting, setExporting] = useState<string | null>(null)
   const [workspaceName, setWorkspaceName] = useState('My Workspace')
   const [creatingWorkspace, setCreatingWorkspace] = useState(false)
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!currentWorkspace) {
       logInfo('DashboardPage', 'Skipping dashboard data load; no workspace selected')
       setLoading(false)
@@ -40,12 +41,14 @@ export function DashboardPage() {
     setLoading(true)
     setError(null)
     try {
-      const [summaryData, dueData] = await Promise.all([
+      const [summaryData, dueData, tagData] = await Promise.all([
         dashboardApi.getSummary(currentWorkspace.id),
         dashboardApi.getDue(currentWorkspace.id, { include_overdue: 'true' }),
+        dashboardApi.getTags(currentWorkspace.id),
       ])
       setSummary(summaryData)
       setDuePeople(dueData)
+      setTagSections(tagData)
       logInfo('DashboardPage', 'Dashboard data loaded', {
         workspaceId: maskId(currentWorkspace.id),
         dueCount: dueData.length,
@@ -62,11 +65,11 @@ export function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentWorkspace])
 
   useEffect(() => {
     fetchData()
-  }, [currentWorkspace])
+  }, [fetchData])
 
   const handleCreateWorkspace = async () => {
     const name = workspaceName.trim()
@@ -242,6 +245,24 @@ export function DashboardPage() {
             <dd className="mt-1 text-3xl font-semibold text-gray-900">{summary.active_total}</dd>
           </div>
         </div>
+      )}
+
+      {tagSections.length > 0 && (
+        <section className="mt-8">
+          <h2 className="text-lg font-medium text-gray-900">People by tag</h2>
+          <div className="mt-3 flex flex-wrap gap-3">
+            {tagSections.map(tag => (
+              <a
+                key={tag.id}
+                href={`/people?tag_id=${tag.id}`}
+                className="rounded-lg border bg-white px-4 py-3 shadow-sm"
+              >
+                <span className="rounded px-2 py-1 text-sm text-white" style={{ backgroundColor: tag.color || '#64748b' }}>{tag.name}</span>
+                <span className="ml-3 font-semibold text-gray-900">{tag.people_count}</span>
+              </a>
+            ))}
+          </div>
+        </section>
       )}
 
       {/* Due People List */}

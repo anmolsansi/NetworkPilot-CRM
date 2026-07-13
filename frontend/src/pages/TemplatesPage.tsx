@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWorkspaceStore } from '../stores/workspaceStore'
 import { templatesApi } from '../api/httpClient'
@@ -43,7 +43,7 @@ export function TemplatesPage() {
   const [form, setForm] = useState({ name: '', category: 'connection_request', body: '' })
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
-  const fetchTemplates = async () => {
+  const fetchTemplates = useCallback(async () => {
     if (!currentWorkspace) return
 
     console.info('[NetworkPilot Templates]', 'Loading templates', {
@@ -68,11 +68,11 @@ export function TemplatesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentWorkspace])
 
   useEffect(() => {
     fetchTemplates()
-  }, [currentWorkspace])
+  }, [fetchTemplates])
 
   const handleOpenModal = (template?: Template) => {
     if (template) {

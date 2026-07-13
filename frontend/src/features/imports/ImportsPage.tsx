@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { importsApi } from '../../api/httpClient'
 import { useWorkspaceStore } from '../../stores/workspaceStore'
 import { Button } from '../../components/common/Button'
@@ -12,7 +12,7 @@ export function ImportsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
 
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     if (!currentWorkspace) return
     try {
       const data = await importsApi.list(currentWorkspace.id)
@@ -22,7 +22,7 @@ export function ImportsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentWorkspace])
 
   useEffect(() => {
     fetchJobs()
@@ -37,7 +37,7 @@ export function ImportsPage() {
       })
     }, 5000)
     return () => clearInterval(interval)
-  }, [currentWorkspace])
+  }, [fetchJobs])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0 || !currentWorkspace) return
@@ -63,6 +63,15 @@ export function ImportsPage() {
     } catch (err) {
       console.error(err)
       alert("Failed to retry job")
+    }
+  }
+
+  const handleDownloadErrors = async (jobId: string) => {
+    if (!currentWorkspace) return
+    try {
+      await importsApi.downloadErrors(jobId, currentWorkspace.id)
+    } catch {
+      alert('Failed to download the error report')
     }
   }
 
@@ -121,11 +130,18 @@ export function ImportsPage() {
                         </p>
                       )}
                     </div>
-                    {job.status === 'failed' && (
-                      <Button variant="secondary" size="sm" onClick={() => handleRetry(job.id)}>
-                        🔄 Retry
-                      </Button>
-                    )}
+                    <div className="flex gap-2">
+                      {job.error_log?.length > 0 && (
+                        <Button variant="secondary" size="sm" onClick={() => handleDownloadErrors(job.id)}>
+                          Download errors
+                        </Button>
+                      )}
+                      {(job.status === 'failed' || (job.status === 'completed' && job.error_log?.length > 0)) && job.attempt_count < 3 && (
+                        <Button variant="secondary" size="sm" onClick={() => handleRetry(job.id)}>
+                          🔄 Retry
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

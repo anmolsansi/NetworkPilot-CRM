@@ -1,10 +1,12 @@
 import logging
+
 import pytest
 from httpx import AsyncClient
 
-
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
+
+
 @pytest.mark.anyio
 class TestMVPSmokeFlow:
     async def test_mvp_flow(self, client: AsyncClient, mock_headers: dict):
@@ -13,7 +15,9 @@ class TestMVPSmokeFlow:
         assert resp.status_code == 200
 
         # 2. Workspace create
-        resp = await client.post("/api/v1/workspaces", json={"name": "Smoke Test Workspace"}, headers=mock_headers)
+        resp = await client.post(
+            "/api/v1/workspaces", json={"name": "Smoke Test Workspace"}, headers=mock_headers
+        )
         assert resp.status_code == 201
         workspace_id = resp.json()["id"]
 
@@ -24,29 +28,41 @@ class TestMVPSmokeFlow:
         assert resp.json()[0]["id"] == workspace_id
 
         # 4. Templates list
-        resp = await client.get(f"/api/v1/templates?workspace_id={workspace_id}", headers=mock_headers)
+        resp = await client.get(
+            f"/api/v1/templates?workspace_id={workspace_id}", headers=mock_headers
+        )
         assert resp.status_code == 200
 
         # 5. Extension Lookup (not found)
         linkedin_url = "https://www.linkedin.com/in/smoketest"
-        resp = await client.get(f"/api/v1/extension/lookup?workspace_id={workspace_id}&linkedin_url={linkedin_url}", headers=mock_headers)
+        resp = await client.get(
+            f"/api/v1/extension/lookup?workspace_id={workspace_id}&linkedin_url={linkedin_url}",
+            headers=mock_headers,
+        )
         assert resp.status_code == 200
         assert resp.json()["found"] is False
 
         # 6. Extension Quick Create
-        resp = await client.post("/api/v1/extension/quick-create", json={
-            "workspace_id": workspace_id,
-            "name": "Smoke Test Person",
-            "linkedin_url": linkedin_url,
-            "initial_action": "invite_sent"
-        }, headers=mock_headers)
+        resp = await client.post(
+            "/api/v1/extension/quick-create",
+            json={
+                "workspace_id": workspace_id,
+                "name": "Smoke Test Person",
+                "linkedin_url": linkedin_url,
+                "initial_action": "invite_sent",
+            },
+            headers=mock_headers,
+        )
         if resp.status_code != 200:
             print(resp.json())
         assert resp.status_code == 200
         person_id = resp.json()["person_id"]
 
         # 7. Extension Lookup (found)
-        resp = await client.get(f"/api/v1/extension/lookup?workspace_id={workspace_id}&linkedin_url={linkedin_url}", headers=mock_headers)
+        resp = await client.get(
+            f"/api/v1/extension/lookup?workspace_id={workspace_id}&linkedin_url={linkedin_url}",
+            headers=mock_headers,
+        )
         assert resp.status_code == 200
         assert resp.json()["found"] is True
         assert resp.json()["person_id"] == person_id
@@ -58,12 +74,16 @@ class TestMVPSmokeFlow:
         assert resp.json()["items"][0]["id"] == person_id
 
         # 9. Extension Quick Action
-        resp = await client.post("/api/v1/extension/quick-action", json={
-            "workspace_id": workspace_id,
-            "person_id": person_id,
-            "action_type": "accepted",
-            "notes": "Looks good"
-        }, headers=mock_headers)
+        resp = await client.post(
+            "/api/v1/extension/quick-action",
+            json={
+                "workspace_id": workspace_id,
+                "person_id": person_id,
+                "action_type": "accepted",
+                "notes": "Looks good",
+            },
+            headers=mock_headers,
+        )
         if resp.status_code != 200:
             print(resp.json())
         assert resp.status_code == 200

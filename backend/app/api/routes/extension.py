@@ -10,12 +10,15 @@ from app.models.user import AppUser
 from app.models.workspace import Workspace
 from app.schemas.activities import ActivityCreate
 from app.schemas.extension import (
+    ExtensionFavoriteRequest,
+    ExtensionFavoriteResponse,
     ExtensionLookupResponse,
     ExtensionQuickActionRequest,
     ExtensionQuickActionResponse,
     ExtensionQuickCreateRequest,
     ExtensionQuickCreateResponse,
 )
+from app.schemas.people import PersonUpdate
 from app.services.activity_service import ActivityService
 from app.services.people_service import PeopleService
 from app.services.workspace_service import require_workspace_access
@@ -26,7 +29,7 @@ router = APIRouter()
 logger = get_logger(__name__)
 
 
-@router.get("/extension/lookup", response_model=ExtensionLookupResponse)
+@router.get("/lookup", response_model=ExtensionLookupResponse)
 async def extension_lookup(
     workspace_id: uuid.UUID = Query(...),
     linkedin_url: str = Query(..., min_length=1),
@@ -74,6 +77,8 @@ async def extension_lookup(
             next_action_type=person.next_action_type,
             next_action_date=person.next_action_date,
             last_action_type=person.last_action_type,
+            is_favorite=person.is_favorite,
+            favorite_notes=person.favorite_notes,
         )
 
     logger.info(
@@ -88,7 +93,7 @@ async def extension_lookup(
     )
 
 
-@router.post("/extension/quick-create", response_model=ExtensionQuickCreateResponse)
+@router.post("/quick-create", response_model=ExtensionQuickCreateResponse)
 async def extension_quick_create(
     data: ExtensionQuickCreateRequest,
     user: AppUser = Depends(get_current_user),
@@ -152,7 +157,7 @@ async def extension_quick_create(
     )
 
 
-@router.post("/extension/quick-action", response_model=ExtensionQuickActionResponse)
+@router.post("/quick-action", response_model=ExtensionQuickActionResponse)
 async def extension_quick_action(
     data: ExtensionQuickActionRequest,
     user: AppUser = Depends(get_current_user),
@@ -198,4 +203,24 @@ async def extension_quick_action(
         next_action_type=person.next_action_type,
         next_action_date=person.next_action_date,
         activity_id=activity.id,
+    )
+
+
+@router.post("/favorite", response_model=ExtensionFavoriteResponse)
+async def extension_set_favorite(
+    data: ExtensionFavoriteRequest,
+    user: AppUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update favourite state and notes from the extension popup."""
+    await require_workspace_access(data.workspace_id, user, db)
+    person = await PeopleService(db).update(
+        data.workspace_id,
+        data.person_id,
+        PersonUpdate(is_favorite=data.is_favorite, favorite_notes=data.favorite_notes),
+    )
+    return ExtensionFavoriteResponse(
+        person_id=person.id,
+        is_favorite=person.is_favorite,
+        favorite_notes=person.favorite_notes,
     )

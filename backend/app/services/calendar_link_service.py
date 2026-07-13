@@ -4,6 +4,8 @@ from urllib.parse import quote
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
+
+
 def generate_calendar_link(
     workspace_id: uuid.UUID,
     dashboard_url: str,

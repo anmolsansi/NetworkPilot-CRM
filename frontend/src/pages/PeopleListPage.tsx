@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useWorkspaceStore } from '../stores/workspaceStore'
-import { exportsApi, peopleApi, pipelineStagesApi } from '../api/httpClient'
+import { exportsApi, peopleApi, pipelineStagesApi, tagsApi } from '../api/httpClient'
 import { downloadCsvBlob } from '../api/csvDownload'
 import { Button } from '../components/common/Button'
 import { Input } from '../components/common/Input'
@@ -64,6 +64,7 @@ interface PeopleFilters {
   processedTo: string
   stage: string
   priority: string
+  tagId: string
   deleted: boolean
 }
 
@@ -80,6 +81,7 @@ const emptyFilters: PeopleFilters = {
   processedTo: '',
   stage: '',
   priority: '',
+  tagId: '',
   deleted: false,
 }
 
@@ -154,9 +156,11 @@ export function PeopleListPage() {
   const [duplicatesOpen, setDuplicatesOpen] = useState(false)
   const [savedViewsRefreshTrigger, setSavedViewsRefreshTrigger] = useState(0)
   const [pipelineStages, setPipelineStages] = useState<any[]>([])
+  const [availableTags, setAvailableTags] = useState<Person['tags']>([])
   
   const [searchParams] = useSearchParams()
   const viewParam = searchParams.get('view')
+  const tagParam = searchParams.get('tag_id') || ''
 
   const initialFilters = { ...emptyFilters }
   if (viewParam === 'archived') {
@@ -164,6 +168,7 @@ export function PeopleListPage() {
   } else if (viewParam === 'trash') {
     initialFilters.deleted = true
   }
+  initialFilters.tagId = tagParam
 
   const [filterDraft, setFilterDraft] = useState<PeopleFilters>(initialFilters)
   const [filters, setFilters] = useState<PeopleFilters>(initialFilters)
@@ -177,12 +182,13 @@ export function PeopleListPage() {
     } else if (viewParam === 'trash') {
       newFilters.deleted = true
     }
+    newFilters.tagId = tagParam
     setFilterDraft(newFilters)
     setFilters(newFilters)
     setPage(1)
-  }, [viewParam])
+  }, [tagParam, viewParam])
 
-  const fetchPeople = async () => {
+  const fetchPeople = useCallback(async () => {
     if (!currentWorkspace) return
 
     console.info('[NetworkPilot PeopleList]', 'Loading people', {
@@ -213,15 +219,22 @@ export function PeopleListPage() {
       if (filters.processedFrom) params.processed_from = `${filters.processedFrom}T00:00:00.000Z`
       if (filters.processedTo) params.processed_to = `${filters.processedTo}T23:59:59.999Z`
       if (filters.stage) params.stage = filters.stage
+      if (filters.stage && filters.stage !== 'archived') {
+        delete params.stage
+        params.stage_id = filters.stage
+      }
       if (filters.priority) params.priority = filters.priority
-      if (filters.deleted) params.include_deleted = 'true'
+      if (filters.tagId) params.tag_id = filters.tagId
+      if (filters.deleted) params.deleted_only = 'true'
 
-      const [response, stagesResponse] = await Promise.all([
+      const [response, stagesResponse, tagsResponse] = await Promise.all([
         peopleApi.list(params),
-        pipelineStagesApi.list(currentWorkspace.id)
+        pipelineStagesApi.list(currentWorkspace.id),
+        tagsApi.list(currentWorkspace.id),
       ])
       
       setPipelineStages(stagesResponse)
+      setAvailableTags(tagsResponse)
       setPeople(response.items)
       setTotal(response.total)
       console.info('[NetworkPilot PeopleList]', 'People loaded', {
@@ -239,11 +252,11 @@ export function PeopleListPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentWorkspace, filters, page, sortBy, sortOrder])
 
   useEffect(() => {
     fetchPeople()
-  }, [currentWorkspace, page, filters, sortBy, sortOrder])
+  }, [fetchPeople])
 
   const applyFilters = () => {
     setPage(1)
@@ -302,6 +315,17 @@ export function PeopleListPage() {
       setPeople((prev) => prev.filter((p) => p.id !== personId))
     } catch (err) {
       console.error('Failed to restore person', err)
+    }
+  }
+
+  const handleUnarchive = async (personId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!currentWorkspace) return
+    try {
+      await peopleApi.unarchive(personId, currentWorkspace.id)
+      setPeople((prev) => prev.filter((person) => person.id !== personId))
+    } catch (err) {
+      console.error('Failed to unarchive person', err)
     }
   }
 
@@ -454,6 +478,15 @@ export function PeopleListPage() {
               onChange={(e) => setFilterDraft({ ...filterDraft, stage: e.target.value })}
             />
           </div>
+          <Select
+            label="Tag"
+            options={[
+              { value: '', label: 'All Tags' },
+              ...availableTags.map(tag => ({ value: tag.id, label: tag.name })),
+            ]}
+            value={filterDraft.tagId}
+            onChange={(e) => setFilterDraft({ ...filterDraft, tagId: e.target.value })}
+          />
           <div>
             <Select
               label="Priority"
@@ -546,7 +579,11 @@ export function PeopleListPage() {
                     <td className="whitespace-nowrap px-4 py-3">
                       <div className="flex flex-wrap gap-1">
                         {person.tags?.map(t => (
-                          <span key={t.id} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                          <span
+                            key={t.id}
+                            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                            style={{ backgroundColor: t.color || '#dbeafe', color: t.color ? '#ffffff' : '#1e40af' }}
+                          >
                             {t.name}
                           </span>
                         ))}
@@ -563,6 +600,13 @@ export function PeopleListPage() {
                           className="text-sm px-2 py-1 bg-green-100 text-green-700 hover:bg-green-200 rounded"
                         >
                           Restore
+                        </button>
+                      ) : filters.stage === 'archived' ? (
+                        <button
+                          onClick={(e) => handleUnarchive(person.id, e)}
+                          className="text-sm px-2 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded"
+                        >
+                          Unarchive
                         </button>
                       ) : (
                         <span className={person.is_favorite ? "text-yellow-400" : "text-gray-300"}>

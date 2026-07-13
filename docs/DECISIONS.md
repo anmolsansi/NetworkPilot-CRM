@@ -71,6 +71,22 @@
 **Why**: The extension `workspace_id` mismatch happened because implementation and contract documentation drifted.
 **Follow-up**: Add API spec review to each backend/frontend/extension contract change.
 
+### 15. Durable CSV Imports Use Database-Backed Jobs
+**Decision**: CSV uploads are stored as durable jobs and processed by a separately deployed worker in 40-row checkpoints.
+**Why**: Progress, retries, and error reports must survive browser and API process restarts.
+
+### 16. Configuration References Use Workspace-Scoped UUIDs
+**Decision**: Tags, pipeline stages, and custom-field values use stable UUID references that are validated against the active workspace.
+**Why**: Names are editable and cannot safely serve as storage keys or tenant boundaries.
+
+### 17. Empty Pipeline Transition Lists Mean Unrestricted
+**Decision**: A custom stage with no `allowed_next_stage_ids` permits any next stage; a non-empty list is enforced by single and bulk updates.
+**Why**: Existing workspaces remain compatible while teams can opt into controlled transitions.
+
+### 18. Reminder Delivery Is In-App First
+**Decision**: Due follow-ups create durable in-app notifications; email is an optional delivery channel governed by workspace preferences and quiet hours.
+**Why**: A transient email-provider failure must not erase the underlying reminder.
+
 ## Future Considerations (V2+)
 
 - Gmail notification parsing

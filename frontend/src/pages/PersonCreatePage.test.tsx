@@ -19,6 +19,10 @@ vi.mock('../api/httpClient', () => ({
   peopleApi: {
     create: vi.fn(),
   },
+  tagsApi: {
+    list: vi.fn().mockResolvedValue([]),
+    create: vi.fn(),
+  },
 }))
 
 const workspace = {
@@ -29,6 +33,11 @@ const workspace = {
   default_acceptance_check_delay_days: 1,
   daily_reminder_time: '09:00:00',
   timezone: 'UTC',
+  quiet_hours_start: null,
+  quiet_hours_end: null,
+  email_reminders_enabled: true,
+  daily_digest_enabled: true,
+  overdue_alerts_enabled: true,
 }
 
 describe('PersonCreatePage', () => {
@@ -97,6 +106,7 @@ describe('PersonCreatePage', () => {
           priority: 'A',
           connection_note: undefined,
           notes: undefined,
+          tag_ids: [],
         },
         'workspace-1'
       )

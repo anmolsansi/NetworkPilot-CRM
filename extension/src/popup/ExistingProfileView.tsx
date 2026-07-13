@@ -20,6 +20,8 @@ export function ExistingProfileView({ lookupResult, onSuccess }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [notes, setNotes] = useState('')
+  const [favorite, setFavorite] = useState(Boolean(lookupResult.is_favorite))
+  const [favoriteNotes, setFavoriteNotes] = useState(lookupResult.favorite_notes || '')
 
   const handleAction = async (actionType: string) => {
     setLoading(actionType)
@@ -69,6 +71,24 @@ export function ExistingProfileView({ lookupResult, onSuccess }: Props) {
     archived: 'Archived',
   }
 
+  const handleFavorite = async () => {
+    const nextFavorite = !favorite
+    setLoading('favorite')
+    setError(null)
+    try {
+      await extensionApi.setFavorite({
+        person_id: lookupResult.person_id!,
+        is_favorite: nextFavorite,
+        favorite_notes: favoriteNotes.trim() || undefined,
+      })
+      setFavorite(nextFavorite)
+    } catch (err: any) {
+      setError(err.message || 'Failed to update favourite')
+    } finally {
+      setLoading(null)
+    }
+  }
+
   return (
     <div className="p-4">
       <div className="mb-4">
@@ -96,6 +116,22 @@ export function ExistingProfileView({ lookupResult, onSuccess }: Props) {
       )}
 
       <div className="space-y-4">
+        <div className="rounded-md border border-gray-200 p-3">
+          <button
+            onClick={handleFavorite}
+            disabled={loading !== null}
+            className="text-sm font-medium text-yellow-600 disabled:opacity-50"
+          >
+            {favorite ? '★ Favourite' : '☆ Add to favourites'}
+          </button>
+          <textarea
+            value={favoriteNotes}
+            onChange={(event) => setFavoriteNotes(event.target.value)}
+            className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            rows={2}
+            placeholder="Favourite notes"
+          />
+        </div>
         {/* Quick Action Buttons */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Quick Actions</label>

@@ -39,9 +39,7 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db),
 ) -> AppUser:
     """Get or create the current user from Supabase claims."""
-    result = await db.execute(
-        select(AppUser).where(AppUser.supabase_user_id == auth.user_id)
-    )
+    result = await db.execute(select(AppUser).where(AppUser.supabase_user_id == auth.user_id))
     user = result.scalar_one_or_none()
 
     if not user:

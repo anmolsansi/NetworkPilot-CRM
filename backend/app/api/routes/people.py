@@ -33,6 +33,8 @@ logger = get_logger(__name__)
 async def list_people(
     workspace_id: uuid.UUID = Query(...),
     stage: str | None = Query(None),
+    stage_id: uuid.UUID | None = Query(None),
+    tag_id: uuid.UUID | None = Query(None),
     priority: str | None = Query(None),
     status: str | None = Query(None),
     search: str | None = Query(None),
@@ -46,11 +48,25 @@ async def list_people(
     favorite: bool | None = Query(None),
     favorite_notes: str | None = Query(None),
     include_deleted: bool = Query(False),
+    deleted_only: bool = Query(False),
     sort_by: Literal[
-        "linkedin_url", "first_name", "last_name", "company", "role", "email",
-        "phone_number", "premium", "location", "company_website", "processed_at",
-        "processed_at_millis", "invite_accepted_at", "invite_accepted_at_millis",
-        "created_at", "is_favorite", "favorite_notes",
+        "linkedin_url",
+        "first_name",
+        "last_name",
+        "company",
+        "role",
+        "email",
+        "phone_number",
+        "premium",
+        "location",
+        "company_website",
+        "processed_at",
+        "processed_at_millis",
+        "invite_accepted_at",
+        "invite_accepted_at_millis",
+        "created_at",
+        "is_favorite",
+        "favorite_notes",
     ] = Query("created_at"),
     sort_order: Literal["asc", "desc"] = Query("desc"),
     page: int = Query(1, ge=1),
@@ -72,6 +88,8 @@ async def list_people(
     people, total = await service.list(
         workspace_id=workspace_id,
         stage=stage,
+        stage_id=stage_id,
+        tag_id=tag_id,
         priority=priority,
         status=status,
         search=search,
@@ -85,6 +103,7 @@ async def list_people(
         favorite=favorite,
         favorite_notes=favorite_notes,
         include_deleted=include_deleted,
+        deleted_only=deleted_only,
         sort_by=sort_by,
         sort_order=sort_order,
         page=page,
@@ -300,3 +319,14 @@ async def archive_person(
         mask_id(str(person.id)),
     )
     return person
+
+
+@router.post("/{person_id}/unarchive", response_model=PersonResponse)
+async def unarchive_person(
+    person_id: uuid.UUID,
+    workspace_id: uuid.UUID = Query(...),
+    _workspace: Depends = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return an archived person to the active invite-sent stage."""
+    return await PeopleService(db).unarchive(workspace_id, person_id)

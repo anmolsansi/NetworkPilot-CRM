@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db
 from app.core.logging import get_logger, mask_id
-from app.schemas.dashboard import DashboardSummary, DuePersonCard
+from app.schemas.dashboard import DashboardSummary, DuePersonCard, TagDashboardSection
 from app.services.dashboard_service import DashboardService
 from app.services.workspace_service import require_workspace_access
 
@@ -15,6 +15,15 @@ _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
 router = APIRouter()
 logger = get_logger(__name__)
+
+
+@router.get("/tags", response_model=list[TagDashboardSection])
+async def get_dashboard_tags(
+    workspace_id: uuid.UUID = Query(...),
+    _workspace: Depends = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_db),
+):
+    return await DashboardService(db).get_tag_sections(workspace_id)
 
 
 @router.get("/summary", response_model=DashboardSummary)

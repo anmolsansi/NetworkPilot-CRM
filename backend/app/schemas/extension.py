@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
+
+
 class ExtensionLookupRequest(BaseModel):
     linkedin_url: str = Field(..., min_length=1)
     workspace_id: uuid.UUID
@@ -22,6 +24,21 @@ class ExtensionLookupResponse(BaseModel):
     next_action_type: str | None = None
     next_action_date: date | None = None
     last_action_type: str | None = None
+    is_favorite: bool | None = None
+    favorite_notes: str | None = None
+
+
+class ExtensionFavoriteRequest(BaseModel):
+    workspace_id: uuid.UUID
+    person_id: uuid.UUID
+    is_favorite: bool
+    favorite_notes: str | None = Field(None, max_length=2000)
+
+
+class ExtensionFavoriteResponse(BaseModel):
+    person_id: uuid.UUID
+    is_favorite: bool
+    favorite_notes: str | None = None
 
 
 class ExtensionQuickCreateRequest(BaseModel):

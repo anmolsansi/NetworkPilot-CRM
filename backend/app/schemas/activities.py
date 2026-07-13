@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
+
+
 class TransitionResult(BaseModel):
     new_stage: str
     next_action_type: str | None

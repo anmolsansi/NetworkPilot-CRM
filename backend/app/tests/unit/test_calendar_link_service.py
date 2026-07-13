@@ -1,12 +1,12 @@
 import logging
-import pytest
-from app.services.calendar_link_service import generate_calendar_link
 import uuid
 
-
+from app.services.calendar_link_service import generate_calendar_link
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
+
+
 class TestGenerateCalendarLink:
     def test_basic_link(self):
         workspace_id = uuid.uuid4()

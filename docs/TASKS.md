@@ -23,6 +23,23 @@ See `DEVELOPMENT_BACKLOG.md` for the full ticket list with dependencies.
 | 13 | Deployment | 55-59 | Completed |
 | 14 | V1 Validation | 60-62 | Incomplete (Awaiting valid QA evidence) |
 
+## Versioned Expansion Remediation
+
+| Version | Feature | Code status |
+|---|---|---|
+| v0.0.1 | Bulk actions | Complete |
+| v0.0.2 | Saved filters and smart lists | Complete |
+| v0.0.3 | Duplicate detection and merging | Complete |
+| v0.0.4 | Import job centre | Complete |
+| v0.0.5 | Custom tags | Complete |
+| v0.0.6 | Better reminders | Complete |
+| v0.0.7 | Quick favourite controls | Complete |
+| v0.0.8 | Restore archived/deleted people | Complete |
+| v0.0.9 | Custom pipeline stages | Complete |
+| v0.0.10 | Custom fields | Complete |
+
+Release tags remain pending until migrations are applied in staging and browser QA is recorded.
+
 *Note: The broad V1 implementation is marked as incomplete until the extension authentication, workspace contract, cross-workspace tests, and verifiable QA evidence are fully corrected and recorded.*
 
 ## Quick Reference

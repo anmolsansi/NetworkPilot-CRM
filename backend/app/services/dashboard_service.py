@@ -6,10 +6,14 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.person import Person
-from app.schemas.dashboard import DashboardSummary, DuePersonCard
+from app.models.person_tag import PersonTag
+from app.models.tag import Tag
+from app.schemas.dashboard import DashboardSummary, DuePersonCard, TagDashboardSection
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
+
+
 class DashboardService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -107,4 +111,26 @@ class DashboardService:
                 last_action_type=p.last_action_type,
             )
             for p in people
+        ]
+
+    async def get_tag_sections(self, workspace_id: uuid.UUID) -> list[TagDashboardSection]:
+        result = await self.db.execute(
+            select(Tag, func.count(Person.id))
+            .outerjoin(PersonTag, PersonTag.tag_id == Tag.id)
+            .outerjoin(
+                Person,
+                (Person.id == PersonTag.person_id) & (Person.deleted_at.is_(None)),
+            )
+            .where(Tag.workspace_id == workspace_id)
+            .group_by(Tag.id)
+            .order_by(func.count(Person.id).desc(), Tag.name.asc())
+        )
+        return [
+            TagDashboardSection(
+                id=tag.id,
+                name=tag.name,
+                color=tag.color,
+                people_count=count,
+            )
+            for tag, count in result.all()
         ]

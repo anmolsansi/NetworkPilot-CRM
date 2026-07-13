@@ -2,15 +2,16 @@ import logging
 import uuid
 from datetime import date, datetime
 from typing import Annotated, Literal, Union
-from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.schemas.tag import TagResponse
 from app.schemas.pipeline_stage import PipelineStageResponse
+from app.schemas.tag import TagResponse
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
+
+
 class PersonCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     first_name: str | None = Field(None, max_length=100)
@@ -36,6 +37,13 @@ class PersonCreate(BaseModel):
     stage_id: uuid.UUID | None = None
     custom_fields_data: dict | None = None
 
+    @field_validator("tag_ids")
+    @classmethod
+    def require_unique_tag_ids(cls, value: list[uuid.UUID] | None):
+        if value is not None and len(set(value)) != len(value):
+            raise ValueError("Select each tag only once.")
+        return value
+
 
 class PersonUpdate(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=200)
@@ -55,6 +63,13 @@ class PersonUpdate(BaseModel):
     tag_ids: list[uuid.UUID] | None = Field(None, max_length=20)
     stage_id: uuid.UUID | None = None
     custom_fields_data: dict | None = None
+
+    @field_validator("tag_ids")
+    @classmethod
+    def require_unique_tag_ids(cls, value: list[uuid.UUID] | None):
+        if value is not None and len(set(value)) != len(value):
+            raise ValueError("Select each tag only once.")
+        return value
 
 
 class PersonResponse(BaseModel):
@@ -113,14 +128,37 @@ class BulkSetFavoritePayload(StrictModel):
 
 
 class BulkTagsPayload(StrictModel):
-    tag_ids: list[uuid.UUID] = Field(..., min_length=1, max_length=20)
+    tags: list[str] | None = Field(None, min_length=1, max_length=20)
+    tag_ids: list[uuid.UUID] | None = Field(None, min_length=1, max_length=20)
+
+    @field_validator("tags")
+    @classmethod
+    def normalize_tags(cls, tags: list[str] | None) -> list[str] | None:
+        if tags is None:
+            return None
+        normalized: list[str] = []
+        for value in tags:
+            value = value.strip()
+            if not value or len(value) > 50:
+                raise ValueError("Tags must be between 1 and 50 characters.")
+            if value not in normalized:
+                normalized.append(value)
+        return normalized
 
     @field_validator("tag_ids")
     @classmethod
-    def require_unique_tags(cls, tag_ids: list[uuid.UUID]) -> list[uuid.UUID]:
+    def require_unique_tags(cls, tag_ids: list[uuid.UUID] | None) -> list[uuid.UUID] | None:
+        if tag_ids is None:
+            return None
         if len(set(tag_ids)) != len(tag_ids):
             raise ValueError("Select each tag only once.")
         return tag_ids
+
+    @model_validator(mode="after")
+    def require_one_selector(self):
+        if (self.tags is None) == (self.tag_ids is None):
+            raise ValueError("Provide exactly one of tags or tag_ids.")
+        return self
 
 
 class BulkPriorityPayload(StrictModel):
@@ -128,7 +166,27 @@ class BulkPriorityPayload(StrictModel):
 
 
 class BulkStagePayload(StrictModel):
+    stage: (
+        Literal[
+            "saved_for_later",
+            "invite_sent",
+            "invite_pending",
+            "accepted",
+            "waiting_for_reply",
+            "replied",
+            "archived",
+        ]
+        | None
+    ) = None
     stage_id: uuid.UUID | None = None
+
+    @model_validator(mode="after")
+    def require_one_selector(self):
+        has_stage = "stage" in self.model_fields_set
+        has_stage_id = "stage_id" in self.model_fields_set
+        if has_stage == has_stage_id:
+            raise ValueError("Provide exactly one of stage or stage_id.")
+        return self
 
 
 class BulkArchivePayload(StrictModel):

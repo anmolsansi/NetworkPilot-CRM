@@ -43,9 +43,7 @@ class TemplateService:
         )
         return templates
 
-    async def get(
-        self, workspace_id: uuid.UUID, template_id: uuid.UUID
-    ) -> MessageTemplate:
+    async def get(self, workspace_id: uuid.UUID, template_id: uuid.UUID) -> MessageTemplate:
         """Get a template by ID."""
         _module_logger.debug(
             "template_service.get.started workspace_id=%s template_id=%s",
@@ -69,9 +67,7 @@ class TemplateService:
             raise NotFoundError("Template", str(template_id))
         return template
 
-    async def create(
-        self, workspace_id: uuid.UUID, data: TemplateCreate
-    ) -> MessageTemplate:
+    async def create(self, workspace_id: uuid.UUID, data: TemplateCreate) -> MessageTemplate:
         """Create a template."""
         _module_logger.info(
             "template_service.create.started workspace_id=%s category=%s name_length=%s",
@@ -147,6 +143,7 @@ class TemplateService:
         """Soft delete a template."""
         template = await self.get(workspace_id, template_id)
         from datetime import datetime, timezone
+
         template.deleted_at = datetime.now(timezone.utc)
         await self.db.flush()
         _module_logger.info(
@@ -209,9 +206,7 @@ class TemplateService:
             mask_id(str(workspace_id)),
         )
 
-    async def _find_by_name(
-        self, workspace_id: uuid.UUID, name: str
-    ) -> MessageTemplate | None:
+    async def _find_by_name(self, workspace_id: uuid.UUID, name: str) -> MessageTemplate | None:
         """Find a template by name in workspace."""
         _module_logger.debug(
             "template_service.find_by_name.started workspace_id=%s name_length=%s",

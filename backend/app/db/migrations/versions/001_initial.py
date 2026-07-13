@@ -4,6 +4,7 @@ Revision ID: 001_initial
 Revises:
 Create Date: 2024-01-01 00:00:00.000000
 """
+
 import logging
 from typing import Sequence, Union
 
@@ -24,11 +25,21 @@ def upgrade() -> None:
     op.create_table(
         "app_users",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("supabase_user_id", postgresql.UUID(as_uuid=True), unique=True, nullable=False, index=True),
+        sa.Column(
+            "supabase_user_id",
+            postgresql.UUID(as_uuid=True),
+            unique=True,
+            nullable=False,
+            index=True,
+        ),
         sa.Column("email", sa.Text, nullable=False),
         sa.Column("display_name", sa.Text, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
     )
 
@@ -37,13 +48,27 @@ def upgrade() -> None:
         "workspaces",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("name", sa.Text, nullable=False),
-        sa.Column("owner_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("app_users.id"), nullable=False, index=True),
+        sa.Column(
+            "owner_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("app_users.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("default_follow_up_delay_days", sa.Integer, nullable=False, server_default="3"),
-        sa.Column("default_acceptance_check_delay_days", sa.Integer, nullable=False, server_default="1"),
-        sa.Column("daily_reminder_time", sa.Time, nullable=False, server_default=sa.text("'09:00:00'")),
+        sa.Column(
+            "default_acceptance_check_delay_days", sa.Integer, nullable=False, server_default="1"
+        ),
+        sa.Column(
+            "daily_reminder_time", sa.Time, nullable=False, server_default=sa.text("'09:00:00'")
+        ),
         sa.Column("timezone", sa.Text, nullable=False, server_default="'UTC'"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
     )
 
@@ -51,11 +76,27 @@ def upgrade() -> None:
     op.create_table(
         "workspace_members",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("workspace_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("workspaces.id"), nullable=False, index=True),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("app_users.id"), nullable=False, index=True),
+        sa.Column(
+            "workspace_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("workspaces.id"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "user_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("app_users.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("role", sa.Text, nullable=False, server_default="'member'"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
     )
     op.create_index(
@@ -70,7 +111,13 @@ def upgrade() -> None:
     op.create_table(
         "people",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("workspace_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("workspaces.id"), nullable=False, index=True),
+        sa.Column(
+            "workspace_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("workspaces.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("name", sa.Text, nullable=False),
         sa.Column("linkedin_url", sa.Text, nullable=False),
         sa.Column("linkedin_slug", sa.Text, nullable=False, index=True),
@@ -87,17 +134,18 @@ def upgrade() -> None:
         sa.Column("connection_note", sa.Text, nullable=True),
         sa.Column("notes", sa.Text, nullable=True),
         sa.Column("tags", postgresql.ARRAY(sa.Text), nullable=True),
-        sa.Column("is_favorite", sa.Boolean, nullable=False, server_default=sa.text("false")),
-        sa.Column("favorite_notes", sa.Text, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
     )
     op.create_index("ix_people_stage", "people", ["stage"])
     op.create_index("ix_people_status", "people", ["status"])
     op.create_index("ix_people_priority", "people", ["priority"])
     op.create_index("ix_people_next_action_date", "people", ["next_action_date"])
-    op.create_index("ix_people_workspace_favorite", "people", ["workspace_id", "is_favorite"])
     op.create_index(
         "ix_people_workspace_url",
         "people",
@@ -110,16 +158,35 @@ def upgrade() -> None:
     op.create_table(
         "activities",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("person_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("people.id"), nullable=False, index=True),
-        sa.Column("workspace_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("workspaces.id"), nullable=False, index=True),
-        sa.Column("actor_user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("app_users.id"), nullable=False),
+        sa.Column(
+            "person_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("people.id"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "workspace_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("workspaces.id"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "actor_user_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("app_users.id"),
+            nullable=False,
+        ),
         sa.Column("action_type", sa.Text, nullable=False),
         sa.Column("source", sa.Text, nullable=False),
         sa.Column("previous_stage", sa.Text, nullable=True),
         sa.Column("new_stage", sa.Text, nullable=True),
         sa.Column("message", sa.Text, nullable=True),
         sa.Column("notes", sa.Text, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
     op.create_index("ix_activities_created_at", "activities", ["created_at"])
 
@@ -127,14 +194,24 @@ def upgrade() -> None:
     op.create_table(
         "message_templates",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("workspace_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("workspaces.id"), nullable=False, index=True),
+        sa.Column(
+            "workspace_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("workspaces.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("name", sa.Text, nullable=False),
         sa.Column("category", sa.Text, nullable=False),
         sa.Column("body", sa.Text, nullable=False),
         sa.Column("variables", postgresql.ARRAY(sa.Text), nullable=True),
         sa.Column("is_default", sa.Boolean, nullable=False, server_default=sa.text("false")),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
     )
     op.create_index(
@@ -149,11 +226,26 @@ def upgrade() -> None:
     op.create_table(
         "user_settings",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("app_users.id"), unique=True, nullable=False),
-        sa.Column("default_workspace_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("workspaces.id"), nullable=True),
+        sa.Column(
+            "user_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("app_users.id"),
+            unique=True,
+            nullable=False,
+        ),
+        sa.Column(
+            "default_workspace_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("workspaces.id"),
+            nullable=True,
+        ),
         sa.Column("settings_json", postgresql.JSONB, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
 
 

@@ -1,13 +1,18 @@
+from __future__ import annotations
+
 import logging
 import uuid
 from datetime import date, datetime
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.logging import mask_id
+from app.models.custom_field import CustomField
 from app.models.person import Person
+from app.models.pipeline_stage import PipelineStage
 from app.models.tag import Tag
 from app.schemas.people import PersonCreate, PersonUpdate
 from app.services.url_normalizer import normalize_linkedin_url
@@ -45,7 +50,9 @@ class PeopleService:
         normalized_url, slug = result
 
         # Check for duplicate
-        existing = await self._find_by_url(workspace_id, normalized_url) if check_duplicate else None
+        existing = (
+            await self._find_by_url(workspace_id, normalized_url) if check_duplicate else None
+        )
         if existing:
             _module_logger.warning(
                 "people_service.create.duplicate workspace_id=%s existing_person_id=%s",
@@ -57,6 +64,9 @@ class PeopleService:
                 details={"person_id": str(existing.id), "name": existing.name},
             )
 
+        custom_fields_data = await self._validate_custom_fields(
+            workspace_id, data.custom_fields_data or {}
+        )
         person = Person(
             workspace_id=workspace_id,
             name=data.name,
@@ -82,14 +92,14 @@ class PeopleService:
             notes=data.notes,
             stage="invite_sent",
             status="active",
-            custom_fields_data=data.custom_fields_data or {},
+            custom_fields_data=custom_fields_data,
+            stage_id=data.stage_id,
         )
-        
+
         if data.tag_ids:
-            tags_result = await self.db.execute(
-                select(Tag).where(Tag.id.in_(data.tag_ids), Tag.workspace_id == workspace_id)
-            )
-            person.tags = list(tags_result.scalars().all())
+            person.tags = await self._resolve_tags(workspace_id, data.tag_ids)
+        if data.stage_id:
+            await self._require_pipeline_stage(workspace_id, data.stage_id)
 
         self.db.add(person)
         await self.db.flush()
@@ -99,7 +109,7 @@ class PeopleService:
             mask_id(str(person.id)),
             slug,
         )
-        return person
+        return await self.get(workspace_id, person.id)
 
     async def get(self, workspace_id: uuid.UUID, person_id: uuid.UUID) -> Person:
         """Get a person by ID within workspace."""
@@ -109,11 +119,13 @@ class PeopleService:
             mask_id(str(person_id)),
         )
         result = await self.db.execute(
-            select(Person).where(
+            select(Person)
+            .where(
                 Person.id == person_id,
                 Person.workspace_id == workspace_id,
                 Person.deleted_at.is_(None),
-            ).options(
+            )
+            .options(
                 selectinload(Person.tags),
                 selectinload(Person.pipeline_stage),
             )
@@ -132,6 +144,8 @@ class PeopleService:
         self,
         workspace_id: uuid.UUID,
         stage: str | None = None,
+        stage_id: uuid.UUID | None = None,
+        tag_id: uuid.UUID | None = None,
         priority: str | None = None,
         status: str | None = None,
         search: str | None = None,
@@ -145,6 +159,7 @@ class PeopleService:
         favorite: bool | None = None,
         favorite_notes: str | None = None,
         include_deleted: bool = False,
+        deleted_only: bool = False,
         sort_by: str = "created_at",
         sort_order: str = "desc",
         page: int = 1,
@@ -158,18 +173,28 @@ class PeopleService:
             limit,
             bool(search),
         )
-        query = select(Person).where(
-            Person.workspace_id == workspace_id,
-        ).options(
-            selectinload(Person.tags),
-            selectinload(Person.pipeline_stage),
+        query = (
+            select(Person)
+            .where(
+                Person.workspace_id == workspace_id,
+            )
+            .options(
+                selectinload(Person.tags),
+                selectinload(Person.pipeline_stage),
+            )
         )
-        if not include_deleted:
+        if deleted_only:
+            query = query.where(Person.deleted_at.is_not(None))
+        elif not include_deleted:
             query = query.where(Person.deleted_at.is_(None))
 
         # Apply filters
         if stage:
             query = query.where(Person.stage == stage)
+        if stage_id:
+            query = query.where(Person.stage_id == stage_id)
+        if tag_id:
+            query = query.where(Person.tags.any(Tag.id == tag_id))
         if priority:
             query = query.where(Person.priority == priority)
         if status:
@@ -251,6 +276,10 @@ class PeopleService:
         person = await self.get(workspace_id, person_id)
 
         update_data = data.model_dump(exclude_unset=True)
+        if "custom_fields_data" in update_data:
+            update_data["custom_fields_data"] = await self._validate_custom_fields(
+                workspace_id, update_data["custom_fields_data"] or {}
+            )
         _module_logger.info(
             "people_service.update.started workspace_id=%s person_id=%s fields=%s",
             mask_id(str(workspace_id)),
@@ -259,13 +288,17 @@ class PeopleService:
         )
         for field, value in update_data.items():
             if field == "tag_ids":
+                person.tags = await self._resolve_tags(workspace_id, value or [])
+            elif field == "stage_id":
                 if value is not None:
-                    tags_result = await self.db.execute(
-                        select(Tag).where(Tag.id.in_(value), Tag.workspace_id == workspace_id)
-                    )
-                    person.tags = list(tags_result.scalars().all())
-                else:
-                    person.tags = []
+                    await self._require_pipeline_stage(workspace_id, value)
+                    if (
+                        person.pipeline_stage
+                        and person.pipeline_stage.allowed_next_stage_ids
+                        and str(value) not in person.pipeline_stage.allowed_next_stage_ids
+                    ):
+                        raise ValidationError("This pipeline stage transition is not allowed.")
+                person.stage_id = value
             else:
                 setattr(person, field, value)
 
@@ -275,12 +308,94 @@ class PeopleService:
             mask_id(str(workspace_id)),
             mask_id(str(person.id)),
         )
-        return person
+        return await self.get(workspace_id, person.id)
+
+    async def _resolve_tags(self, workspace_id: uuid.UUID, tag_ids: list[uuid.UUID]) -> list[Tag]:
+        if not tag_ids:
+            return []
+        result = await self.db.execute(
+            select(Tag).where(Tag.id.in_(tag_ids), Tag.workspace_id == workspace_id)
+        )
+        tags_by_id = {tag.id: tag for tag in result.scalars().all()}
+        if len(tags_by_id) != len(tag_ids):
+            raise ValidationError("One or more tags do not belong to this workspace.")
+        return [tags_by_id[tag_id] for tag_id in tag_ids]
+
+    async def _require_pipeline_stage(
+        self, workspace_id: uuid.UUID, stage_id: uuid.UUID
+    ) -> PipelineStage:
+        result = await self.db.execute(
+            select(PipelineStage).where(
+                PipelineStage.id == stage_id,
+                PipelineStage.workspace_id == workspace_id,
+            )
+        )
+        stage = result.scalar_one_or_none()
+        if stage is None:
+            raise ValidationError("Pipeline stage does not belong to this workspace.")
+        return stage
+
+    async def _validate_custom_fields(
+        self, workspace_id: uuid.UUID, values: dict
+    ) -> dict[str, object]:
+        if not values:
+            return {}
+        try:
+            field_ids = [uuid.UUID(str(key)) for key in values]
+        except (TypeError, ValueError) as exc:
+            raise ValidationError("Custom field values must use field IDs as keys.") from exc
+        result = await self.db.execute(
+            select(CustomField).where(
+                CustomField.workspace_id == workspace_id,
+                CustomField.id.in_(field_ids),
+            )
+        )
+        definitions = {str(field.id): field for field in result.scalars().all()}
+        if len(definitions) != len(field_ids):
+            raise ValidationError("One or more custom fields do not belong to this workspace.")
+
+        normalized: dict[str, object] = {}
+        for key, value in values.items():
+            field = definitions[str(uuid.UUID(str(key)))]
+            if value is None or value == "":
+                continue
+            valid = (
+                (field.field_type == "text" and isinstance(value, str))
+                or (
+                    field.field_type == "number"
+                    and isinstance(value, (int, float))
+                    and not isinstance(value, bool)
+                )
+                or (field.field_type == "boolean" and isinstance(value, bool))
+                or (
+                    field.field_type == "date"
+                    and isinstance(value, str)
+                    and self._is_iso_date(value)
+                )
+                or (
+                    field.field_type == "select"
+                    and isinstance(value, str)
+                    and value in (field.options or {}).get("choices", [])
+                )
+            )
+            if not valid:
+                raise ValidationError(f"Invalid value for custom field '{field.name}'.")
+            normalized[str(field.id)] = value
+        return normalized
+
+    @staticmethod
+    def _is_iso_date(value: str) -> bool:
+        try:
+            date.fromisoformat(value)
+            return True
+        except ValueError:
+            return False
 
     async def soft_delete(self, workspace_id: uuid.UUID, person_id: uuid.UUID) -> None:
         """Soft delete a person."""
         person = await self.get(workspace_id, person_id)
         from datetime import datetime, timezone
+
         person.deleted_at = datetime.now(timezone.utc)
         await self.db.flush()
         _module_logger.info(
@@ -300,7 +415,9 @@ class PeopleService:
         person = result.scalar_one_or_none()
         if not person:
             raise NotFoundError("Person", str(person_id))
-            
+        if person.deleted_at is None:
+            raise ValidationError("Only deleted people can be restored.")
+
         person.deleted_at = None
         await self.db.flush()
         _module_logger.info(
@@ -308,7 +425,17 @@ class PeopleService:
             mask_id(str(workspace_id)),
             mask_id(str(person_id)),
         )
-        return person
+        return await self.get(workspace_id, person.id)
+
+    async def unarchive(self, workspace_id: uuid.UUID, person_id: uuid.UUID) -> Person:
+        person = await self.get(workspace_id, person_id)
+        if person.status != "archived" and person.stage != "archived":
+            raise ValidationError("Only archived people can be unarchived.")
+        person.status = "active"
+        person.stage = "invite_sent"
+        person.stage_id = None
+        await self.db.flush()
+        return await self.get(workspace_id, person.id)
 
     async def archive(self, workspace_id: uuid.UUID, person_id: uuid.UUID) -> Person:
         """Archive a person."""
@@ -323,7 +450,7 @@ class PeopleService:
             mask_id(str(workspace_id)),
             mask_id(str(person.id)),
         )
-        return person
+        return await self.get(workspace_id, person.id)
 
     async def snooze(
         self, workspace_id: uuid.UUID, person_id: uuid.UUID, until_date: date
@@ -339,7 +466,7 @@ class PeopleService:
             mask_id(str(person.id)),
             until_date,
         )
-        return person
+        return await self.get(workspace_id, person.id)
 
     async def _find_by_url(self, workspace_id: uuid.UUID, url: str) -> Person | None:
         """Find a person by normalized URL in workspace."""

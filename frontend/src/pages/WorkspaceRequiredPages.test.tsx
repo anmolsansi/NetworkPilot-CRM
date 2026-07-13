@@ -27,6 +27,18 @@ vi.mock('../api/httpClient', () => ({
   calendarApi: {
     getReminderLink: vi.fn(),
   },
+  pipelineStagesApi: {
+    list: vi.fn().mockResolvedValue([]),
+  },
+  tagsApi: {
+    list: vi.fn().mockResolvedValue([]),
+  },
+  savedViewsApi: {
+    list: vi.fn().mockResolvedValue([]),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
 }))
 
 function renderPage(page: ReactNode) {
@@ -58,7 +70,9 @@ describe('workspace-required pages', () => {
       currentWorkspace: {
         id: 'workspace-1', name: 'Workspace', owner_id: 'user-1',
         default_follow_up_delay_days: 3, default_acceptance_check_delay_days: 7,
-        daily_reminder_time: '09:00', timezone: 'UTC',
+        daily_reminder_time: '09:00', timezone: 'UTC', quiet_hours_start: null,
+        quiet_hours_end: null, email_reminders_enabled: true, daily_digest_enabled: true,
+        overdue_alerts_enabled: true,
       },
     })
     vi.mocked(peopleApi.list).mockResolvedValue({
@@ -92,7 +106,7 @@ describe('workspace-required pages', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sort by Company' }))
     await waitFor(() => expect(peopleApi.list).toHaveBeenLastCalledWith(expect.objectContaining({
       sort_by: 'company',
-      sort_order: 'asc',
+      sort_order: 'desc',
     })))
   })
 

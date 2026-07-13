@@ -6,17 +6,28 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db
-from app.services.workspace_service import require_workspace_access
 from app.schemas.pipeline_stage import (
     PipelineStageCreate,
+    PipelineStageReorder,
     PipelineStageResponse,
     PipelineStageUpdate,
 )
 from app.services.pipeline_stage_service import PipelineStageService
+from app.services.workspace_service import require_workspace_access
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["pipeline_stages"])
+
+
+@router.post("/reorder", response_model=List[PipelineStageResponse])
+async def reorder_pipeline_stages(
+    data: PipelineStageReorder,
+    workspace_id: uuid.UUID = Query(...),
+    _workspace: Depends = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_db),
+):
+    return await PipelineStageService(db).reorder(workspace_id, data.stage_ids)
 
 
 @router.get("", response_model=List[PipelineStageResponse])

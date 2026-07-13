@@ -2,7 +2,7 @@ import logging
 import uuid
 from datetime import date, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
@@ -104,11 +104,15 @@ class ImportJobResponse(BaseModel):
     id: uuid.UUID
     workspace_id: uuid.UUID
     status: str
+    file_name: str | None = None
     total_rows: int
     processed_rows: int
+    failed_rows: int
+    attempt_count: int
+    started_at: datetime | None = None
+    heartbeat_at: datetime | None = None
     error_log: list[dict] | None = None
     created_at: datetime
     completed_at: datetime | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

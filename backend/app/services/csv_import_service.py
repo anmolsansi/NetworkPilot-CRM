@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import ConflictError, ValidationError
 from app.models.import_batch import ImportBatch
 from app.models.person import Person
+from app.models.tag import Tag
 from app.models.workspace import Workspace
 from app.schemas.activities import ActivityCreate
 from app.schemas.imports import (
@@ -120,6 +121,7 @@ class CsvImportService:
                 continue
 
             try:
+                tag_ids = await self._resolve_tag_names(data.workspace_id, row.tags)
                 person = await people_service.create(
                     data.workspace_id,
                     PersonCreate(
@@ -141,7 +143,7 @@ class CsvImportService:
                         priority=row.priority or data.default_priority,
                         connection_note=row.connection_note,
                         notes=row.conversation_context,
-                        tags=row.tags or None,
+                        tag_ids=tag_ids,
                     ),
                     check_duplicate=False,
                 )
@@ -181,9 +183,7 @@ class CsvImportService:
             if batch and batch.workspace_id == data.workspace_id:
                 batch.created_count += len(created_people)
                 batch.status = (
-                    "committed"
-                    if data.chunk_index + 1 >= data.total_chunks
-                    else "importing"
+                    "committed" if data.chunk_index + 1 >= data.total_chunks else "importing"
                 )
 
         return {
@@ -195,6 +195,24 @@ class CsvImportService:
             "created_people": created_people,
             "errors": errors,
         }
+
+    async def _resolve_tag_names(
+        self, workspace_id: uuid.UUID, names: list[str]
+    ) -> list[uuid.UUID]:
+        normalized = list(dict.fromkeys(name.strip() for name in names if name.strip()))
+        if not normalized:
+            return []
+        result = await self.db.execute(
+            select(Tag).where(Tag.workspace_id == workspace_id, Tag.name.in_(normalized))
+        )
+        tags_by_name = {tag.name: tag for tag in result.scalars().all()}
+        for name in normalized:
+            if name not in tags_by_name:
+                tag = Tag(workspace_id=workspace_id, name=name)
+                self.db.add(tag)
+                await self.db.flush()
+                tags_by_name[name] = tag
+        return [tags_by_name[name].id for name in normalized]
 
     def _parse_csv(self, content: bytes) -> list[dict[str, Any]]:
         try:
@@ -225,8 +243,7 @@ class CsvImportService:
     ) -> list[ImportPreviewRow]:
         self._validate_defaults(default_initial_action_type, default_priority)
         normalized_urls = [
-            normalize_linkedin_url((row.get("linkedin_url") or "").strip())
-            for row in rows
+            normalize_linkedin_url((row.get("linkedin_url") or "").strip()) for row in rows
         ]
         existing_urls = await self._existing_urls(
             workspace_id,
@@ -239,9 +256,11 @@ class CsvImportService:
             errors: list[str] = []
             first_name = self._clean(row.get("first_name"))
             last_name = self._clean(row.get("last_name"))
-            name = self._clean(row.get("name")) or " ".join(
-                part for part in (first_name, last_name) if part
-            ) or None
+            name = (
+                self._clean(row.get("name"))
+                or " ".join(part for part in (first_name, last_name) if part)
+                or None
+            )
             linkedin_url = self._clean(row.get("linkedin_url"))
             normalized = normalize_linkedin_url(linkedin_url or "")
             normalized_url = normalized[0] if normalized else None
@@ -268,7 +287,9 @@ class CsvImportService:
                 errors.append("initial_action_type is invalid")
 
             next_action_date = self._parse_date(row.get("next_action_date"), errors)
-            processed_at_millis = self._parse_millis(row.get("processed_at_millis"), "processed_at_millis", errors)
+            processed_at_millis = self._parse_millis(
+                row.get("processed_at_millis"), "processed_at_millis", errors
+            )
             invite_accepted_at_millis = self._parse_millis(
                 row.get("invite_accepted_at_millis"), "invite_accepted_at_millis", errors
             )
@@ -276,7 +297,10 @@ class CsvImportService:
                 row.get("processed_at"), processed_at_millis, "processed_at", errors
             )
             invite_accepted_at = self._parse_octopus_datetime(
-                row.get("invite_accepted_at"), invite_accepted_at_millis, "invite_accepted_at", errors
+                row.get("invite_accepted_at"),
+                invite_accepted_at_millis,
+                "invite_accepted_at",
+                errors,
             )
 
             status = "invalid" if errors else "valid"
