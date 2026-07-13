@@ -7,7 +7,7 @@ from sqlalchemy import select, or_, and_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.errors import AppError, ErrorCode
+from app.core.errors import NotFoundError, ValidationError
 from app.models.person import Person
 from app.models.activity import Activity
 from app.models.person_merge import PersonMerge
@@ -92,7 +92,7 @@ class DuplicateService:
         fields_to_keep_from_source: List[str]
     ) -> Dict[str, Any]:
         if target_person_id == source_person_id:
-            raise AppError(ErrorCode.VALIDATION_ERROR, "Target and source cannot be the same")
+            raise ValidationError("Target and source cannot be the same")
 
         target_stmt = select(Person).where(
             Person.id == target_person_id,
@@ -109,7 +109,7 @@ class DuplicateService:
         source_person = (await self.db.execute(source_stmt)).scalar_one_or_none()
 
         if not target_person or not source_person:
-            raise AppError(ErrorCode.NOT_FOUND, "Target or source person not found")
+            raise NotFoundError("Person", "Target or source")
 
         # Keep requested fields
         merge_data = {}

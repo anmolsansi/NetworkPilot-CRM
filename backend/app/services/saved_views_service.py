@@ -2,7 +2,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import AppError, ErrorCode
+from app.core.errors import NotFoundError
 from app.models.saved_view import SavedPeopleView
 from app.schemas.saved_views import SavedViewCreate, SavedViewUpdate
 
@@ -47,7 +47,7 @@ class SavedViewsService:
         view = result.scalar_one_or_none()
 
         if not view:
-            raise AppError(ErrorCode.NOT_FOUND, "Saved view not found")
+            raise NotFoundError("Saved view", str(view_id))
 
         update_data = data.model_dump(exclude_unset=True)
         for key, value in update_data.items():
@@ -68,7 +68,7 @@ class SavedViewsService:
         view = result.scalar_one_or_none()
 
         if not view:
-            raise AppError(ErrorCode.NOT_FOUND, "Saved view not found")
+            raise NotFoundError("Saved view", str(view_id))
 
         await self.db.delete(view)
         await self.db.commit()
