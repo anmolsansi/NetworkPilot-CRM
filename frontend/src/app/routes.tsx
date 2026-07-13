@@ -8,6 +8,7 @@ import { PersonCreatePage } from '../pages/PersonCreatePage'
 import { PersonDetailPage } from '../pages/PersonDetailPage'
 import { TemplatesPage } from '../pages/TemplatesPage'
 import { SettingsPage } from '../pages/SettingsPage'
+import { ImportsPage } from '../features/imports/ImportsPage'
 import { AppLayout } from '../components/layout/AppLayout'
 
 export function AppRoutes() {
@@ -30,6 +31,7 @@ export function AppRoutes() {
           <Route path="people/:id" element={<PersonDetailPage />} />
           <Route path="templates" element={<TemplatesPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="imports" element={<ImportsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

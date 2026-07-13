@@ -217,12 +217,63 @@ export const peopleApi = {
     request<any>('/people/bulk-actions', { method: 'POST', body: JSON.stringify(data) }),
 }
 
-// CSV Import API
+// --- Imports ---
+
 export const importsApi = {
-  previewPeople: (data: FormData) =>
-    request<any>('/imports/people/preview', { method: 'POST', body: data }),
-  commitPeople: (data: any) =>
-    request<any>('/imports/people/commit', { method: 'POST', body: JSON.stringify(data) }),
+  preview: async (workspaceId: string, file: File): Promise<any> => {
+    const formData = new FormData()
+    formData.append('workspace_id', workspaceId)
+    formData.append('file', file)
+    return request<any>('/imports/people/preview', {
+      method: 'POST',
+      body: formData,
+    })
+  },
+
+  commit: async (workspaceId: string, file: File): Promise<any> => {
+    const formData = new FormData()
+    formData.append('workspace_id', workspaceId)
+    formData.append('file', file)
+    return request<any>('/imports/people/commit', {
+      method: 'POST',
+      body: formData,
+    })
+  },
+
+  list: async (workspaceId: string): Promise<any[]> => {
+    return request<any[]>(`/imports?workspace_id=${workspaceId}`)
+  },
+
+  get: async (jobId: string, workspaceId: string): Promise<any> => {
+    return request<any>(`/imports/${jobId}?workspace_id=${workspaceId}`)
+  },
+
+  retry: async (jobId: string, workspaceId: string): Promise<any> => {
+    return request(`/imports/${jobId}/retry?workspace_id=${workspaceId}`, { method: 'POST' })
+  }
+}
+
+export const tagsApi = {
+  list: (workspaceId: string) => {
+    return request(`/tags?workspace_id=${workspaceId}`)
+  },
+  create: (workspaceId: string, data: { name: string, color?: string }) => {
+    return request('/tags', {
+      method: 'POST',
+      body: JSON.stringify({ workspace_id: workspaceId, ...data })
+    })
+  },
+  delete: (tagId: string, workspaceId: string) => {
+    return request(`/tags/${tagId}?workspace_id=${workspaceId}`, { method: 'DELETE' })
+  }
+}
+
+// Duplicates API
+export const duplicatesApi = {
+  find: (workspaceId: string) =>
+    request<any[]>(`/people/duplicates?workspace_id=${workspaceId}`),
+  merge: (data: any, workspaceId: string) =>
+    request<any>(`/people/duplicates/merge?workspace_id=${workspaceId}`, { method: 'POST', body: JSON.stringify(data) }),
 }
 
 // CSV Export API

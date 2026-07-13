@@ -9,10 +9,10 @@ import { Select } from '../components/common/Select'
 import { EmptyState } from '../components/common/EmptyState'
 import { ErrorAlert } from '../components/common/ErrorAlert'
 import { Skeleton } from '../components/common/Skeleton'
-import { ImportCsvModal } from '../components/imports/ImportCsvModal'
 import { BulkActionBar } from '../features/bulk-actions/BulkActionBar'
 import { SavedViewsDropdown } from '../features/saved-views/SavedViewsDropdown'
 import { SaveViewModal } from '../features/saved-views/SaveViewModal'
+import { DuplicatesModal } from '../features/duplicates/DuplicatesModal'
 import { savedViewsApi } from '../api/httpClient'
 
 interface Person {
@@ -39,6 +39,7 @@ interface Person {
   status: string
   next_action_type: string | null
   next_action_date: string | null
+  tags: { id: string; name: string; color: string | null }[]
 }
 
 interface PeopleResponse {
@@ -85,7 +86,8 @@ const emptyFilters: PeopleFilters = {
   priority: '',
 }
 
-const csvColumns: { label: string; key: SortKey }[] = [
+const csvColumns: { label: string; key: SortKey | 'tags' }[] = [
+  { label: 'Tags', key: 'tags' },
   { label: 'Favourite', key: 'is_favorite' },
   { label: 'Favourite notes', key: 'favorite_notes' },
   { label: 'Link', key: 'linkedin_url' },
@@ -157,11 +159,11 @@ export function PeopleListPage() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [importOpen, setImportOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [selectedPersonIds, setSelectedPersonIds] = useState<string[]>([])
   
   const [saveViewOpen, setSaveViewOpen] = useState(false)
+  const [duplicatesOpen, setDuplicatesOpen] = useState(false)
   const [savedViewsRefreshTrigger, setSavedViewsRefreshTrigger] = useState(0)
 
   const [filterDraft, setFilterDraft] = useState<PeopleFilters>(emptyFilters)
@@ -356,10 +358,12 @@ export function PeopleListPage() {
               refreshTrigger={savedViewsRefreshTrigger} 
             />
           </div>
-          <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => setImportOpen(true)}>Import CSV</Button>
+          <div className="flex items-center gap-2">
           <Button variant="secondary" onClick={handleExport} disabled={exporting}>
             {exporting ? 'Exporting...' : 'Export CSV'}
+          </Button>
+          <Button variant="secondary" onClick={() => setDuplicatesOpen(true)}>
+            Duplicates
           </Button>
           <Button onClick={() => navigate('/people/new')}>Add Person</Button>
         </div>
@@ -456,15 +460,19 @@ export function PeopleListPage() {
                   </th>
                   {csvColumns.map((column) => (
                     <th key={column.key} className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      <button
-                        type="button"
-                        onClick={() => handleSort(column.key)}
-                        className="inline-flex items-center gap-1 hover:text-gray-900"
-                        aria-label={`Sort by ${column.label}`}
-                      >
-                        {column.label}
-                        <span aria-hidden="true">{sortBy === column.key ? (sortOrder === 'asc' ? '▲' : '▼') : '↕'}</span>
-                      </button>
+                      {column.key === 'tags' ? (
+                        <span>{column.label}</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleSort(column.key as SortKey)}
+                          className="inline-flex items-center gap-1 hover:text-gray-900"
+                          aria-label={`Sort by ${column.label}`}
+                        >
+                          {column.label}
+                          <span aria-hidden="true">{sortBy === column.key ? (sortOrder === 'asc' ? '▲' : '▼') : '↕'}</span>
+                        </button>
+                      )}
                     </th>
                   ))}
                 </tr>
@@ -491,6 +499,15 @@ export function PeopleListPage() {
                         checked={selectedPersonIds.includes(person.id)}
                         onChange={() => toggleSelectPerson(person.id)}
                       />
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {person.tags?.map(t => (
+                          <span key={t.id} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                            {t.name}
+                          </span>
+                        ))}
+                      </div>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-lg" aria-label={person.is_favorite ? 'Favourite status: yes' : 'Favourite status: no'}>
                       {person.is_favorite ? '★' : '☆'}
@@ -546,15 +563,6 @@ export function PeopleListPage() {
       </div>
 
       {currentWorkspace && (
-        <ImportCsvModal
-          isOpen={importOpen}
-          workspaceId={currentWorkspace.id}
-          onClose={() => setImportOpen(false)}
-          onImported={fetchPeople}
-        />
-      )}
-
-      {currentWorkspace && (
         <BulkActionBar
           workspaceId={currentWorkspace.id}
           selectedIds={selectedPersonIds}
@@ -571,6 +579,13 @@ export function PeopleListPage() {
         onClose={() => setSaveViewOpen(false)}
         onSave={handleSaveView}
       />
+
+      {duplicatesOpen && (
+        <DuplicatesModal
+          onClose={() => setDuplicatesOpen(false)}
+          onMergeComplete={() => fetchPeople()}
+        />
+      )}
     </div>
   )
 }

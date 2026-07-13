@@ -2,8 +2,11 @@ import logging
 import uuid
 from datetime import date, datetime
 from typing import Annotated, Literal, Union
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.schemas.tag import TagResponse
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
@@ -28,7 +31,7 @@ class PersonCreate(BaseModel):
     priority: str = Field(default="B", pattern=r"^[ABC]$")
     connection_note: str | None = None
     notes: str | None = None
-    tags: list[str] | None = Field(None, max_length=20)
+    tag_ids: list[uuid.UUID] | None = Field(None, max_length=20)
 
 
 class PersonUpdate(BaseModel):
@@ -46,7 +49,7 @@ class PersonUpdate(BaseModel):
     favorite_notes: str | None = None
     priority: str | None = Field(None, pattern=r"^[ABC]$")
     notes: str | None = None
-    tags: list[str] | None = Field(None, max_length=20)
+    tag_ids: list[uuid.UUID] | None = Field(None, max_length=20)
 
 
 class PersonResponse(BaseModel):
@@ -79,7 +82,7 @@ class PersonResponse(BaseModel):
     last_action_date: date | None
     connection_note: str | None
     notes: str | None
-    tags: list[str] | None
+    tags: list["TagResponse"] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
@@ -102,21 +105,14 @@ class BulkSetFavoritePayload(StrictModel):
 
 
 class BulkTagsPayload(StrictModel):
-    tags: list[str] = Field(..., min_length=1, max_length=20)
+    tag_ids: list[uuid.UUID] = Field(..., min_length=1, max_length=20)
 
-    @field_validator("tags")
+    @field_validator("tag_ids")
     @classmethod
-    def normalize_tags(cls, tags: list[str]) -> list[str]:
-        normalized: list[str] = []
-        for tag in tags:
-            value = tag.strip()
-            if not value:
-                raise ValueError("Tags must be 1 to 50 characters.")
-            if len(value) > 50:
-                raise ValueError("Tags must be 1 to 50 characters.")
-            if value not in normalized:
-                normalized.append(value)
-        return normalized
+    def require_unique_tags(cls, tag_ids: list[uuid.UUID]) -> list[uuid.UUID]:
+        if len(set(tag_ids)) != len(tag_ids):
+            raise ValueError("Select each tag only once.")
+        return tag_ids
 
 
 class BulkPriorityPayload(StrictModel):

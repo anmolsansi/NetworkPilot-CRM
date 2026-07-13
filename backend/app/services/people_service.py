@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.logging import mask_id
 from app.models.person import Person
+from app.models.tag import Tag
 from app.schemas.people import PersonCreate, PersonUpdate
 from app.services.url_normalizer import normalize_linkedin_url
 
@@ -79,10 +80,15 @@ class PeopleService:
             priority=data.priority,
             connection_note=data.connection_note,
             notes=data.notes,
-            tags=data.tags,
             stage="invite_sent",
             status="active",
         )
+        
+        if data.tag_ids:
+            tags_result = await self.db.execute(
+                select(Tag).where(Tag.id.in_(data.tag_ids), Tag.workspace_id == workspace_id)
+            )
+            person.tags = list(tags_result.scalars().all())
 
         self.db.add(person)
         await self.db.flush()
@@ -243,7 +249,16 @@ class PeopleService:
             sorted(update_data.keys()),
         )
         for field, value in update_data.items():
-            setattr(person, field, value)
+            if field == "tag_ids":
+                if value is not None:
+                    tags_result = await self.db.execute(
+                        select(Tag).where(Tag.id.in_(value), Tag.workspace_id == workspace_id)
+                    )
+                    person.tags = list(tags_result.scalars().all())
+                else:
+                    person.tags = []
+            else:
+                setattr(person, field, value)
 
         await self.db.flush()
         _module_logger.info(

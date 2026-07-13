@@ -100,7 +100,15 @@ class ImportCreatedPerson(BaseModel):
     next_action_date: date | None
 
 
-class ImportCommitResponse(BaseModel):
-    summary: dict[str, int]
-    created_people: list[ImportCreatedPerson]
-    errors: list[ImportPreviewRow]
+class ImportJobResponse(BaseModel):
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    status: str
+    total_rows: int
+    processed_rows: int
+    error_log: list[dict] | None = None
+    created_at: datetime
+    completed_at: datetime | None = None
+
+    class Config:
+        from_attributes = True

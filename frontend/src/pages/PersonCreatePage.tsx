@@ -9,6 +9,7 @@ import { Input } from '../components/common/Input'
 import { Select } from '../components/common/Select'
 import { Textarea } from '../components/common/Textarea'
 import { useWorkspaceStore } from '../stores/workspaceStore'
+import { TagSelect } from '../components/people/TagSelect'
 
 const priorityOptions = [
   { value: 'A', label: 'A - High' },
@@ -30,6 +31,7 @@ export function PersonCreatePage() {
     priority: 'B',
     connection_note: '',
     notes: '',
+    tag_ids: [] as string[],
   })
 
   const handleSubmit = async (event: FormEvent) => {
@@ -49,6 +51,7 @@ export function PersonCreatePage() {
           priority: form.priority,
           connection_note: form.connection_note.trim() || undefined,
           notes: form.notes.trim() || undefined,
+          tag_ids: form.tag_ids,
         },
         currentWorkspace.id
       )
@@ -131,6 +134,10 @@ export function PersonCreatePage() {
           value={form.notes}
           onChange={(event) => setForm({ ...form, notes: event.target.value })}
           rows={4}
+        />
+        <TagSelect 
+          selectedTagIds={form.tag_ids} 
+          onChange={(tagIds) => setForm({ ...form, tag_ids: tagIds })} 
         />
         <div className="flex justify-end space-x-2">
           <Button type="button" variant="secondary" onClick={() => navigate('/people')}>

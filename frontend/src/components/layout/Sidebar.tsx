@@ -4,6 +4,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: '📊' },
   { name: 'People', href: '/people', icon: '👥' },
   { name: 'Templates', href: '/templates', icon: '📝' },
+  { name: 'Imports', href: '/imports', icon: '📥' },
   { name: 'Settings', href: '/settings', icon: '⚙️' },
 ]
 

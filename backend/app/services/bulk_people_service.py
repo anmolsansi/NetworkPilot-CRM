@@ -32,7 +32,7 @@ class BulkPeopleService:
             len(data.person_ids),
         )
         ordered_people = await self._load_people(workspace_id, data.person_ids)
-        computed_tags = self._compute_tags(ordered_people, data)
+        computed_tags = await self._compute_tags(workspace_id, ordered_people, data)
         for person in ordered_people:
             self._apply_to_person(person, actor_user_id, data, computed_tags)
         await self.db.flush()
@@ -60,21 +60,35 @@ class BulkPeopleService:
             raise NotFoundError("One or more people")
         return [people_by_id[person_id] for person_id in person_ids]
 
-    def _compute_tags(
-        self, people: list[Person], data: BulkPeopleActionRequest
-    ) -> dict[uuid.UUID, list[str]]:
+    async def _compute_tags(
+        self, workspace_id: uuid.UUID, people: list[Person], data: BulkPeopleActionRequest
+    ) -> dict[uuid.UUID, list["Tag"]]:
         if data.action not in {"add_tags", "remove_tags"}:
             return {}
-        results: dict[uuid.UUID, list[str]] = {}
+            
+        from app.models.tag import Tag
+        
+        tags_result = await self.db.execute(
+            select(Tag).where(Tag.id.in_(data.payload.tag_ids), Tag.workspace_id == workspace_id)
+        )
+        payload_tags = tags_result.scalars().all()
+        payload_tags_by_id = {t.id: t for t in payload_tags}
+        
+        results: dict[uuid.UUID, list[Tag]] = {}
         for person in people:
-            current = list(person.tags or [])
+            current = list(person.tags)
+            current_ids = {t.id for t in current}
+            
             if data.action == "add_tags":
-                updated = current + [tag for tag in data.payload.tags if tag not in current]
+                updated = current.copy()
+                for t in payload_tags:
+                    if t.id not in current_ids:
+                        updated.append(t)
                 if len(updated) > 20:
                     raise ValidationError("A person can have at most 20 tags.")
             else:
-                removed = set(data.payload.tags)
-                updated = [tag for tag in current if tag not in removed]
+                remove_ids = set(data.payload.tag_ids)
+                updated = [t for t in current if t.id not in remove_ids]
             results[person.id] = updated
         return results
 
@@ -83,12 +97,12 @@ class BulkPeopleService:
         person: Person,
         actor_user_id: uuid.UUID,
         data: BulkPeopleActionRequest,
-        computed_tags: dict[uuid.UUID, list[str]],
+        computed_tags: dict[uuid.UUID, list["Tag"]],
     ) -> None:
         if data.action == "set_favorite":
             person.is_favorite = data.payload.is_favorite
         elif data.action in {"add_tags", "remove_tags"}:
-            person.tags = computed_tags[person.id] or None
+            person.tags = computed_tags[person.id]
         elif data.action == "set_priority":
             person.priority = data.payload.priority
         elif data.action == "set_stage":

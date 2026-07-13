@@ -9,6 +9,7 @@ from app.api.routes import (
     activities,
     calendar,
     dashboard,
+    duplicates,
     exports,
     extension,
     health,
@@ -16,6 +17,7 @@ from app.api.routes import (
     me,
     people,
     saved_views,
+    tags,
     templates,
     workspaces,
 )
@@ -29,7 +31,9 @@ api_router.include_router(health.router, prefix="/health", tags=["health"])
 api_router.include_router(me.router, prefix="/me", tags=["me"])
 api_router.include_router(workspaces.router, prefix="/workspaces", tags=["workspaces"])
 api_router.include_router(people.router, prefix="/people", tags=["people"])
-api_router.include_router(activities.router, prefix="/people/{person_id}/activities", tags=["activities"])
+api_router.include_router(duplicates.router, prefix="/people/duplicates", tags=["duplicates"])
+api_router.include_router(activities.router, tags=["activities"])
+api_router.include_router(tags.router, prefix="/tags", tags=["tags"])
 api_router.include_router(templates.router, prefix="/templates", tags=["templates"])
 api_router.include_router(extension.router, prefix="/extension", tags=["extension"])
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
