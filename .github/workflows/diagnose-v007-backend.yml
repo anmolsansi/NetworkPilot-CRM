@@ -1,0 +1,115 @@
+name: Diagnose v0.0.7 backend
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/diagnose-v007-backend.yml
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Apply candidate backend fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/app/api/routes/pipeline_stages.py')
+          text = path.read_text().replace(
+              'from app.api.deps import get_db, require_workspace_access\n',
+              'from app.api.deps import get_db\nfrom app.services.workspace_service import require_workspace_access\n',
+              1,
+          )
+          path.write_text(text)
+
+          path = Path('backend/app/api/router.py')
+          text = path.read_text().replace('    settings,\n', '', 1).replace('    users,\n', '', 1)
+          path.write_text(text)
+          PY
+
+          cat > backend/app/api/routes/custom_fields.py <<'PY'
+          import uuid
+          from typing import Sequence
+
+          from fastapi import APIRouter, Depends, Query, status
+          from sqlalchemy.ext.asyncio import AsyncSession
+
+          from app.api.deps import get_db
+          from app.schemas.custom_field import CustomFieldCreate, CustomFieldResponse, CustomFieldUpdate
+          from app.services.custom_field_service import CustomFieldService
+          from app.services.workspace_service import require_workspace_access
+
+          router = APIRouter(tags=["custom_fields"])
+
+          @router.get("", response_model=list[CustomFieldResponse])
+          async def list_custom_fields(
+              workspace_id: uuid.UUID = Query(...),
+              _workspace=Depends(require_workspace_access),
+              db: AsyncSession = Depends(get_db),
+          ) -> Sequence[CustomFieldResponse]:
+              return await CustomFieldService.get_all_for_workspace(db, workspace_id)
+
+          @router.post("", response_model=CustomFieldResponse, status_code=status.HTTP_201_CREATED)
+          async def create_custom_field(
+              data: CustomFieldCreate,
+              workspace_id: uuid.UUID = Query(...),
+              _workspace=Depends(require_workspace_access),
+              db: AsyncSession = Depends(get_db),
+          ) -> CustomFieldResponse:
+              return await CustomFieldService.create(db, workspace_id, data)
+
+          @router.put("/{field_id}", response_model=CustomFieldResponse)
+          async def update_custom_field(
+              field_id: uuid.UUID,
+              data: CustomFieldUpdate,
+              workspace_id: uuid.UUID = Query(...),
+              _workspace=Depends(require_workspace_access),
+              db: AsyncSession = Depends(get_db),
+          ) -> CustomFieldResponse:
+              return await CustomFieldService.update(db, field_id, workspace_id, data)
+
+          @router.delete("/{field_id}", status_code=status.HTTP_204_NO_CONTENT)
+          async def delete_custom_field(
+              field_id: uuid.UUID,
+              workspace_id: uuid.UUID = Query(...),
+              _workspace=Depends(require_workspace_access),
+              db: AsyncSession = Depends(get_db),
+          ) -> None:
+              await CustomFieldService.delete(db, field_id, workspace_id)
+          PY
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Compile backend
+        working-directory: backend
+        run: python -m compileall -q app
+
+      - name: Import FastAPI application
+        working-directory: backend
+        run: python -c "from app.main import app; print('app import passed')"
+
+      - name: Configure SQLAlchemy mappers
+        working-directory: backend
+        run: python -c "from app.main import app; from sqlalchemy.orm import configure_mappers; configure_mappers(); print('mapper configuration passed')"
+
+      - name: Print and verify routes
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          from app.main import app
+          paths = sorted(route.path for route in app.routes)
+          print('\n'.join(paths))
+          assert '/api/v1/pipeline-stages' in paths
+          assert '/api/v1/custom-fields' in paths
+          PY
+
+      - name: Print Alembic heads
+        working-directory: backend
+        run: alembic heads
