@@ -10,7 +10,7 @@ router = APIRouter()
 logger = get_logger(__name__)
 
 
-@router.get("/health")
+@router.get("")
 async def health():
     logger.debug("health.check")
     return {"status": "ok", "service": "networkpilot-api"}
