@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useWorkspaceStore } from '../stores/workspaceStore'
-import { exportsApi, peopleApi } from '../api/httpClient'
+import { exportsApi, peopleApi, pipelineStagesApi } from '../api/httpClient'
 import { downloadCsvBlob } from '../api/csvDownload'
 import { Button } from '../components/common/Button'
 import { Input } from '../components/common/Input'
@@ -35,6 +35,8 @@ interface Person {
   favorite_notes: string | null
   linkedin_url: string
   stage: string
+  stage_id: string | null
+  pipeline_stage: any | null
   priority: string
   status: string
   next_action_type: string | null
@@ -69,6 +71,7 @@ interface PeopleFilters {
   processedTo: string
   stage: string
   priority: string
+  deleted: boolean
 }
 
 const emptyFilters: PeopleFilters = {
@@ -84,12 +87,14 @@ const emptyFilters: PeopleFilters = {
   processedTo: '',
   stage: '',
   priority: '',
+  deleted: false,
 }
 
 const csvColumns: { label: string; key: SortKey | 'tags' }[] = [
   { label: 'Tags', key: 'tags' },
   { label: 'Favourite', key: 'is_favorite' },
   { label: 'Favourite notes', key: 'favorite_notes' },
+  { label: 'Stage', key: 'stage' },
   { label: 'Link', key: 'linkedin_url' },
   { label: 'First name', key: 'first_name' },
   { label: 'Last name', key: 'last_name' },
@@ -165,11 +170,34 @@ export function PeopleListPage() {
   const [saveViewOpen, setSaveViewOpen] = useState(false)
   const [duplicatesOpen, setDuplicatesOpen] = useState(false)
   const [savedViewsRefreshTrigger, setSavedViewsRefreshTrigger] = useState(0)
+  const [pipelineStages, setPipelineStages] = useState<any[]>([])
+  
+  const [searchParams] = useSearchParams()
+  const viewParam = searchParams.get('view')
 
-  const [filterDraft, setFilterDraft] = useState<PeopleFilters>(emptyFilters)
-  const [filters, setFilters] = useState<PeopleFilters>(emptyFilters)
+  const initialFilters = { ...emptyFilters }
+  if (viewParam === 'archived') {
+    initialFilters.stage = 'archived'
+  } else if (viewParam === 'trash') {
+    initialFilters.deleted = true
+  }
+
+  const [filterDraft, setFilterDraft] = useState<PeopleFilters>(initialFilters)
+  const [filters, setFilters] = useState<PeopleFilters>(initialFilters)
   const [sortBy, setSortBy] = useState<SortKey>('processed_at')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
+
+  useEffect(() => {
+    const newFilters = { ...emptyFilters }
+    if (viewParam === 'archived') {
+      newFilters.stage = 'archived'
+    } else if (viewParam === 'trash') {
+      newFilters.deleted = true
+    }
+    setFilterDraft(newFilters)
+    setFilters(newFilters)
+    setPage(1)
+  }, [viewParam])
 
   const fetchPeople = async () => {
     if (!currentWorkspace) return
@@ -203,8 +231,14 @@ export function PeopleListPage() {
       if (filters.processedTo) params.processed_to = `${filters.processedTo}T23:59:59.999Z`
       if (filters.stage) params.stage = filters.stage
       if (filters.priority) params.priority = filters.priority
+      if (filters.deleted) params.include_deleted = 'true'
 
-      const response: PeopleResponse = await peopleApi.list(params)
+      const [response, stagesResponse] = await Promise.all([
+        peopleApi.list(params),
+        pipelineStagesApi.list(currentWorkspace.id)
+      ])
+      
+      setPipelineStages(stagesResponse)
       setPeople(response.items)
       setTotal(response.total)
       console.info('[NetworkPilot PeopleList]', 'People loaded', {
@@ -263,6 +297,28 @@ export function PeopleListPage() {
     } else {
       setSortBy(key)
       setSortOrder('desc')
+    }
+  }
+
+  const handleToggleFavorite = async (personId: string, currentStatus: boolean, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!currentWorkspace) return
+    try {
+      await peopleApi.update(personId, { is_favorite: !currentStatus }, currentWorkspace.id)
+      setPeople((prev) => prev.map((p) => p.id === personId ? { ...p, is_favorite: !currentStatus } : p))
+    } catch (err) {
+      console.error('Failed to toggle favorite', err)
+    }
+  }
+
+  const handleRestore = async (personId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!currentWorkspace) return
+    try {
+      await peopleApi.restore(personId, currentWorkspace.id)
+      setPeople((prev) => prev.filter((p) => p.id !== personId))
+    } catch (err) {
+      console.error('Failed to restore person', err)
     }
   }
 
@@ -406,7 +462,11 @@ export function PeopleListPage() {
           <div>
             <Select
               label="Stage"
-              options={stageOptions}
+              options={[
+                { value: '', label: 'All Stages' },
+                ...pipelineStages.map(s => ({ value: s.id, label: s.name })),
+                { value: 'archived', label: 'Archived (Legacy)' }
+              ]}
               value={filterDraft.stage}
               onChange={(e) => setFilterDraft({ ...filterDraft, stage: e.target.value })}
             />
@@ -509,10 +569,36 @@ export function PeopleListPage() {
                         ))}
                       </div>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-lg" aria-label={person.is_favorite ? 'Favourite status: yes' : 'Favourite status: no'}>
-                      {person.is_favorite ? '★' : '☆'}
+                    <td 
+                      className="whitespace-nowrap px-4 py-3 text-lg cursor-pointer hover:text-yellow-500" 
+                      aria-label={person.is_favorite ? 'Favourite status: yes' : 'Favourite status: no'}
+                      onClick={(e) => filters.deleted ? undefined : handleToggleFavorite(person.id, person.is_favorite, e)}
+                    >
+                      {filters.deleted ? (
+                        <button
+                          onClick={(e) => handleRestore(person.id, e)}
+                          className="text-sm px-2 py-1 bg-green-100 text-green-700 hover:bg-green-200 rounded"
+                        >
+                          Restore
+                        </button>
+                      ) : (
+                        <span className={person.is_favorite ? "text-yellow-400" : "text-gray-300"}>
+                          {person.is_favorite ? '★' : '☆'}
+                        </span>
+                      )}
                     </td>
                     <td className="max-w-xs truncate px-4 py-3 text-gray-600" title={person.favorite_notes || ''}>{person.favorite_notes || ''}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium">
+                      {person.pipeline_stage ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                          {person.pipeline_stage.name}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-50 text-gray-600 border border-gray-200">
+                          {person.stage === 'archived' ? 'Archived (Legacy)' : person.stage}
+                        </span>
+                      )}
+                    </td>
                     <td className="whitespace-nowrap px-4 py-3 text-blue-600 underline">{octopusLink(person.linkedin_url)}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-gray-900">{person.first_name || ''}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-gray-900">{person.last_name || ''}</td>
@@ -571,6 +657,7 @@ export function PeopleListPage() {
             setSelectedPersonIds([])
             fetchPeople()
           }}
+          pipelineStages={pipelineStages}
         />
       )}
 

@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.tag import TagResponse
+from app.schemas.pipeline_stage import PipelineStageResponse
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
@@ -32,6 +33,8 @@ class PersonCreate(BaseModel):
     connection_note: str | None = None
     notes: str | None = None
     tag_ids: list[uuid.UUID] | None = Field(None, max_length=20)
+    stage_id: uuid.UUID | None = None
+    custom_fields_data: dict | None = None
 
 
 class PersonUpdate(BaseModel):
@@ -50,6 +53,8 @@ class PersonUpdate(BaseModel):
     priority: str | None = Field(None, pattern=r"^[ABC]$")
     notes: str | None = None
     tag_ids: list[uuid.UUID] | None = Field(None, max_length=20)
+    stage_id: uuid.UUID | None = None
+    custom_fields_data: dict | None = None
 
 
 class PersonResponse(BaseModel):
@@ -83,6 +88,9 @@ class PersonResponse(BaseModel):
     connection_note: str | None
     notes: str | None
     tags: list["TagResponse"] = Field(default_factory=list)
+    stage_id: uuid.UUID | None = None
+    pipeline_stage: PipelineStageResponse | None = None
+    custom_fields_data: dict | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -120,15 +128,7 @@ class BulkPriorityPayload(StrictModel):
 
 
 class BulkStagePayload(StrictModel):
-    stage: Literal[
-        "saved_for_later",
-        "invite_sent",
-        "invite_pending",
-        "accepted",
-        "waiting_for_reply",
-        "replied",
-        "archived",
-    ]
+    stage_id: uuid.UUID | None = None
 
 
 class BulkArchivePayload(StrictModel):

@@ -45,6 +45,7 @@ async def list_people(
     processed_to: datetime | None = Query(None),
     favorite: bool | None = Query(None),
     favorite_notes: str | None = Query(None),
+    include_deleted: bool = Query(False),
     sort_by: Literal[
         "linkedin_url", "first_name", "last_name", "company", "role", "email",
         "phone_number", "premium", "location", "company_website", "processed_at",
@@ -83,6 +84,7 @@ async def list_people(
         processed_to=processed_to,
         favorite=favorite,
         favorite_notes=favorite_notes,
+        include_deleted=include_deleted,
         sort_by=sort_by,
         sort_order=sort_order,
         page=page,
@@ -225,6 +227,29 @@ async def delete_person(
         mask_id(str(workspace_id)),
         mask_id(str(person_id)),
     )
+
+
+@router.post("/{person_id}/restore", response_model=PersonResponse)
+async def restore_person(
+    person_id: uuid.UUID,
+    workspace_id: uuid.UUID = Query(...),
+    _workspace: Depends = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """Restore a soft-deleted person."""
+    logger.info(
+        "people.restore.started workspace_id=%s person_id=%s",
+        mask_id(str(workspace_id)),
+        mask_id(str(person_id)),
+    )
+    service = PeopleService(db)
+    person = await service.restore(workspace_id, person_id)
+    logger.info(
+        "people.restore.completed workspace_id=%s person_id=%s",
+        mask_id(str(workspace_id)),
+        mask_id(str(person_id)),
+    )
+    return person
 
 
 @router.post("/{person_id}/snooze", response_model=PersonResponse)

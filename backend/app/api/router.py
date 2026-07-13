@@ -16,10 +16,14 @@ from app.api.routes import (
     imports,
     me,
     people,
+    pipeline_stages,
     saved_views,
+    settings,
     tags,
     templates,
+    users,
     workspaces,
+    custom_fields,
 )
 
 _module_logger = logging.getLogger(__name__)
@@ -39,5 +43,7 @@ api_router.include_router(extension.router, prefix="/extension", tags=["extensio
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 api_router.include_router(imports.router, prefix="/imports", tags=["imports"])
 api_router.include_router(exports.router, prefix="/exports", tags=["exports"])
+api_router.include_router(pipeline_stages.router, prefix="/pipeline-stages", tags=["pipeline-stages"])
 api_router.include_router(calendar.router, prefix="/calendar", tags=["calendar"])
 api_router.include_router(saved_views.router, prefix="/saved-views", tags=["saved_views"])
+api_router.include_router(custom_fields.router, prefix="/custom-fields", tags=["custom_fields"])

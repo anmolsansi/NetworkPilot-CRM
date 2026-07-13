@@ -4,14 +4,17 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from app.models.activity import Activity
+    from app.models.person_tag import PersonTag
+    from app.models.tag import Tag
     from app.models.workspace import Workspace
+    from app.models.pipeline_stage import PipelineStage
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
@@ -55,9 +58,17 @@ class Person(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
     last_action_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     connection_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    custom_fields_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True, server_default='{}')
+
+    stage_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("pipeline_stages.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     # Relationships
     workspace: Mapped["Workspace"] = relationship("Workspace", back_populates="people")
+    pipeline_stage: Mapped["PipelineStage"] = relationship("PipelineStage", back_populates="people")
     activities: Mapped[list["Activity"]] = relationship(
         "Activity", back_populates="person", lazy="raise"
     )

@@ -28,6 +28,8 @@ export interface Person {
   favorite_notes: string | null
   priority: string
   stage: string
+  stage_id: string | null
+  pipeline_stage: any | null
   status: string
   next_action_type: string | null
   next_action_date: string | null

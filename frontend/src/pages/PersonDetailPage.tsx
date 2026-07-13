@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useWorkspaceStore } from '../stores/workspaceStore'
-import { peopleApi, activitiesApi } from '../api/httpClient'
+import { peopleApi, activitiesApi, pipelineStagesApi, customFieldsApi } from '../api/httpClient'
 import { Button } from '../components/common/Button'
 import { Input } from '../components/common/Input'
 import { Textarea } from '../components/common/Textarea'
@@ -26,6 +26,8 @@ interface Person {
   invite_accepted_at: string | null
   priority: string
   stage: string
+  stage_id: string | null
+  pipeline_stage: any | null
   status: string
   notes: string | null
   connection_note: string | null
@@ -34,6 +36,7 @@ interface Person {
   next_action_type: string | null
   next_action_date: string | null
   tags: { id: string; name: string; color: string | null }[]
+  custom_fields_data: Record<string, any> | null
 }
 
 const priorityVariant = {
@@ -48,11 +51,13 @@ export function PersonDetailPage() {
   const { currentWorkspace } = useWorkspaceStore()
   const [person, setPerson] = useState<Person | null>(null)
   const [activities, setActivities] = useState<any[]>([])
+  const [pipelineStages, setPipelineStages] = useState<any[]>([])
+  const [customFields, setCustomFields] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({
-    name: '', role: '', company: '', notes: '', is_favorite: false, favorite_notes: '', tag_ids: [] as string[]
+    name: '', role: '', company: '', notes: '', is_favorite: false, favorite_notes: '', tag_ids: [] as string[], stage_id: '', custom_fields_data: {} as Record<string, any>
   })
   const [actionNote, setActionNote] = useState('')
 
@@ -66,10 +71,14 @@ export function PersonDetailPage() {
     setLoading(true)
     setError(null)
     try {
-      const [personData, activitiesData] = await Promise.all([
+      const [personData, activitiesData, stagesData, fieldsData] = await Promise.all([
         peopleApi.get(id, currentWorkspace.id),
         activitiesApi.list(id, currentWorkspace.id),
+        pipelineStagesApi.list(currentWorkspace.id),
+        customFieldsApi.list(currentWorkspace.id),
       ])
+      setPipelineStages(stagesData)
+      setCustomFields(fieldsData)
       setPerson(personData)
       setActivities(activitiesData)
       setEditForm({
@@ -80,6 +89,8 @@ export function PersonDetailPage() {
         is_favorite: personData.is_favorite,
         favorite_notes: personData.favorite_notes || '',
         tag_ids: personData.tags?.map((t: any) => t.id) || [],
+        stage_id: personData.stage_id || '',
+        custom_fields_data: personData.custom_fields_data || {},
       })
       console.info('[NetworkPilot PersonDetail]', 'Person detail loaded', {
         workspaceId: currentWorkspace.id.slice(-8),
@@ -112,7 +123,11 @@ export function PersonDetailPage() {
         workspaceId: currentWorkspace.id.slice(-8),
         personId: id.slice(-8),
       })
-      await peopleApi.update(id, editForm, currentWorkspace.id)
+      const payload = {
+        ...editForm,
+        stage_id: editForm.stage_id || null
+      }
+      await peopleApi.update(id, payload, currentWorkspace.id)
       setEditing(false)
       fetchData()
     } catch (err: any) {
@@ -264,6 +279,61 @@ export function PersonDetailPage() {
                 selectedTagIds={editForm.tag_ids}
                 onChange={(tagIds) => setEditForm({ ...editForm, tag_ids: tagIds })}
               />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
+                <select
+                  value={editForm.stage_id}
+                  onChange={(e) => setEditForm({ ...editForm, stage_id: e.target.value })}
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                >
+                  <option value="">No custom stage</option>
+                  {pipelineStages.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Custom Fields Edit */}
+              {customFields.length > 0 && (
+                <div className="pt-4 mt-4 border-t border-gray-200 space-y-4">
+                  <h3 className="text-sm font-medium text-gray-900">Custom Fields</h3>
+                  {customFields.map(field => (
+                    <div key={field.id}>
+                      {field.field_type === 'boolean' ? (
+                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                          <input
+                            type="checkbox"
+                            checked={!!editForm.custom_fields_data[field.name]}
+                            onChange={(e) => setEditForm({
+                              ...editForm,
+                              custom_fields_data: {
+                                ...editForm.custom_fields_data,
+                                [field.name]: e.target.checked
+                              }
+                            })}
+                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                          />
+                          {field.name}
+                        </label>
+                      ) : (
+                        <Input
+                          label={field.name}
+                          type={field.field_type === 'number' ? 'number' : field.field_type === 'date' ? 'date' : 'text'}
+                          value={editForm.custom_fields_data[field.name] || ''}
+                          onChange={(e) => setEditForm({
+                            ...editForm,
+                            custom_fields_data: {
+                              ...editForm.custom_fields_data,
+                              [field.name]: field.field_type === 'number' ? Number(e.target.value) : e.target.value
+                            }
+                          })}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <Button onClick={handleSaveProfile}>Save</Button>
             </div>
           ) : (
@@ -342,12 +412,35 @@ export function PersonDetailPage() {
               </div>
               <div>
                 <span className="text-sm text-gray-500">Stage</span>
-                <Badge variant="primary">{person.stage.replace(/_/g, ' ')}</Badge>
+                {person.pipeline_stage ? (
+                  <Badge variant="primary">{person.pipeline_stage.name}</Badge>
+                ) : (
+                  <Badge variant="default">{person.stage.replace(/_/g, ' ')} (Legacy)</Badge>
+                )}
               </div>
               {person.notes && (
                 <div>
                   <span className="text-sm text-gray-500">Notes</span>
                   <p className="text-sm text-gray-900 whitespace-pre-wrap">{person.notes}</p>
+                </div>
+              )}
+
+              {/* Custom Fields View */}
+              {customFields.length > 0 && (
+                <div className="pt-4 mt-4 border-t border-gray-200 space-y-3">
+                  <h3 className="text-sm font-medium text-gray-900">Custom Fields</h3>
+                  {customFields.map(field => {
+                    const value = person.custom_fields_data?.[field.name]
+                    return (
+                      <div key={field.id}>
+                        <span className="text-sm text-gray-500">{field.name}</span>
+                        <p className="text-sm text-gray-900">
+                          {value === undefined || value === null || value === '' ? '-' : 
+                            field.field_type === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}
+                        </p>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>

@@ -106,34 +106,27 @@ class BulkPeopleService:
         elif data.action == "set_priority":
             person.priority = data.payload.priority
         elif data.action == "set_stage":
-            self._set_stage(person, actor_user_id, data.payload.stage)
+            self._set_stage(person, actor_user_id, data.payload.stage_id)
         elif data.action == "archive":
             self._archive(person, actor_user_id)
         elif data.action == "set_next_action":
             person.next_action_type = data.payload.next_action_type
             person.next_action_date = data.payload.next_action_date
 
-    def _set_stage(self, person: Person, actor_user_id: uuid.UUID, stage: str) -> None:
-        target_status = "archived" if stage == "archived" else "active"
-        clears_next_action = stage == "archived"
+    def _set_stage(self, person: Person, actor_user_id: uuid.UUID, stage_id: uuid.UUID | None) -> None:
+        target_status = "active"
+        clears_next_action = False
         changed = (
-            person.stage != stage
+            person.stage_id != stage_id
             or person.status != target_status
-            or (
-                clears_next_action
-                and (person.next_action_type is not None or person.next_action_date is not None)
-            )
         )
         if not changed:
             return
-        previous_stage = person.stage
-        person.stage = stage
+        previous_stage = str(person.stage_id) if person.stage_id else "None"
+        person.stage_id = stage_id
         person.status = target_status
-        if clears_next_action:
-            person.next_action_type = None
-            person.next_action_date = None
         self._record_activity(
-            person, actor_user_id, "bulk_stage_change", previous_stage, stage, "Bulk stage change"
+            person, actor_user_id, "bulk_stage_change", previous_stage, str(stage_id) if stage_id else "None", "Bulk stage change"
         )
 
     def _archive(self, person: Person, actor_user_id: uuid.UUID) -> None:

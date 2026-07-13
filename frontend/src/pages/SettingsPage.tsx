@@ -7,6 +7,8 @@ import { Input } from '../components/common/Input'
 import { Select } from '../components/common/Select'
 import { ErrorAlert } from '../components/common/ErrorAlert'
 import { EmptyState } from '../components/common/EmptyState'
+import { PipelineStagesSettings } from '../components/settings/PipelineStagesSettings'
+import { CustomFieldsSettings } from '../components/settings/CustomFieldsSettings'
 
 const timezones = [
   { value: 'UTC', label: 'UTC' },
@@ -21,7 +23,9 @@ const timezones = [
 
 export function SettingsPage() {
   const navigate = useNavigate()
+  const [activeTab, setActiveTab] = useState<'profile' | 'workspace' | 'stages' | 'custom_fields'>('profile')
   const { currentWorkspace, fetchWorkspaces } = useWorkspaceStore()
+  const { profile } = useAuthStore()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState({
@@ -186,6 +190,12 @@ export function SettingsPage() {
             </div>
           )}
         </div>
+
+        {/* Pipeline Stages */}
+        <PipelineStagesSettings workspaceId={currentWorkspace.id} />
+
+        {/* Custom Fields */}
+        <CustomFieldsSettings />
 
         {/* Save Button */}
         <div className="flex justify-end">
