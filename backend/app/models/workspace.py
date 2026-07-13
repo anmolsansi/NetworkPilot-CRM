@@ -3,7 +3,7 @@ import uuid
 from datetime import time
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Integer, Text, Time
+from sqlalchemy import Boolean, ForeignKey, Integer, Text, Time
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -34,6 +34,11 @@ class Workspace(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
     )
     daily_reminder_time: Mapped[time] = mapped_column(Time, default=time(9, 0), nullable=False)
     timezone: Mapped[str] = mapped_column(Text, default="UTC", nullable=False)
+    quiet_hours_start: Mapped[time | None] = mapped_column(Time, nullable=True)
+    quiet_hours_end: Mapped[time | None] = mapped_column(Time, nullable=True)
+    email_reminders_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    daily_digest_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    overdue_alerts_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # Relationships
     owner: Mapped["AppUser"] = relationship("AppUser", lazy="selectin")

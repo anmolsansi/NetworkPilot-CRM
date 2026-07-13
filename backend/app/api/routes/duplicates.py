@@ -1,4 +1,3 @@
-import logging
 import uuid
 from typing import List
 
@@ -15,6 +14,7 @@ from app.services.workspace_service import require_workspace_access
 router = APIRouter()
 logger = get_logger(__name__)
 
+
 @router.get("", response_model=List[DuplicateGroup])
 async def find_duplicates(
     workspace_id: uuid.UUID = Query(...),
@@ -23,10 +23,15 @@ async def find_duplicates(
     db: AsyncSession = Depends(get_db),
 ):
     """Find potential duplicate people in the workspace."""
-    logger.info("duplicates.find.started workspace_id=%s user_id=%s", mask_id(str(workspace_id)), mask_id(str(user.id)))
+    logger.info(
+        "duplicates.find.started workspace_id=%s user_id=%s",
+        mask_id(str(workspace_id)),
+        mask_id(str(user.id)),
+    )
     service = DuplicateService(db)
     groups = await service.find_duplicates(workspace_id)
     return groups
+
 
 @router.post("/merge", response_model=DuplicateMergeResponse)
 async def merge_people(
@@ -42,7 +47,7 @@ async def merge_people(
         mask_id(str(workspace_id)),
         mask_id(str(user.id)),
         mask_id(str(data.target_person_id)),
-        mask_id(str(data.source_person_id))
+        mask_id(str(data.source_person_id)),
     )
     service = DuplicateService(db)
     target_person = await service.merge_people(
@@ -50,6 +55,6 @@ async def merge_people(
         user_id=user.id,
         target_person_id=data.target_person_id,
         source_person_id=data.source_person_id,
-        fields_to_keep_from_source=data.fields_to_keep_from_source
+        fields_to_keep_from_source=data.fields_to_keep_from_source,
     )
     return DuplicateMergeResponse(target_person=target_person)

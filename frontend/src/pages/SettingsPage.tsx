@@ -9,6 +9,7 @@ import { ErrorAlert } from '../components/common/ErrorAlert'
 import { EmptyState } from '../components/common/EmptyState'
 import { PipelineStagesSettings } from '../components/settings/PipelineStagesSettings'
 import { CustomFieldsSettings } from '../components/settings/CustomFieldsSettings'
+import { TagsSettings } from '../components/settings/TagsSettings'
 
 const timezones = [
   { value: 'UTC', label: 'UTC' },
@@ -31,6 +32,12 @@ export function SettingsPage() {
     timezone: 'UTC',
     default_follow_up_delay_days: 3,
     default_acceptance_check_delay_days: 1,
+    daily_reminder_time: '09:00',
+    quiet_hours_start: '22:00',
+    quiet_hours_end: '08:00',
+    email_reminders_enabled: true,
+    daily_digest_enabled: true,
+    overdue_alerts_enabled: true,
   })
   const [calendarLink, setCalendarLink] = useState<string | null>(null)
   const [loadingCalendar, setLoadingCalendar] = useState(false)
@@ -42,6 +49,12 @@ export function SettingsPage() {
         timezone: currentWorkspace.timezone,
         default_follow_up_delay_days: currentWorkspace.default_follow_up_delay_days,
         default_acceptance_check_delay_days: currentWorkspace.default_acceptance_check_delay_days,
+        daily_reminder_time: currentWorkspace.daily_reminder_time.slice(0, 5),
+        quiet_hours_start: currentWorkspace.quiet_hours_start?.slice(0, 5) || '22:00',
+        quiet_hours_end: currentWorkspace.quiet_hours_end?.slice(0, 5) || '08:00',
+        email_reminders_enabled: currentWorkspace.email_reminders_enabled,
+        daily_digest_enabled: currentWorkspace.daily_digest_enabled,
+        overdue_alerts_enabled: currentWorkspace.overdue_alerts_enabled,
       })
     }
   }, [currentWorkspace])
@@ -130,6 +143,25 @@ export function SettingsPage() {
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
+            <Input label="Daily digest time" type="time" value={form.daily_reminder_time} onChange={(e) => setForm({ ...form, daily_reminder_time: e.target.value })} />
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Quiet hours start" type="time" value={form.quiet_hours_start} onChange={(e) => setForm({ ...form, quiet_hours_start: e.target.value })} />
+              <Input label="Quiet hours end" type="time" value={form.quiet_hours_end} onChange={(e) => setForm({ ...form, quiet_hours_end: e.target.value })} />
+            </div>
+            {[
+              ['daily_digest_enabled', 'Daily digest'],
+              ['overdue_alerts_enabled', 'Overdue alerts'],
+              ['email_reminders_enabled', 'Email reminders'],
+            ].map(([key, label]) => (
+              <label key={key} className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={Boolean(form[key as keyof typeof form])}
+                  onChange={(e) => setForm({ ...form, [key]: e.target.checked })}
+                />
+                {label}
+              </label>
+            ))}
             <Select
               label="Timezone"
               options={timezones}
@@ -191,6 +223,8 @@ export function SettingsPage() {
 
         {/* Pipeline Stages */}
         <PipelineStagesSettings workspaceId={currentWorkspace.id} />
+
+        <TagsSettings workspaceId={currentWorkspace.id} />
 
         {/* Custom Fields */}
         <CustomFieldsSettings />

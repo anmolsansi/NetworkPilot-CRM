@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useWorkspaceStore } from '../stores/workspaceStore'
 import { peopleApi, activitiesApi, pipelineStagesApi, customFieldsApi } from '../api/httpClient'
@@ -60,8 +60,9 @@ export function PersonDetailPage() {
     name: '', role: '', company: '', notes: '', is_favorite: false, favorite_notes: '', tag_ids: [] as string[], stage_id: '', custom_fields_data: {} as Record<string, any>
   })
   const [actionNote, setActionNote] = useState('')
+  const [deleted, setDeleted] = useState(false)
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!currentWorkspace || !id) return
 
     console.info('[NetworkPilot PersonDetail]', 'Loading person detail', {
@@ -109,11 +110,11 @@ export function PersonDetailPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentWorkspace, id])
 
   useEffect(() => {
     fetchData()
-  }, [currentWorkspace, id])
+  }, [fetchData])
 
   const handleSaveProfile = async () => {
     if (!currentWorkspace || !id) return
@@ -190,6 +191,27 @@ export function PersonDetailPage() {
     }
   }
 
+  const handleDelete = async () => {
+    if (!currentWorkspace || !id || !window.confirm('Move this person to Trash?')) return
+    try {
+      await peopleApi.delete(id, currentWorkspace.id)
+      setDeleted(true)
+    } catch (err: any) {
+      setError(err.message || 'Failed to move person to Trash')
+    }
+  }
+
+  const handleUndoDelete = async () => {
+    if (!currentWorkspace || !id) return
+    try {
+      await peopleApi.restore(id, currentWorkspace.id)
+      setDeleted(false)
+      await fetchData()
+    } catch (err: any) {
+      setError(err.message || 'Failed to restore person')
+    }
+  }
+
   if (loading) {
     return (
       <div>
@@ -221,9 +243,17 @@ export function PersonDetailPage() {
           >
             View on LinkedIn
           </a>
-          <Button variant="danger" size="sm" onClick={handleArchive}>Archive</Button>
+          <Button variant="secondary" size="sm" onClick={handleArchive}>Archive</Button>
+          <Button variant="danger" size="sm" onClick={handleDelete}>Move to Trash</Button>
         </div>
       </div>
+
+      {deleted && (
+        <div className="mb-4 flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <span>This person was moved to Trash.</span>
+          <Button size="sm" onClick={handleUndoDelete}>Undo</Button>
+        </div>
+      )}
 
       {error && <div className="mb-4"><ErrorAlert message={error} /></div>}
 
@@ -303,28 +333,43 @@ export function PersonDetailPage() {
                         <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                           <input
                             type="checkbox"
-                            checked={!!editForm.custom_fields_data[field.name]}
+                            checked={!!editForm.custom_fields_data[field.id]}
                             onChange={(e) => setEditForm({
                               ...editForm,
                               custom_fields_data: {
                                 ...editForm.custom_fields_data,
-                                [field.name]: e.target.checked
+                                [field.id]: e.target.checked
                               }
                             })}
                             className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                           />
                           {field.name}
                         </label>
+                      ) : field.field_type === 'select' ? (
+                        <label className="block text-sm font-medium text-gray-700">
+                          {field.name}
+                          <select
+                            className="mt-1 block w-full rounded-md border-gray-300"
+                            value={editForm.custom_fields_data[field.id] || ''}
+                            onChange={(e) => setEditForm({
+                              ...editForm,
+                              custom_fields_data: { ...editForm.custom_fields_data, [field.id]: e.target.value },
+                            })}
+                          >
+                            <option value="">Select…</option>
+                            {(field.options?.choices || []).map((choice: string) => <option key={choice} value={choice}>{choice}</option>)}
+                          </select>
+                        </label>
                       ) : (
                         <Input
                           label={field.name}
                           type={field.field_type === 'number' ? 'number' : field.field_type === 'date' ? 'date' : 'text'}
-                          value={editForm.custom_fields_data[field.name] || ''}
+                          value={editForm.custom_fields_data[field.id] || ''}
                           onChange={(e) => setEditForm({
                             ...editForm,
                             custom_fields_data: {
                               ...editForm.custom_fields_data,
-                              [field.name]: field.field_type === 'number' ? Number(e.target.value) : e.target.value
+                              [field.id]: field.field_type === 'number' ? Number(e.target.value) : e.target.value
                             }
                           })}
                         />
@@ -430,7 +475,7 @@ export function PersonDetailPage() {
                 <div className="pt-4 mt-4 border-t border-gray-200 space-y-3">
                   <h3 className="text-sm font-medium text-gray-900">Custom Fields</h3>
                   {customFields.map(field => {
-                    const value = person.custom_fields_data?.[field.name]
+                    const value = person.custom_fields_data?.[field.id]
                     return (
                       <div key={field.id}>
                         <span className="text-sm text-gray-500">{field.name}</span>

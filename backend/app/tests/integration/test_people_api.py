@@ -6,6 +6,8 @@ from httpx import AsyncClient
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
+
+
 @pytest.mark.anyio
 class TestPeopleAPI:
     async def _create_people(
@@ -22,6 +24,15 @@ class TestPeopleAPI:
             headers=headers,
         )
         workspace_id = workspace_response.json()["id"]
+        tag_ids: list[str] = []
+        for tag_name in tags or []:
+            tag_response = await client.post(
+                "/api/v1/tags",
+                json={"workspace_id": workspace_id, "name": tag_name},
+                headers=headers,
+            )
+            assert tag_response.status_code == 200
+            tag_ids.append(tag_response.json()["id"])
         people: list[dict] = []
         for index in range(count):
             response = await client.post(
@@ -29,7 +40,7 @@ class TestPeopleAPI:
                 json={
                     "name": f"Bulk Person {index}",
                     "linkedin_url": f"https://linkedin.com/in/bulk-person-{uuid.uuid4()}/",
-                    "tags": tags,
+                    "tag_ids": tag_ids,
                 },
                 headers=headers,
             )
@@ -76,7 +87,7 @@ class TestPeopleAPI:
         assert last_response is not None
         for person in last_response.json()["items"]:
             assert person["is_favorite"] is True
-            assert person["tags"] == ["new", "spaced"]
+            assert {tag["name"] for tag in person["tags"]} == {"new", "spaced"}
             assert person["priority"] == "A"
             assert person["next_action_type"] == "send_message"
             assert person["next_action_date"] == "2026-08-01"
@@ -447,18 +458,14 @@ class TestPeopleAPI:
 
     async def test_list_people_requires_auth(self, client: AsyncClient):
         response = await client.get(
-            "/api/v1/people",
-            params={"workspace_id": "00000000-0000-0000-0000-000000000000"}
+            "/api/v1/people", params={"workspace_id": "00000000-0000-0000-0000-000000000000"}
         )
         assert response.status_code in [401, 422]
 
     async def test_create_person_requires_auth(self, client: AsyncClient):
         response = await client.post(
             "/api/v1/people?workspace_id=00000000-0000-0000-0000-000000000000",
-            json={
-                "name": "Test Person",
-                "linkedin_url": "https://www.linkedin.com/in/testperson/"
-            }
+            json={"name": "Test Person", "linkedin_url": "https://www.linkedin.com/in/testperson/"},
         )
         assert response.status_code in [401, 422]
 
@@ -468,6 +475,6 @@ class TestActivitiesAPI:
     async def test_list_activities_requires_auth(self, client: AsyncClient):
         response = await client.get(
             "/api/v1/people/00000000-0000-0000-0000-000000000000/activities",
-            params={"workspace_id": "00000000-0000-0000-0000-000000000000"}
+            params={"workspace_id": "00000000-0000-0000-0000-000000000000"},
         )
         assert response.status_code in [401, 422]

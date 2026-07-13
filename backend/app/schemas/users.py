@@ -6,6 +6,8 @@ from pydantic import BaseModel
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
+
+
 class WorkspaceMembershipResponse(BaseModel):
     workspace_id: uuid.UUID
     role: str

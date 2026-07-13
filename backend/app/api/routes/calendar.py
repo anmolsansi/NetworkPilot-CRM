@@ -19,7 +19,7 @@ router = APIRouter()
 logger = get_logger(__name__)
 
 
-@router.get("/calendar/daily-reminder-link", response_model=CalendarLinkResponse)
+@router.get("/daily-reminder-link", response_model=CalendarLinkResponse)
 async def get_daily_reminder_link(
     workspace_id: uuid.UUID = Query(...),
     _workspace: Depends = Depends(require_workspace_access),

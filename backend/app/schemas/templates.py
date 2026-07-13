@@ -5,6 +5,8 @@ from pydantic import BaseModel, Field
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
+
+
 class TemplateCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     category: str = Field(..., pattern=r"^(connection_request|first_message|follow_up)$")

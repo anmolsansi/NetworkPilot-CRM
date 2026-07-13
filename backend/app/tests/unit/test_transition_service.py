@@ -6,10 +6,10 @@ import pytest
 from app.core.errors import ValidationError
 from app.services.transition_service import ACTION_TRANSITIONS, calculate_transition
 
-
-
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
+
+
 class TestCalculateTransition:
     def test_invite_sent(self):
         result = calculate_transition("invite_sent")

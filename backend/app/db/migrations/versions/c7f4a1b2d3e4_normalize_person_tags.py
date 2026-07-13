@@ -4,11 +4,11 @@ Revision ID: c7f4a1b2d3e4
 Revises: 6bfc5792fd2d
 Create Date: 2026-07-13 13:35:00
 """
-import uuid
+
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "c7f4a1b2d3e4"
@@ -18,33 +18,43 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    bind = op.get_bind()
-    people = bind.execute(
-        sa.text("SELECT id, workspace_id, tags FROM people WHERE tags IS NOT NULL")
-    ).mappings()
-
-    for person in people:
-        names: list[str] = []
-        for raw_name in person["tags"] or []:
-            name = raw_name.strip()
-            if name and name not in names:
-                names.append(name)
-
-        for name in names:
-            tag_id = bind.execute(
-                sa.text("SELECT id FROM tags WHERE workspace_id = :workspace_id AND name = :name"),
-                {"workspace_id": person["workspace_id"], "name": name},
-            ).scalar_one_or_none()
-            if tag_id is None:
-                tag_id = uuid.uuid4()
-                bind.execute(
-                    sa.text("INSERT INTO tags (id, workspace_id, name, color) VALUES (:id, :workspace_id, :name, NULL)"),
-                    {"id": tag_id, "workspace_id": person["workspace_id"], "name": name},
-                )
-            bind.execute(
-                sa.text("INSERT INTO person_tags (person_id, tag_id) VALUES (:person_id, :tag_id) ON CONFLICT DO NOTHING"),
-                {"person_id": person["id"], "tag_id": tag_id},
-            )
+    # Keep this data migration set-based so it works both against a live database
+    # and when a managed deployment generates the full migration chain as SQL.
+    op.execute(
+        """
+        WITH normalized AS (
+            SELECT DISTINCT p.workspace_id, btrim(raw.name) AS name
+            FROM people AS p
+            CROSS JOIN LATERAL unnest(p.tags) AS raw(name)
+            WHERE p.tags IS NOT NULL AND btrim(raw.name) <> ''
+        )
+        INSERT INTO tags (id, workspace_id, name, color)
+        SELECT md5(n.workspace_id::text || ':' || n.name)::uuid,
+               n.workspace_id,
+               n.name,
+               NULL
+        FROM normalized AS n
+        ON CONFLICT (workspace_id, name) DO NOTHING
+        """
+    )
+    op.execute(
+        """
+        WITH normalized AS (
+            SELECT DISTINCT p.id AS person_id,
+                            p.workspace_id,
+                            btrim(raw.name) AS name
+            FROM people AS p
+            CROSS JOIN LATERAL unnest(p.tags) AS raw(name)
+            WHERE p.tags IS NOT NULL AND btrim(raw.name) <> ''
+        )
+        INSERT INTO person_tags (person_id, tag_id)
+        SELECT n.person_id, t.id
+        FROM normalized AS n
+        JOIN tags AS t
+          ON t.workspace_id = n.workspace_id AND t.name = n.name
+        ON CONFLICT DO NOTHING
+        """
+    )
 
     op.drop_column("people", "tags")
 

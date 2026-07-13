@@ -78,6 +78,8 @@ export interface LookupResponse {
   next_action_type?: string
   next_action_date?: string
   last_action_type?: string
+  is_favorite?: boolean
+  favorite_notes?: string
 }
 
 export interface QuickCreateResponse {
@@ -207,6 +209,15 @@ export const extensionApi = {
       actionType: data.action_type,
     })
     return request<QuickActionResponse>('/extension/quick-action', {
+      method: 'POST',
+      body: JSON.stringify({ ...data, workspace_id: authData.workspaceId }),
+    })
+  },
+
+  setFavorite: async (data: { person_id: string; is_favorite: boolean; favorite_notes?: string }) => {
+    const authData = await getToken()
+    if (!authData?.workspaceId) throw new Error('No workspace ID')
+    return request<{ person_id: string; is_favorite: boolean; favorite_notes?: string }>('/extension/favorite', {
       method: 'POST',
       body: JSON.stringify({ ...data, workspace_id: authData.workspaceId }),
     })

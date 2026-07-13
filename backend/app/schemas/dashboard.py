@@ -6,6 +6,8 @@ from pydantic import BaseModel
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
+
+
 class DashboardSummary(BaseModel):
     due_today: int
     overdue: int
@@ -24,3 +26,10 @@ class DuePersonCard(BaseModel):
     next_action_type: str | None
     next_action_date: date | None
     last_action_type: str | None
+
+
+class TagDashboardSection(BaseModel):
+    id: uuid.UUID
+    name: str
+    color: str | None
+    people_count: int

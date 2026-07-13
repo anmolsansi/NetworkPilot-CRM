@@ -8,6 +8,7 @@ vi.mock('../api/httpClient', () => ({
   dashboardApi: {
     getSummary: vi.fn(),
     getDue: vi.fn(),
+    getTags: vi.fn(),
   },
   exportsApi: {
     peopleCsv: vi.fn(),
@@ -26,6 +27,11 @@ const workspace = {
   default_acceptance_check_delay_days: 1,
   daily_reminder_time: '09:00:00',
   timezone: 'UTC',
+  quiet_hours_start: null,
+  quiet_hours_end: null,
+  email_reminders_enabled: true,
+  daily_digest_enabled: true,
+  overdue_alerts_enabled: true,
 }
 
 describe('DashboardPage', () => {
@@ -49,6 +55,7 @@ describe('DashboardPage', () => {
       active_total: 0,
     })
     vi.mocked(dashboardApi.getDue).mockResolvedValue([])
+    vi.mocked(dashboardApi.getTags).mockResolvedValue([])
 
     render(<DashboardPage />)
 

@@ -7,6 +7,7 @@ const navigation = [
   { name: 'Trash', href: '/people?view=trash', icon: '🗑️' },
   { name: 'Templates', href: '/templates', icon: '📝' },
   { name: 'Imports', href: '/imports', icon: '📥' },
+  { name: 'Notifications', href: '/notifications', icon: '🔔' },
   { name: 'Settings', href: '/settings', icon: '⚙️' },
 ]
 

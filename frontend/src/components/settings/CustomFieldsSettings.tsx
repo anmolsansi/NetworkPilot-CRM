@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { customFieldsApi } from '../../api/httpClient'
 import { useWorkspaceStore } from '../../stores/workspaceStore'
 import { Button } from '../common/Button'
@@ -15,12 +15,9 @@ export function CustomFieldsSettings() {
   // New field state
   const [newFieldName, setNewFieldName] = useState('')
   const [newFieldType, setNewFieldType] = useState('text')
+  const [newFieldChoices, setNewFieldChoices] = useState('')
 
-  useEffect(() => {
-    fetchFields()
-  }, [currentWorkspace])
-
-  const fetchFields = async () => {
+  const fetchFields = useCallback(async () => {
     if (!currentWorkspace) return
     setLoading(true)
     setError(null)
@@ -32,7 +29,11 @@ export function CustomFieldsSettings() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentWorkspace])
+
+  useEffect(() => {
+    fetchFields()
+  }, [fetchFields])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,9 +44,13 @@ export function CustomFieldsSettings() {
       await customFieldsApi.create({
         name: newFieldName.trim(),
         field_type: newFieldType,
+        options: newFieldType === 'select'
+          ? { choices: newFieldChoices.split(',').map(choice => choice.trim()).filter(Boolean) }
+          : null,
       }, currentWorkspace.id)
       setNewFieldName('')
       setNewFieldType('text')
+      setNewFieldChoices('')
       fetchFields()
     } catch (err: any) {
       setError(err.message || 'Failed to create custom field')
@@ -93,10 +98,21 @@ export function CustomFieldsSettings() {
               { value: 'text', label: 'Text' },
               { value: 'number', label: 'Number' },
               { value: 'date', label: 'Date' },
-              { value: 'boolean', label: 'Checkbox' }
+              { value: 'boolean', label: 'Checkbox' },
+              { value: 'select', label: 'Dropdown' },
             ]}
           />
         </div>
+        {newFieldType === 'select' && (
+          <div className="flex-1">
+            <Input
+              label="Dropdown choices"
+              value={newFieldChoices}
+              onChange={(e) => setNewFieldChoices(e.target.value)}
+              placeholder="Warm, Hot, Cold"
+            />
+          </div>
+        )}
         <Button type="submit" disabled={!newFieldName.trim() || loading}>
           Add
         </Button>

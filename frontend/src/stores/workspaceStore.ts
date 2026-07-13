@@ -10,6 +10,11 @@ interface Workspace {
   default_acceptance_check_delay_days: number
   daily_reminder_time: string
   timezone: string
+  quiet_hours_start: string | null
+  quiet_hours_end: string | null
+  email_reminders_enabled: boolean
+  daily_digest_enabled: boolean
+  overdue_alerts_enabled: boolean
 }
 
 interface WorkspaceState {

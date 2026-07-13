@@ -1,13 +1,9 @@
 import logging
-import pytest
-from app.services.template_service import TemplateService
-from app.models.template import MessageTemplate
-import uuid
-
-
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
+
+
 class TestTemplateRendering:
     def test_render_basic_variables(self):
         body = "Hi {{first_name}}, I work at {{company}}."

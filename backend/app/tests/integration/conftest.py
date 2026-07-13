@@ -5,6 +5,7 @@ import pytest
 from fastapi import Header
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import ARRAY, JSON
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.compiler import compiles
 
@@ -16,8 +17,15 @@ from app.main import app
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
+
+
 @compiles(ARRAY, "sqlite")
 def compile_array_sqlite(type_, compiler, **kw):
+    return "JSON"
+
+
+@compiles(JSONB, "sqlite")
+def compile_jsonb_sqlite(type_, compiler, **kw):
     return "JSON"
 
 
@@ -45,7 +53,7 @@ def mock_headers(mock_user_id):
 async def db_session():
     for table in Base.metadata.tables.values():
         for column in table.columns:
-            if isinstance(column.type, ARRAY):
+            if isinstance(column.type, (ARRAY, JSONB)):
                 column.type = JSON()
 
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
@@ -55,6 +63,7 @@ async def db_session():
     session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with session_maker() as session:
         yield session
+    await engine.dispose()
 
 
 @pytest.fixture
@@ -74,6 +83,7 @@ async def client(db_session, mock_user_id):
             uid, email = token.split(":", 1)
             # Create a deterministic UUID from the uid string if it's not a valid UUID format
             import hashlib
+
             uid_uuid = uuid.UUID(hashlib.md5(uid.encode()).hexdigest())
             return AuthClaims(user_id=uid_uuid, email=email)
 

@@ -22,7 +22,9 @@ def upgrade() -> None:
     op.add_column("people", sa.Column("company_website", sa.Text(), nullable=True))
     op.add_column("people", sa.Column("processed_at", sa.DateTime(timezone=True), nullable=True))
     op.add_column("people", sa.Column("processed_at_millis", sa.BigInteger(), nullable=True))
-    op.add_column("people", sa.Column("invite_accepted_at", sa.DateTime(timezone=True), nullable=True))
+    op.add_column(
+        "people", sa.Column("invite_accepted_at", sa.DateTime(timezone=True), nullable=True)
+    )
     op.add_column("people", sa.Column("invite_accepted_at_millis", sa.BigInteger(), nullable=True))
 
 

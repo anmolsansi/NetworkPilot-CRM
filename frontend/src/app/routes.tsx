@@ -9,6 +9,7 @@ import { PersonDetailPage } from '../pages/PersonDetailPage'
 import { TemplatesPage } from '../pages/TemplatesPage'
 import { SettingsPage } from '../pages/SettingsPage'
 import { ImportsPage } from '../features/imports/ImportsPage'
+import { NotificationsPage } from '../pages/NotificationsPage'
 import { AppLayout } from '../components/layout/AppLayout'
 
 export function AppRoutes() {
@@ -32,6 +33,7 @@ export function AppRoutes() {
           <Route path="templates" element={<TemplatesPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="imports" element={<ImportsPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -216,6 +216,8 @@ export const peopleApi = {
     request<any>(`/people/${id}/archive?workspace_id=${workspaceId}`, { method: 'POST', body: JSON.stringify(data) }),
   restore: (id: string, workspaceId: string) =>
     request<any>(`/people/${id}/restore?workspace_id=${workspaceId}`, { method: 'POST' }),
+  unarchive: (id: string, workspaceId: string) =>
+    request<any>(`/people/${id}/unarchive?workspace_id=${workspaceId}`, { method: 'POST' }),
   bulkAction: (data: any) =>
     request<any>('/people/bulk-actions', { method: 'POST', body: JSON.stringify(data) }),
 }
@@ -253,6 +255,21 @@ export const importsApi = {
 
   retry: async (jobId: string, workspaceId: string): Promise<any> => {
     return request(`/imports/${jobId}/retry?workspace_id=${workspaceId}`, { method: 'POST' })
+  },
+
+  downloadErrors: async (jobId: string, workspaceId: string): Promise<void> => {
+    const token = await getToken()
+    const response = await fetch(
+      `${API_BASE_URL}/imports/${jobId}/errors.csv?workspace_id=${workspaceId}`,
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+    )
+    if (!response.ok) throw new Error('Failed to download import errors')
+    const blobUrl = URL.createObjectURL(await response.blob())
+    const link = document.createElement('a')
+    link.href = blobUrl
+    link.download = `import-${jobId}-errors.csv`
+    link.click()
+    URL.revokeObjectURL(blobUrl)
   }
 }
 
@@ -266,9 +283,21 @@ export const tagsApi = {
       body: JSON.stringify({ workspace_id: workspaceId, ...data })
     })
   },
+  update: (tagId: string, workspaceId: string, data: { name?: string, color?: string | null }) => {
+    return request<Tag>(`/tags/${tagId}?workspace_id=${workspaceId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  },
   delete: (tagId: string, workspaceId: string) => {
     return request<void>(`/tags/${tagId}?workspace_id=${workspaceId}`, { method: 'DELETE' })
   }
+}
+
+export const notificationsApi = {
+  list: (workspaceId: string) => request<any[]>(`/notifications?workspace_id=${workspaceId}`),
+  markRead: (id: string, workspaceId: string) => request<any>(`/notifications/${id}/read?workspace_id=${workspaceId}`, { method: 'POST' }),
+  markAllRead: (workspaceId: string) => request<void>(`/notifications/read-all?workspace_id=${workspaceId}`, { method: 'POST' }),
 }
 
 // Duplicates API
@@ -303,6 +332,8 @@ export const dashboardApi = {
     const query = new URLSearchParams({ workspace_id: workspaceId, ...params }).toString()
     return request<any[]>(`/dashboard/due?${query}`)
   },
+  getTags: (workspaceId: string) =>
+    request<any[]>(`/dashboard/tags?workspace_id=${workspaceId}`),
 }
 
 // Templates API
@@ -335,6 +366,7 @@ export const pipelineStagesApi = {
   list: (workspaceId: string) => request<any[]>(`/pipeline-stages/?workspace_id=${workspaceId}`),
   create: (data: any, workspaceId: string) => request<any>(`/pipeline-stages/?workspace_id=${workspaceId}`, { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: any, workspaceId: string) => request<any>(`/pipeline-stages/${id}?workspace_id=${workspaceId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  reorder: (stageIds: string[], workspaceId: string) => request<any[]>(`/pipeline-stages/reorder?workspace_id=${workspaceId}`, { method: 'POST', body: JSON.stringify({ stage_ids: stageIds }) }),
   delete: (id: string, workspaceId: string) => request<void>(`/pipeline-stages/${id}?workspace_id=${workspaceId}`, { method: 'DELETE' }),
 }
 

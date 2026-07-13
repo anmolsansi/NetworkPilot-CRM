@@ -80,21 +80,19 @@ async def create_workspace(
     await db.flush()
 
     # Schedule the initial daily digest for this workspace
-    from app.models.background_job import BackgroundJob
     from datetime import datetime, timedelta
-    
+
+    from app.models.background_job import BackgroundJob
+
     # Calculate next run time
     now = datetime.utcnow()
     next_run_date = now.date() + timedelta(days=1)
-    
+
     # If the workspace has a specific daily_reminder_time (it defaults to 9:00), use it
     next_run = datetime.combine(next_run_date, workspace.daily_reminder_time)
-    
+
     job = BackgroundJob(
-        workspace_id=workspace.id,
-        job_type="daily_digest",
-        status="pending",
-        run_at=next_run
+        workspace_id=workspace.id, job_type="daily_digest", status="pending", run_at=next_run
     )
     db.add(job)
     await db.flush()
@@ -122,12 +120,12 @@ async def update_workspace(
         sorted(update_data.keys()),
     )
 
-    # Handle daily_reminder_time string -> time conversion
-    if "daily_reminder_time" in update_data and update_data["daily_reminder_time"] is not None:
-        time_str = update_data["daily_reminder_time"]
-        h, m = map(int, time_str.split(":"))
-        from datetime import time
-        update_data["daily_reminder_time"] = time(h, m)
+    for time_field in ("daily_reminder_time", "quiet_hours_start", "quiet_hours_end"):
+        if time_field in update_data and update_data[time_field] is not None:
+            h, m = map(int, update_data[time_field].split(":"))
+            from datetime import time
+
+            update_data[time_field] = time(h, m)
 
     for field, value in update_data.items():
         setattr(workspace, field, value)
@@ -136,6 +134,7 @@ async def update_workspace(
     logger.info("workspaces.update.completed workspace_id=%s", mask_id(str(workspace.id)))
     return workspace
 
+
 @router.post("/{workspace_id}/trigger_digest")
 async def trigger_digest(
     workspace_id: uuid.UUID,
@@ -143,14 +142,15 @@ async def trigger_digest(
     db: AsyncSession = Depends(get_db),
 ):
     """Manually trigger a digest email job for testing."""
-    from app.models.background_job import BackgroundJob
     from datetime import datetime
-    
+
+    from app.models.background_job import BackgroundJob
+
     job = BackgroundJob(
         workspace_id=workspace_id,
         job_type="daily_digest",
         status="pending",
-        run_at=datetime.utcnow()
+        run_at=datetime.utcnow(),
     )
     db.add(job)
     await db.flush()

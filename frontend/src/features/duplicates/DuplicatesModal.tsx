@@ -43,13 +43,14 @@ export function DuplicatesModal({ onClose, onMergeComplete }: DuplicatesModalPro
 
   const handleMerge = async (_groupId: string, targetId: string, sourceId: string) => {
     if (!currentWorkspace) return
+    if (!window.confirm('Merge the other profile into this one? Activities and tags will be moved, and the source profile will be placed in Trash.')) return
     setMerging(true)
     setError(null)
     try {
       await duplicatesApi.merge({
         target_person_id: targetId,
         source_person_id: sourceId,
-        fields_to_keep_from_source: ['email', 'linkedin_url', 'phone'] // simplistic merge for now
+        fields_to_keep_from_source: ['email', 'phone_number']
       }, currentWorkspace.id)
       
       // Remove group from list if it's handled (only 2 people merged). 
