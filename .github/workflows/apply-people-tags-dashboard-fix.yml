@@ -177,27 +177,42 @@ jobs:
         working-directory: backend
         run: pip install -r requirements.txt
 
-      - name: Validate model and routes
+      - name: Compile backend
+        working-directory: backend
+        run: python -m compileall -q app
+
+      - name: Validate tags relationship
         working-directory: backend
         run: |
-          python -m compileall -q app
           python - <<'PY'
           from sqlalchemy import inspect
-
-          from app.main import app
           from app.models import Person, Tag
 
           relationship = inspect(Person).relationships['tags']
+          print('Mapped class:', relationship.mapper.class_.__name__)
+          print('Person columns:', list(Person.__table__.c.keys()))
           assert relationship.mapper.class_ is Tag
           assert Person.__table__.c.get('tags') is None
+          PY
+
+      - name: Validate dashboard routes
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          from app.main import app
 
           paths = {route.path for route in app.routes}
-          assert '/api/v1/dashboard/summary' in paths, sorted(paths)
-          assert '/api/v1/dashboard/due' in paths, sorted(paths)
-          assert '/api/v1/dashboard/dashboard/summary' not in paths, sorted(paths)
-          assert '/api/v1/dashboard/dashboard/due' not in paths, sorted(paths)
-          print('People tags relationship and dashboard routes validated')
+          print('\n'.join(sorted(paths)))
+          assert '/api/v1/dashboard/summary' in paths
+          assert '/api/v1/dashboard/due' in paths
+          assert '/api/v1/dashboard/dashboard/summary' not in paths
+          assert '/api/v1/dashboard/dashboard/due' not in paths
           PY
+
+      - name: Validate Alembic head
+        working-directory: backend
+        run: |
+          alembic heads
           test "$(alembic heads | awk '{print $1}')" = "c7f4a1b2d3e4"
 
       - name: Commit validated fix
