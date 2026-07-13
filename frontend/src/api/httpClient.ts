@@ -1,4 +1,5 @@
 import { supabase } from '../auth/supabaseClient'
+import type { Tag } from '../types'
 
 const API_VERSION_PREFIX = '/api/v1'
 const API_LOG_PREFIX = '[NetworkPilot API]'
@@ -255,16 +256,16 @@ export const importsApi = {
 
 export const tagsApi = {
   list: (workspaceId: string) => {
-    return request(`/tags?workspace_id=${workspaceId}`)
+    return request<Tag[]>(`/tags?workspace_id=${workspaceId}`)
   },
   create: (workspaceId: string, data: { name: string, color?: string }) => {
-    return request('/tags', {
+    return request<Tag>('/tags', {
       method: 'POST',
       body: JSON.stringify({ workspace_id: workspaceId, ...data })
     })
   },
   delete: (tagId: string, workspaceId: string) => {
-    return request(`/tags/${tagId}?workspace_id=${workspaceId}`, { method: 'DELETE' })
+    return request<void>(`/tags/${tagId}?workspace_id=${workspaceId}`, { method: 'DELETE' })
   }
 }
 
