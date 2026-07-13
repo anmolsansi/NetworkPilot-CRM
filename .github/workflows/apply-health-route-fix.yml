@@ -1,0 +1,56 @@
+name: Apply health route fix
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/apply-health-route-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.head_ref }}
+
+      - name: Fix health route
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/app/api/routes/health.py')
+          text = path.read_text()
+          old = '@router.get("/health")'
+          new = '@router.get("")'
+          if old not in text:
+              raise SystemExit('Expected health route decorator was not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Verify route registration
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          from app.main import app
+
+          paths = {route.path for route in app.routes}
+          assert '/api/v1/health' in paths, sorted(paths)
+          assert '/api/v1/health/health' not in paths, sorted(paths)
+          print('Health route registered correctly')
+          PY
+
+      - name: Commit validated fix
+        run: |
+          rm .github/workflows/apply-health-route-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/app/api/routes/health.py .github/workflows/apply-health-route-fix.yml
+          git commit -m "Fix health check route"
+          git push
