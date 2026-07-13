@@ -326,8 +326,8 @@ export const calendarApi = {
     request<any>(`/calendar/daily-reminder-link?workspace_id=${workspaceId}`),
 }
 
-// Saved Views API
-export const activitiesApi = {
+// Workspace activity feed API
+export const workspaceActivitiesApi = {
   list: (workspaceId: string, limit = 50) => request<any>(`/activities?workspace_id=${workspaceId}&limit=${limit}`),
 }
 

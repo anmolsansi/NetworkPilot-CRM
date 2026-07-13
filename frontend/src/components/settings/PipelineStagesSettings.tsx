@@ -37,10 +37,10 @@ export function PipelineStagesSettings({ workspaceId }: { workspaceId: string })
   const handleCreate = async () => {
     if (!newStageName.trim()) return
     try {
-      await pipelineStagesApi.create(workspaceId, {
+      await pipelineStagesApi.create({
         name: newStageName.trim(),
         order: stages.length,
-      })
+      }, workspaceId)
       setNewStageName('')
       await fetchStages()
     } catch (err: any) {

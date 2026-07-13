@@ -5,7 +5,8 @@ from typing import List
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db, require_workspace_access
+from app.api.deps import get_db
+from app.services.workspace_service import require_workspace_access
 from app.schemas.pipeline_stage import (
     PipelineStageCreate,
     PipelineStageResponse,
