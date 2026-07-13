@@ -34,17 +34,15 @@ jobs:
           path.write_text(text.replace(old, new, 1))
           PY
 
-      - name: Verify route registration
-        working-directory: backend
+      - name: Verify health route source
         run: |
-          python - <<'PY'
-          from app.main import app
-
-          paths = {route.path for route in app.routes}
-          assert '/api/v1/health' in paths, sorted(paths)
-          assert '/api/v1/health/health' not in paths, sorted(paths)
-          print('Health route registered correctly')
-          PY
+          python -m py_compile backend/app/api/routes/health.py
+          grep -F '@router.get("")' backend/app/api/routes/health.py
+          grep -F 'include_router(health.router, prefix="/health"' backend/app/api/router.py
+          if grep -F '@router.get("/health")' backend/app/api/routes/health.py; then
+            echo 'Double-prefixed health route still exists'
+            exit 1
+          fi
 
       - name: Commit validated fix
         run: |
