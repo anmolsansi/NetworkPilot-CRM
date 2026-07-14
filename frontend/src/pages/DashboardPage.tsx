@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useWorkspaceStore } from '../stores/workspaceStore'
-import { dashboardApi, exportsApi, workspaceApi } from '../api/httpClient'
+import { dashboardApi, exportsApi, workspaceApi, workspaceMembersApi } from '../api/httpClient'
 import { downloadCsvBlob } from '../api/csvDownload'
 import { DuePersonCard } from '../components/people/DuePersonCard'
 import { EmptyState } from '../components/common/EmptyState'
@@ -8,6 +8,7 @@ import { ErrorAlert } from '../components/common/ErrorAlert'
 import { Skeleton } from '../components/common/Skeleton'
 import { Button } from '../components/common/Button'
 import { Input } from '../components/common/Input'
+import { Modal } from '../components/common/Modal'
 import { logError, logInfo, maskId } from '../utils/logger'
 
 interface DashboardSummary {
@@ -15,6 +16,18 @@ interface DashboardSummary {
   overdue: number
   waiting_for_reply: number
   active_total: number
+}
+
+interface DashboardConfig {
+  show_summary?: boolean
+  show_tags?: boolean
+  show_due?: boolean
+}
+
+const DEFAULT_CONFIG: DashboardConfig = {
+  show_summary: true,
+  show_tags: true,
+  show_due: true,
 }
 
 export function DashboardPage() {
@@ -27,6 +40,11 @@ export function DashboardPage() {
   const [exporting, setExporting] = useState<string | null>(null)
   const [workspaceName, setWorkspaceName] = useState('My Workspace')
   const [creatingWorkspace, setCreatingWorkspace] = useState(false)
+  
+  // Customization state
+  const [config, setConfig] = useState<DashboardConfig>(DEFAULT_CONFIG)
+  const [isCustomizing, setIsCustomizing] = useState(false)
+  const [savingConfig, setSavingConfig] = useState(false)
 
   const fetchData = useCallback(async () => {
     if (!currentWorkspace) {
@@ -41,14 +59,18 @@ export function DashboardPage() {
     setLoading(true)
     setError(null)
     try {
-      const [summaryData, dueData, tagData] = await Promise.all([
+      const [summaryData, dueData, tagData, memberData] = await Promise.all([
         dashboardApi.getSummary(currentWorkspace.id),
         dashboardApi.getDue(currentWorkspace.id, { include_overdue: 'true' }),
         dashboardApi.getTags(currentWorkspace.id),
+        workspaceMembersApi.getMe(currentWorkspace.id).catch(() => null),
       ])
       setSummary(summaryData)
       setDuePeople(dueData)
       setTagSections(tagData)
+      if (memberData?.dashboard_config) {
+        setConfig({ ...DEFAULT_CONFIG, ...memberData.dashboard_config })
+      }
       logInfo('DashboardPage', 'Dashboard data loaded', {
         workspaceId: maskId(currentWorkspace.id),
         dueCount: dueData.length,
@@ -128,7 +150,20 @@ export function DashboardPage() {
     }
   }
 
-  if (loading) {
+  const handleSaveConfig = async () => {
+    if (!currentWorkspace) return
+    setSavingConfig(true)
+    try {
+      await workspaceMembersApi.updateMe(currentWorkspace.id, { dashboard_config: config })
+      setIsCustomizing(false)
+    } catch (err: any) {
+      setError(err.message || 'Failed to save dashboard config')
+    } finally {
+      setSavingConfig(false)
+    }
+  }
+
+  if (loading && !summary) {
     return (
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
@@ -172,7 +207,7 @@ export function DashboardPage() {
     )
   }
 
-  if (error) {
+  if (error && !summary) {
     return (
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
@@ -185,10 +220,19 @@ export function DashboardPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
-      <p className="mt-2 text-sm text-gray-600">
-        Who needs follow-up today
-      </p>
+      <div className="sm:flex sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+          <p className="mt-2 text-sm text-gray-600">Who needs follow-up today</p>
+        </div>
+        <div className="mt-4 sm:mt-0 flex gap-2">
+          <Button variant="secondary" onClick={() => setIsCustomizing(true)}>
+            Customize Widgets
+          </Button>
+        </div>
+      </div>
+
+      {error && <div className="mt-4"><ErrorAlert message={error} onRetry={fetchData} /></div>}
 
       <div className="mt-4 flex flex-wrap gap-2">
         <Button
@@ -226,7 +270,7 @@ export function DashboardPage() {
       </div>
 
       {/* Summary Cards */}
-      {summary && (
+      {config.show_summary !== false && summary && (
         <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <div className="bg-white overflow-hidden shadow rounded-lg p-5">
             <dt className="text-sm font-medium text-gray-500 truncate">Due Today</dt>
@@ -247,7 +291,8 @@ export function DashboardPage() {
         </div>
       )}
 
-      {tagSections.length > 0 && (
+      {/* Tags Widget */}
+      {config.show_tags !== false && tagSections.length > 0 && (
         <section className="mt-8">
           <h2 className="text-lg font-medium text-gray-900">People by tag</h2>
           <div className="mt-3 flex flex-wrap gap-3">
@@ -266,21 +311,72 @@ export function DashboardPage() {
       )}
 
       {/* Due People List */}
-      <div className="mt-8">
-        <h2 className="text-lg font-medium text-gray-900">Due Follow-ups</h2>
-        {duePeople.length === 0 ? (
-          <EmptyState
-            title="No due follow-ups"
-            description="All caught up! No one needs follow-up right now."
-          />
-        ) : (
-          <div className="mt-4 space-y-4">
-            {duePeople.map((person) => (
-              <DuePersonCard key={person.id} person={person} onUpdate={fetchData} />
-            ))}
+      {config.show_due !== false && (
+        <div className="mt-8">
+          <h2 className="text-lg font-medium text-gray-900">Due Follow-ups</h2>
+          {duePeople.length === 0 ? (
+            <EmptyState
+              title="No due follow-ups"
+              description="All caught up! No one needs follow-up right now."
+            />
+          ) : (
+            <div className="mt-4 space-y-4">
+              {duePeople.map((person) => (
+                <DuePersonCard key={person.id} person={person} onUpdate={fetchData} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <Modal
+        isOpen={isCustomizing}
+        onClose={() => setIsCustomizing(false)}
+        title="Customize Dashboard"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">Choose which widgets to display on your dashboard.</p>
+          
+          <label className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={config.show_summary !== false}
+              onChange={(e) => setConfig({ ...config, show_summary: e.target.checked })}
+              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600"
+            />
+            <span className="text-sm font-medium text-gray-900">Summary Cards</span>
+          </label>
+
+          <label className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={config.show_due !== false}
+              onChange={(e) => setConfig({ ...config, show_due: e.target.checked })}
+              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600"
+            />
+            <span className="text-sm font-medium text-gray-900">Due Follow-ups List</span>
+          </label>
+
+          <label className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={config.show_tags !== false}
+              onChange={(e) => setConfig({ ...config, show_tags: e.target.checked })}
+              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600"
+            />
+            <span className="text-sm font-medium text-gray-900">People by Tag Widget</span>
+          </label>
+
+          <div className="mt-6 flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => setIsCustomizing(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveConfig} disabled={savingConfig}>
+              {savingConfig ? 'Saving...' : 'Save Configuration'}
+            </Button>
           </div>
-        )}
-      </div>
+        </div>
+      </Modal>
     </div>
   )
 }

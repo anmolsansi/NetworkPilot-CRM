@@ -10,6 +10,7 @@ import { TemplatesPage } from '../pages/TemplatesPage'
 import { SettingsPage } from '../pages/SettingsPage'
 import { ImportsPage } from '../features/imports/ImportsPage'
 import { NotificationsPage } from '../pages/NotificationsPage'
+import { AnalyticsPage } from '../pages/AnalyticsPage'
 import { AppLayout } from '../components/layout/AppLayout'
 
 export function AppRoutes() {
@@ -34,6 +35,7 @@ export function AppRoutes() {
           <Route path="settings" element={<SettingsPage />} />
           <Route path="imports" element={<ImportsPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

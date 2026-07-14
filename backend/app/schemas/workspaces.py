@@ -68,3 +68,21 @@ class WorkspaceResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class WorkspaceMemberUpdate(BaseModel):
+    dashboard_config: dict | None = None
+    weekly_outreach_target: int | None = None
+
+
+class WorkspaceMemberResponse(BaseModel):
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    user_id: uuid.UUID
+    role: str
+    dashboard_config: dict
+    weekly_outreach_target: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}

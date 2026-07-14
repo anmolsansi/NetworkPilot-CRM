@@ -8,6 +8,7 @@ const navigation = [
   { name: 'Templates', href: '/templates', icon: '📝' },
   { name: 'Imports', href: '/imports', icon: '📥' },
   { name: 'Notifications', href: '/notifications', icon: '🔔' },
+  { name: 'Analytics', href: '/analytics', icon: '📈' },
   { name: 'Settings', href: '/settings', icon: '⚙️' },
 ]
 

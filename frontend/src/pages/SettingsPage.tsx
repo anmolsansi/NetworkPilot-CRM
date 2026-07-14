@@ -10,6 +10,7 @@ import { EmptyState } from '../components/common/EmptyState'
 import { PipelineStagesSettings } from '../components/settings/PipelineStagesSettings'
 import { CustomFieldsSettings } from '../components/settings/CustomFieldsSettings'
 import { TagsSettings } from '../components/settings/TagsSettings'
+import { WorkspaceInvitationsSettings } from '../components/settings/WorkspaceInvitationsSettings'
 
 const timezones = [
   { value: 'UTC', label: 'UTC' },
@@ -225,6 +226,9 @@ export function SettingsPage() {
         <PipelineStagesSettings workspaceId={currentWorkspace.id} />
 
         <TagsSettings workspaceId={currentWorkspace.id} />
+
+        {/* Workspace Invitations */}
+        <WorkspaceInvitationsSettings workspaceId={currentWorkspace.id} />
 
         {/* Custom Fields */}
         <CustomFieldsSettings />

@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DashboardPage } from './DashboardPage'
 import { useWorkspaceStore } from '../stores/workspaceStore'
-import { dashboardApi, workspaceApi } from '../api/httpClient'
+import { dashboardApi, workspaceApi, workspaceMembersApi } from '../api/httpClient'
 
 vi.mock('../api/httpClient', () => ({
   dashboardApi: {
@@ -16,6 +16,10 @@ vi.mock('../api/httpClient', () => ({
   workspaceApi: {
     list: vi.fn(),
     create: vi.fn(),
+  },
+  workspaceMembersApi: {
+    getMe: vi.fn(),
+    updateMe: vi.fn(),
   },
 }))
 
@@ -56,6 +60,13 @@ describe('DashboardPage', () => {
     })
     vi.mocked(dashboardApi.getDue).mockResolvedValue([])
     vi.mocked(dashboardApi.getTags).mockResolvedValue([])
+    vi.mocked(workspaceMembersApi.getMe).mockResolvedValue({
+      dashboard_config: {
+        show_summary: true,
+        show_tags: true,
+        show_due: true,
+      }
+    })
 
     render(<DashboardPage />)
 

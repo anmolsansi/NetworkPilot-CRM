@@ -1,6 +1,7 @@
 import logging
 
 from app.models.activity import Activity
+from app.models.attachment import Attachment
 from app.models.background_job import BackgroundJob
 from app.models.custom_field import CustomField
 from app.models.import_batch import ImportBatch
@@ -17,6 +18,7 @@ from app.models.task import Task
 from app.models.template import MessageTemplate
 from app.models.user import AppUser
 from app.models.workspace import Workspace, WorkspaceMember
+from app.models.workspace_invite import WorkspaceInvite
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
@@ -24,8 +26,10 @@ __all__ = [
     "AppUser",
     "Workspace",
     "WorkspaceMember",
+    "WorkspaceInvite",
     "Person",
     "Activity",
+    "Attachment",
     "ImportBatch",
     "MessageTemplate",
     "UserSettings",

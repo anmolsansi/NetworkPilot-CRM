@@ -1,6 +1,17 @@
+import { useState, useRef } from 'react'
 import { Badge } from '../common/Badge'
+import { Button } from '../common/Button'
+import { Textarea } from '../common/Textarea'
+import { activitiesApi } from '../../api/httpClient'
+import { useWorkspaceStore } from '../../stores/workspaceStore'
 
-interface Activity {
+export interface Attachment {
+  id: string
+  file_name: string
+  file_size: number
+}
+
+export interface Activity {
   id: string
   action_type: string
   source: string
@@ -9,6 +20,8 @@ interface Activity {
   message: string | null
   notes: string | null
   created_at: string
+  is_pinned: boolean
+  attachments?: Attachment[]
 }
 
 const sourceVariant = {
@@ -17,11 +30,70 @@ const sourceVariant = {
   system: 'default',
 } as const
 
-export function ActivityTimeline({ activities }: { activities: Activity[] }) {
+export function ActivityTimeline({ activities, onRefresh }: { activities: Activity[], onRefresh?: () => void }) {
+  const { currentWorkspace } = useWorkspaceStore()
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editNotes, setEditNotes] = useState<string>('')
+  const [uploadingId, setUploadingId] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
   if (activities.length === 0) {
     return (
       <p className="text-sm text-gray-500 text-center py-4">No activities yet</p>
     )
+  }
+
+  const handleTogglePin = async (activity: Activity) => {
+    if (!currentWorkspace) return
+    try {
+      await activitiesApi.update(activity.id, { is_pinned: !activity.is_pinned }, currentWorkspace.id)
+      onRefresh?.()
+    } catch (err) {
+      console.error('Failed to pin activity', err)
+    }
+  }
+
+  const handleDelete = async (activity: Activity) => {
+    if (!currentWorkspace || !window.confirm('Are you sure you want to delete this activity?')) return
+    try {
+      await activitiesApi.delete(activity.id, currentWorkspace.id)
+      onRefresh?.()
+    } catch (err) {
+      console.error('Failed to delete activity', err)
+    }
+  }
+
+  const handleStartEdit = (activity: Activity) => {
+    setEditingId(activity.id)
+    setEditNotes(activity.notes || '')
+  }
+
+  const handleSaveEdit = async (activity: Activity) => {
+    if (!currentWorkspace) return
+    try {
+      await activitiesApi.update(activity.id, { notes: editNotes }, currentWorkspace.id)
+      setEditingId(null)
+      onRefresh?.()
+    } catch (err) {
+      console.error('Failed to update activity', err)
+    }
+  }
+
+  const handleFileUpload = async (activityId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!currentWorkspace || !event.target.files || event.target.files.length === 0) return
+    const file = event.target.files[0]
+    setUploadingId(activityId)
+    try {
+      await activitiesApi.uploadAttachment(activityId, file, currentWorkspace.id)
+      onRefresh?.()
+    } catch (err) {
+      console.error('Failed to upload file', err)
+    } finally {
+      setUploadingId(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
   }
 
   return (
@@ -35,17 +107,18 @@ export function ActivityTimeline({ activities }: { activities: Activity[] }) {
               )}
               <div className="relative flex space-x-3">
                 <div>
-                  <span className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center ring-8 ring-white">
-                    <span className="text-primary-600 text-sm">
-                      {activity.action_type === 'message_sent' ? '💬' :
+                  <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white ${activity.is_pinned ? 'bg-amber-100' : 'bg-primary-100'}`}>
+                    <span className={`${activity.is_pinned ? 'text-amber-600' : 'text-primary-600'} text-sm`}>
+                      {activity.is_pinned ? '📌' :
+                       activity.action_type === 'message_sent' ? '💬' :
                        activity.action_type === 'accepted' ? '✓' :
                        activity.action_type === 'reply_received' ? '↩' : '•'}
                     </span>
                   </span>
                 </div>
                 <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1">
-                  <div>
-                    <p className="text-sm text-gray-900">
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-900 flex items-center gap-2">
                       <span className="font-medium">{activity.action_type.replace(/_/g, ' ')}</span>
                       {activity.new_stage && (
                         <span className="text-gray-500">
@@ -54,17 +127,79 @@ export function ActivityTimeline({ activities }: { activities: Activity[] }) {
                         </span>
                       )}
                     </p>
-                    {activity.notes && (
-                      <p className="mt-1 text-sm text-gray-500">{activity.notes}</p>
+
+                    {editingId === activity.id ? (
+                      <div className="mt-2 space-y-2">
+                        <Textarea 
+                          value={editNotes} 
+                          onChange={(e) => setEditNotes(e.target.value)} 
+                          rows={2} 
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={() => handleSaveEdit(activity)}>Save</Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      activity.notes && <p className="mt-1 text-sm text-gray-500 whitespace-pre-wrap">{activity.notes}</p>
+                    )}
+
+                    {/* Attachments List */}
+                    {activity.attachments && activity.attachments.length > 0 && (
+                      <div className="mt-2 flex flex-col gap-1">
+                        {activity.attachments.map(att => (
+                          <div key={att.id} className="text-xs text-gray-500 flex items-center gap-1 bg-gray-50 p-1.5 rounded w-fit border border-gray-100">
+                            📎 {att.file_name} <span className="text-gray-400">({Math.round(att.file_size / 1024)} KB)</span>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
-                  <div className="whitespace-nowrap text-right text-sm text-gray-500">
-                    <time>{new Date(activity.created_at).toLocaleDateString()}</time>
-                    <div className="mt-1">
-                      <Badge variant={sourceVariant[activity.source as keyof typeof sourceVariant] || 'default'}>
-                        {activity.source.replace(/_/g, ' ')}
-                      </Badge>
+                  
+                  <div className="whitespace-nowrap flex flex-col items-end space-y-2">
+                    <div className="text-sm text-gray-500 text-right">
+                      <time>{new Date(activity.created_at).toLocaleDateString()}</time>
+                      <div className="mt-1">
+                        <Badge variant={sourceVariant[activity.source as keyof typeof sourceVariant] || 'default'}>
+                          {activity.source.replace(/_/g, ' ')}
+                        </Badge>
+                      </div>
                     </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity" style={{ opacity: 1 }}>
+                      {/* Using opacity 1 here for now, but usually it would be on hover */}
+                      <button 
+                        onClick={() => handleTogglePin(activity)}
+                        className={`text-xs ${activity.is_pinned ? 'text-amber-500 hover:text-amber-600' : 'text-gray-400 hover:text-gray-600'}`}
+                        title={activity.is_pinned ? "Unpin" : "Pin"}
+                      >
+                        📌
+                      </button>
+                      <button 
+                        onClick={() => handleStartEdit(activity)}
+                        className="text-xs text-blue-500 hover:text-blue-600 px-1"
+                        title="Edit Note"
+                      >
+                        ✏️
+                      </button>
+                      <label className="text-xs text-green-500 hover:text-green-600 cursor-pointer px-1" title="Attach file">
+                        📎
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          ref={fileInputRef}
+                          onChange={(e) => handleFileUpload(activity.id, e)}
+                          disabled={uploadingId === activity.id}
+                        />
+                      </label>
+                      <button 
+                        onClick={() => handleDelete(activity)}
+                        className="text-xs text-red-500 hover:text-red-600 px-1"
+                        title="Delete"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                    {uploadingId === activity.id && <span className="text-xs text-gray-400">Uploading...</span>}
                   </div>
                 </div>
               </div>
@@ -75,5 +210,3 @@ export function ActivityTimeline({ activities }: { activities: Activity[] }) {
     </div>
   )
 }
-
-console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/components/activities/ActivityTimeline.tsx')

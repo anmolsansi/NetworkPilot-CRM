@@ -4,6 +4,7 @@ from datetime import time
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, ForeignKey, Integer, Text, Time
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -69,6 +70,12 @@ class WorkspaceMember(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
         index=True,
     )
     role: Mapped[str] = mapped_column(Text, nullable=False, default="member")
+    dashboard_config: Mapped[dict] = mapped_column(
+        postgresql.JSONB(astext_type=Text()), server_default="{}", nullable=False
+    )
+    weekly_outreach_target: Mapped[int] = mapped_column(
+        Integer, server_default="50", nullable=False
+    )
 
     # Relationships
     workspace: Mapped["Workspace"] = relationship("Workspace", back_populates="members")

@@ -66,6 +66,9 @@ class Person(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
     custom_fields_data: Mapped[dict | None] = mapped_column(
         JSONB, nullable=True, server_default="{}"
     )
+    manual_warmth: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    calculated_freshness: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    last_engaged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     stage_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
