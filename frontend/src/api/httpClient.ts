@@ -198,6 +198,7 @@ export const workspaceApi = {
 
 // Workspace Members API
 export const workspaceMembersApi = {
+  list: (workspaceId: string) => request<any[]>(`/workspaces/${workspaceId}/members`),
   getMe: (workspaceId: string) => request<any>(`/workspaces/${workspaceId}/members/me`),
   updateMe: (workspaceId: string, data: any) => request<any>(`/workspaces/${workspaceId}/members/me`, { method: 'PATCH', body: JSON.stringify(data) }),
 }

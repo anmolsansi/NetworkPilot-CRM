@@ -86,3 +86,10 @@ class WorkspaceMemberResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class WorkspaceMemberDirectoryEntry(BaseModel):
+    user_id: uuid.UUID
+    email: str
+    display_name: str | None
+    role: str
