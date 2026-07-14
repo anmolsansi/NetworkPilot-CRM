@@ -319,6 +319,10 @@ class PeopleService:
                 setattr(person, field, value)
 
         await self.db.flush()
+        if "manual_warmth" in update_data:
+            from app.services.relationship_service import RelationshipService
+
+            await RelationshipService(self.db).recalculate_freshness(workspace_id, person_id)
         _module_logger.info(
             "people_service.update.completed workspace_id=%s person_id=%s",
             mask_id(str(workspace_id)),
@@ -351,14 +355,12 @@ class PeopleService:
             raise ValidationError("Pipeline stage does not belong to this workspace.")
         return stage
 
-    async def _require_workspace_member(
-        self, workspace_id: uuid.UUID, user_id: uuid.UUID
-    ) -> None:
+    async def _require_workspace_member(self, workspace_id: uuid.UUID, user_id: uuid.UUID) -> None:
         result = await self.db.execute(
             select(WorkspaceMember).where(
                 WorkspaceMember.workspace_id == workspace_id,
                 WorkspaceMember.user_id == user_id,
-                WorkspaceMember.deleted_at.is_(None)
+                WorkspaceMember.deleted_at.is_(None),
             )
         )
         member = result.scalar_one_or_none()

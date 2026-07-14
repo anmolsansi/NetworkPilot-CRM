@@ -11,10 +11,10 @@ from app.models.user import AppUser
 from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.workspaces import (
     WorkspaceCreate,
+    WorkspaceMemberResponse,
+    WorkspaceMemberUpdate,
     WorkspaceResponse,
     WorkspaceUpdate,
-    WorkspaceMemberUpdate,
-    WorkspaceMemberResponse,
 )
 from app.services.workspace_service import require_workspace_owner
 
@@ -97,6 +97,14 @@ async def create_workspace(
         workspace_id=workspace.id, job_type="daily_digest", status="pending", run_at=next_run
     )
     db.add(job)
+    db.add(
+        BackgroundJob(
+            workspace_id=workspace.id,
+            job_type="relationship_health_refresh",
+            status="pending",
+            run_at=next_run,
+        )
+    )
     await db.flush()
 
     logger.info(
@@ -176,6 +184,7 @@ async def get_member_settings(
         )
     )
     from app.core.errors import NotFoundError
+
     member = result.scalar_one_or_none()
     if not member:
         raise NotFoundError("WorkspaceMember", str(user.id))
@@ -200,6 +209,7 @@ async def update_member_settings(
         )
     )
     from app.core.errors import NotFoundError
+
     member = result.scalar_one_or_none()
     if not member:
         raise NotFoundError("WorkspaceMember", str(user.id))

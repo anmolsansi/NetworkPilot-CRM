@@ -35,13 +35,8 @@ export function ActivityTimeline({ activities, onRefresh }: { activities: Activi
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editNotes, setEditNotes] = useState<string>('')
   const [uploadingId, setUploadingId] = useState<string | null>(null)
+  const [deletedActivityId, setDeletedActivityId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-
-  if (activities.length === 0) {
-    return (
-      <p className="text-sm text-gray-500 text-center py-4">No activities yet</p>
-    )
-  }
 
   const handleTogglePin = async (activity: Activity) => {
     if (!currentWorkspace) return
@@ -57,9 +52,21 @@ export function ActivityTimeline({ activities, onRefresh }: { activities: Activi
     if (!currentWorkspace || !window.confirm('Are you sure you want to delete this activity?')) return
     try {
       await activitiesApi.delete(activity.id, currentWorkspace.id)
+      setDeletedActivityId(activity.id)
       onRefresh?.()
     } catch (err) {
       console.error('Failed to delete activity', err)
+    }
+  }
+
+  const handleRestore = async () => {
+    if (!currentWorkspace || !deletedActivityId) return
+    try {
+      await activitiesApi.restore(deletedActivityId, currentWorkspace.id)
+      setDeletedActivityId(null)
+      onRefresh?.()
+    } catch (err) {
+      console.error('Failed to restore activity', err)
     }
   }
 
@@ -98,6 +105,15 @@ export function ActivityTimeline({ activities, onRefresh }: { activities: Activi
 
   return (
     <div className="flow-root">
+      {deletedActivityId && (
+        <div className="mb-4 flex items-center justify-between rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <span>Activity deleted.</span>
+          <button className="font-medium underline" onClick={handleRestore}>Undo</button>
+        </div>
+      )}
+      {activities.length === 0 ? (
+        <p className="text-sm text-gray-500 text-center py-4">No activities yet</p>
+      ) : (
       <ul className="-mb-8">
         {activities.map((activity, idx) => (
           <li key={activity.id}>
@@ -207,6 +223,7 @@ export function ActivityTimeline({ activities, onRefresh }: { activities: Activi
           </li>
         ))}
       </ul>
+      )}
     </div>
   )
 }

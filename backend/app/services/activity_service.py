@@ -11,6 +11,7 @@ from app.models.activity import Activity
 from app.models.person import Person
 from app.models.workspace import Workspace
 from app.schemas.activities import ActivityCreate
+from app.services.relationship_service import RelationshipService
 from app.services.transition_service import calculate_transition
 
 _module_logger = logging.getLogger(__name__)
@@ -105,11 +106,10 @@ class ActivityService:
         person.next_action_date = transition.next_action_date
 
         await self.db.flush()
-        
-        from app.services.relationship_service import RelationshipService
+
         relationship_service = RelationshipService(self.db)
         person = await relationship_service.recalculate_freshness(workspace_id, person_id)
-        
+
         _module_logger.info(
             "activity_service.create.completed "
             "workspace_id=%s person_id=%s activity_id=%s old_stage=%s new_stage=%s",
@@ -155,10 +155,7 @@ class ActivityService:
 
         result = await self.db.execute(
             select(Activity)
-            .where(
-                Activity.person_id == person_id,
-                Activity.deleted_at.is_(None)
-            )
+            .where(Activity.person_id == person_id, Activity.deleted_at.is_(None))
             .order_by(Activity.is_pinned.desc(), Activity.created_at.desc())
             .offset(offset)
             .limit(limit)
@@ -185,7 +182,7 @@ class ActivityService:
             select(Activity).where(
                 Activity.id == activity_id,
                 Activity.workspace_id == workspace_id,
-                Activity.deleted_at.is_(None)
+                Activity.deleted_at.is_(None),
             )
         )
         activity = result.scalar_one_or_none()
@@ -205,11 +202,12 @@ class ActivityService:
     async def soft_delete(self, workspace_id: uuid.UUID, activity_id: uuid.UUID) -> None:
         """Soft delete an activity."""
         from datetime import datetime, timezone
+
         result = await self.db.execute(
             select(Activity).where(
                 Activity.id == activity_id,
                 Activity.workspace_id == workspace_id,
-                Activity.deleted_at.is_(None)
+                Activity.deleted_at.is_(None),
             )
         )
         activity = result.scalar_one_or_none()
@@ -218,6 +216,26 @@ class ActivityService:
 
         activity.deleted_at = datetime.now(timezone.utc)
         await self.db.flush()
+        await RelationshipService(self.db).recalculate_freshness(workspace_id, activity.person_id)
+
+    async def restore(self, workspace_id: uuid.UUID, activity_id: uuid.UUID) -> Activity:
+        """Restore a soft-deleted activity and refresh relationship indicators."""
+        activity = (
+            await self.db.execute(
+                select(Activity).where(
+                    Activity.id == activity_id,
+                    Activity.workspace_id == workspace_id,
+                    Activity.deleted_at.is_not(None),
+                )
+            )
+        ).scalar_one_or_none()
+        if not activity:
+            raise NotFoundError("Activity", str(activity_id))
+
+        activity.deleted_at = None
+        await self.db.flush()
+        await RelationshipService(self.db).recalculate_freshness(workspace_id, activity.person_id)
+        return activity
 
     async def add_attachment(
         self,
@@ -230,11 +248,12 @@ class ActivityService:
     ):
         """Add an attachment record for an activity."""
         from app.models.attachment import Attachment
+
         result = await self.db.execute(
             select(Activity).where(
                 Activity.id == activity_id,
                 Activity.workspace_id == workspace_id,
-                Activity.deleted_at.is_(None)
+                Activity.deleted_at.is_(None),
             )
         )
         activity = result.scalar_one_or_none()
