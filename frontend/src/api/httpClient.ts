@@ -417,7 +417,8 @@ export const analyticsApi = {
   getFunnel: (workspaceId: string) => request<any>(`/workspaces/${workspaceId}/analytics/funnel`),
   getPerformance: (workspaceId: string) => request<any[]>(`/workspaces/${workspaceId}/analytics/performance`),
   getGoals: (workspaceId: string) => request<any>(`/workspaces/${workspaceId}/analytics/goals`),
-  exportCsv: (workspaceId: string) => requestBlob(`/workspaces/${workspaceId}/analytics/export`),
+  exportCsv: (workspaceId: string, params?: Record<string, string>) => requestBlob(`/workspaces/${workspaceId}/analytics/export.csv?${new URLSearchParams(params).toString()}`),
+  exportPdf: (workspaceId: string, params?: Record<string, string>) => requestBlob(`/workspaces/${workspaceId}/analytics/export.pdf?${new URLSearchParams(params).toString()}`),
 }
 
 console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/api/httpClient.ts')

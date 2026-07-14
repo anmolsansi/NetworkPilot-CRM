@@ -40,6 +40,8 @@ export function AnalyticsPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [reportFrom, setReportFrom] = useState('')
+  const [reportTo, setReportTo] = useState('')
 
   const fetchData = useCallback(async () => {
     if (!currentWorkspace) return
@@ -70,14 +72,15 @@ export function AnalyticsPage() {
     fetchData()
   }, [fetchData])
 
-  const handleExport = async () => {
+  const handleExport = async (format: 'csv' | 'pdf') => {
     if (!currentWorkspace) return
 
     setExporting(true)
     setError(null)
     try {
-      const blob = await analyticsApi.exportCsv(currentWorkspace.id)
-      downloadCsvBlob(blob, `analytics-export-${new Date().toISOString().slice(0, 10)}.csv`)
+      const params = { ...(reportFrom ? { date_from: reportFrom } : {}), ...(reportTo ? { date_to: reportTo } : {}) }
+      const blob = format === 'csv' ? await analyticsApi.exportCsv(currentWorkspace.id, params) : await analyticsApi.exportPdf(currentWorkspace.id, params)
+      downloadCsvBlob(blob, `analytics-report-${new Date().toISOString().slice(0, 10)}.${format}`)
     } catch (err: any) {
       setError(err.message || 'Failed to export analytics')
     } finally {
@@ -114,9 +117,7 @@ export function AnalyticsPage() {
           </p>
         </div>
         <div className="mt-4 sm:mt-0">
-          <Button onClick={handleExport} disabled={exporting}>
-            {exporting ? 'Exporting...' : 'Export Report (CSV)'}
-          </Button>
+          <div className="flex flex-wrap gap-2"><input aria-label="Report from" type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} /><input aria-label="Report to" type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} /><Button onClick={() => handleExport('csv')} disabled={exporting}>Export CSV</Button><Button onClick={() => handleExport('pdf')} disabled={exporting}>Export PDF</Button></div>
         </div>
       </div>
 

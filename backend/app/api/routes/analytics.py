@@ -1,8 +1,9 @@
 import uuid
+from datetime import date
 from typing import Sequence
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -49,18 +50,35 @@ async def get_weekly_goal_progress(
     return await service.get_weekly_goal_progress(workspace_id, current_user.id)
 
 
-from fastapi.responses import Response
-
-@router.get(
-    "/workspaces/{workspace_id}/analytics/export.csv"
-)
+@router.get("/workspaces/{workspace_id}/analytics/export.csv")
 async def export_analytics(
     workspace_id: uuid.UUID,
-    export_type: str = "funnel",
+    date_from: date | None = None,
+    date_to: date | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: AppUser = Depends(get_current_user),
 ) -> Response:
     """Export analytics as CSV."""
     service = AnalyticsService(db)
-    csv_content = await service.export_analytics_csv(workspace_id)
-    return Response(content=csv_content, media_type="text/csv; charset=utf-8")
+    csv_content = await service.export_analytics_csv(workspace_id, date_from, date_to)
+    return Response(
+        content=csv_content,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=networkpilot-analytics.csv"},
+    )
+
+
+@router.get("/workspaces/{workspace_id}/analytics/export.pdf")
+async def export_analytics_pdf(
+    workspace_id: uuid.UUID,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: AppUser = Depends(get_current_user),
+) -> Response:
+    content = await AnalyticsService(db).export_analytics_pdf(workspace_id, date_from, date_to)
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=networkpilot-analytics.pdf"},
+    )
