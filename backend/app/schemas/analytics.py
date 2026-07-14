@@ -1,5 +1,5 @@
 import uuid
-from typing import Dict
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
@@ -23,9 +23,18 @@ class TemplatePerformance(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class WeeklyGoalProgress(BaseModel):
+class GoalMetricProgress(BaseModel):
+    metric: str
+    label: str
     target: int
     current: int
     percentage: float
+
+
+class WeeklyGoalProgress(BaseModel):
+    timezone: str
+    period_start: datetime
+    period_end: datetime
+    metrics: list[GoalMetricProgress]
 
     model_config = ConfigDict(from_attributes=True)

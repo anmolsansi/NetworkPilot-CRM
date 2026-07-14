@@ -25,11 +25,10 @@ interface TemplatePerformance {
 }
 
 interface WeeklyGoalProgress {
-  target: number
-  current: number
-  percentage: number
+  timezone: string
   period_start: string
   period_end: string
+  metrics: { metric: string; label: string; target: number; current: number; percentage: number }[]
 }
 
 export function AnalyticsPage() {
@@ -126,25 +125,11 @@ export function AnalyticsPage() {
       {goals && (
         <section className="bg-white shadow rounded-lg p-6">
           <h2 className="text-lg font-medium text-gray-900 mb-4">Weekly Goal Progress</h2>
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <div className="flex justify-between text-sm mb-1">
-                <span className="font-medium text-gray-700">Outreach Goal</span>
-                <span className="text-gray-500">{goals.current} / {goals.target}</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div 
-                  className="bg-primary-600 h-2.5 rounded-full" 
-                  style={{ width: `${Math.min(goals.percentage, 100)}%` }}
-                ></div>
-              </div>
-            </div>
-            <div className="text-2xl font-semibold text-gray-900">
-              {Math.round(goals.percentage)}%
-            </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {goals.metrics.map((metric) => <div key={metric.metric}><div className="flex justify-between text-sm"><span>{metric.label}</span><span>{metric.current} / {metric.target}</span></div><div className="mt-1 h-2.5 rounded-full bg-gray-200"><div className="h-2.5 rounded-full bg-primary-600" style={{ width: `${metric.percentage}%` }} /></div></div>)}
           </div>
           <p className="mt-2 text-xs text-gray-500">
-            Period: {new Date(goals.period_start).toLocaleDateString()} - {new Date(goals.period_end).toLocaleDateString()}
+            Period: {new Date(goals.period_start).toLocaleDateString()} - {new Date(goals.period_end).toLocaleDateString()} ({goals.timezone})
           </p>
         </section>
       )}
