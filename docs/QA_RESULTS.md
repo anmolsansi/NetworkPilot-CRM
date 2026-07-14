@@ -1,5 +1,25 @@
 # V1 QA Results
 
+## v0.0.11-v0.0.23 Release-Gate Audit (2026-07-14)
+
+- Tester: Codex automated local validation
+- Environment: macOS arm64, Python 3.11.15, Node 25.8.1, npm 11.11.0, SQLite integration database
+- Audited base commit: `2c89dacc5f502b1e3bbca54b5ce3abc91182a4b8`
+- Branch: `codex/issue-60-release-acceptance`
+- Command: `backend/.venv/bin/pytest app/tests/integration/test_v011_v023_release_boundaries.py -q`
+- Result: 21 passed, 5 expected failures
+- Full backend suite: `backend/.venv/bin/pytest` — 107 passed, 5 expected failures
+- Focused Ruff: passed
+- Frontend suite: `frontend/npm test -- --run` — 26 passed
+- Frontend production build: passed
+- Release status: **Not complete**
+
+The five expected failures are the analytics authorization boundary for v0.0.18, v0.0.19,
+v0.0.21, and v0.0.22 (fixed in PR #61), and the invitation authorization boundary for v0.0.23
+(fixed in PR #62). Expected failures do not count as acceptance passes. The explicit per-version
+matrix and remaining user-workflow gaps are in
+`releases/v0.0.11-v0.0.23-COMPLETION.md`.
+
 ## Test Environment
 - Date: 2026-06-28
 - Tester: AI Agent (Automated Smoke/Integration Tests only)
