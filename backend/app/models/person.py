@@ -13,9 +13,9 @@ if TYPE_CHECKING:
     from app.models.activity import Activity
     from app.models.pipeline_stage import PipelineStage
     from app.models.tag import Tag
-    from app.models.workspace import Workspace
-    from app.models.user import AppUser
     from app.models.task import Task
+    from app.models.user import AppUser
+    from app.models.workspace import Workspace
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
@@ -90,6 +90,4 @@ class Person(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
         "Activity", back_populates="person", lazy="raise"
     )
     owner: Mapped["AppUser | None"] = relationship("AppUser", lazy="selectin")
-    tasks: Mapped[list["Task"]] = relationship(
-        "Task", back_populates="person", lazy="raise"
-    )
+    tasks: Mapped[list["Task"]] = relationship("Task", back_populates="person", lazy="raise")

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { workspaceInvitesApi } from '../../api/httpClient'
 import { Button } from '../common/Button'
 import { Input } from '../common/Input'
@@ -28,7 +28,7 @@ export function WorkspaceInvitationsSettings({ workspaceId }: WorkspaceInvitatio
   const [role, setRole] = useState('member')
   const [sending, setSending] = useState(false)
 
-  const fetchInvites = async () => {
+  const fetchInvites = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -40,11 +40,11 @@ export function WorkspaceInvitationsSettings({ workspaceId }: WorkspaceInvitatio
     } finally {
       setLoading(false)
     }
-  }
+  }, [workspaceId])
 
   useEffect(() => {
     fetchInvites()
-  }, [workspaceId])
+  }, [fetchInvites])
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()

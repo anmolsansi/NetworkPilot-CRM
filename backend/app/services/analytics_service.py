@@ -156,8 +156,12 @@ class AnalyticsService:
         writer.writerow([])
 
         writer.writerow(["Template Performance"])
-        writer.writerow(["Template ID", "Template Name", "Sent Count", "Reply Count", "Reply Rate (%)"])
+        writer.writerow(
+            ["Template ID", "Template Name", "Sent Count", "Reply Count", "Reply Rate (%)"]
+        )
         for p in performance:
-            writer.writerow([str(p.template_id), p.template_name, p.sent_count, p.reply_count, p.reply_rate])
+            writer.writerow(
+                [str(p.template_id), p.template_name, p.sent_count, p.reply_count, p.reply_rate]
+            )
 
         return output.getvalue()

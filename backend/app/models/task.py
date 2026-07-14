@@ -1,9 +1,9 @@
 import logging
 import uuid
-from datetime import datetime, date
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, Date
+from sqlalchemy import Date, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from app.models.workspace import Workspace
 
 _module_logger = logging.getLogger(__name__)
+
 
 class Task(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "tasks"
@@ -37,11 +38,11 @@ class Task(UUIDMixin, TimestampMixin, Base):
         nullable=True,
         index=True,
     )
-    
+
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    status: Mapped[str] = mapped_column(String, nullable=False, default="open") # open, completed
+    status: Mapped[str] = mapped_column(String, nullable=False, default="open")  # open, completed
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships

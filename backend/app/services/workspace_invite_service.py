@@ -77,13 +77,18 @@ class WorkspaceInviteService:
 
         if settings.RESEND_API_KEY and settings.RESEND_FROM_EMAIL:
             invite_url = f"{settings.FRONTEND_URL}/invites/accept?token={invite.token}"
+            email_html = (
+                f"<p>You've been invited to join the <strong>{ws.name}</strong> "
+                f"workspace.</p><p><a href='{invite_url}'>Click here to accept "
+                "the invitation</a>.</p>"
+            )
             try:
                 resend.Emails.send(
                     {
                         "from": settings.RESEND_FROM_EMAIL,
                         "to": data.email,
                         "subject": f"You have been invited to join {ws.name}",
-                        "html": f"<p>You've been invited to join the <strong>{ws.name}</strong> workspace.</p><p><a href='{invite_url}'>Click here to accept the invitation</a>.</p>",
+                        "html": email_html,
                     }
                 )
             except Exception as e:

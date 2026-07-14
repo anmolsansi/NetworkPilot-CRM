@@ -2,7 +2,7 @@ import uuid
 from typing import Sequence
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
@@ -49,11 +49,7 @@ async def get_weekly_goal_progress(
     return await service.get_weekly_goal_progress(workspace_id, current_user.id)
 
 
-from fastapi.responses import Response
-
-@router.get(
-    "/workspaces/{workspace_id}/analytics/export.csv"
-)
+@router.get("/workspaces/{workspace_id}/analytics/export.csv")
 async def export_analytics(
     workspace_id: uuid.UUID,
     export_type: str = "funnel",

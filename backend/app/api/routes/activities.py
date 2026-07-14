@@ -1,14 +1,20 @@
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.logging import get_logger, mask_id
 from app.models.user import AppUser
-from app.schemas.activities import ActivityCreate, ActivityResponse, ActivityUpdate
+from app.schemas.activities import (
+    ActivityCreate,
+    ActivityResponse,
+    ActivityUpdate,
+    AttachmentResponse,
+)
 from app.services.activity_service import ActivityService
+from app.services.storage_service import StorageService
 from app.services.workspace_service import require_workspace_access
 
 _module_logger = logging.getLogger(__name__)
@@ -101,8 +107,6 @@ async def update_activity(
     )
 
 
-from fastapi import Response, UploadFile, File
-
 @router.delete("/activities/{activity_id}", status_code=204)
 async def delete_activity(
     activity_id: uuid.UUID,
@@ -115,8 +119,6 @@ async def delete_activity(
     await service.soft_delete(workspace_id=workspace_id, activity_id=activity_id)
     return Response(status_code=204)
 
-from app.schemas.activities import AttachmentResponse
-from app.services.storage_service import StorageService
 
 @router.post("/activities/{activity_id}/attachments", response_model=AttachmentResponse)
 async def upload_attachment(
@@ -129,11 +131,11 @@ async def upload_attachment(
     """Upload an attachment to an activity."""
     storage_service = StorageService()
     storage_path = await storage_service.save_file(workspace_id, file)
-    
+
     file_size = 0
     if file.size is not None:
         file_size = file.size
-    
+
     service = ActivityService(db)
     attachment = await service.add_attachment(
         workspace_id=workspace_id,
@@ -144,4 +146,3 @@ async def upload_attachment(
         storage_path=storage_path,
     )
     return attachment
-

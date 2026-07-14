@@ -24,7 +24,9 @@ class TestCalculateTransition:
         assert result.next_action_date is None
 
     def test_invite_sent_custom_delay(self):
-        result = calculate_transition("invite_sent", previous_stage="unknown", acceptance_check_delay_days=3)
+        result = calculate_transition(
+            "invite_sent", previous_stage="unknown", acceptance_check_delay_days=3
+        )
         assert result.next_action_date == date.today() + timedelta(days=3)
 
     def test_accepted(self):
@@ -40,7 +42,9 @@ class TestCalculateTransition:
         assert result.next_action_date == date.today() + timedelta(days=3)
 
     def test_message_sent_custom_delay(self):
-        result = calculate_transition("message_sent", previous_stage="unknown", follow_up_delay_days=5)
+        result = calculate_transition(
+            "message_sent", previous_stage="unknown", follow_up_delay_days=5
+        )
         assert result.next_action_date == date.today() + timedelta(days=5)
 
     def test_follow_up_1_sent(self):
@@ -61,11 +65,15 @@ class TestCalculateTransition:
 
     def test_override_next_action_date(self):
         override_date = date.today() + timedelta(days=10)
-        result = calculate_transition("accepted", previous_stage="unknown", override_next_action_date=override_date)
+        result = calculate_transition(
+            "accepted", previous_stage="unknown", override_next_action_date=override_date
+        )
         assert result.next_action_date == override_date
 
     def test_override_next_action_type(self):
-        result = calculate_transition("accepted", previous_stage="unknown", override_next_action_type="custom_action")
+        result = calculate_transition(
+            "accepted", previous_stage="unknown", override_next_action_type="custom_action"
+        )
         assert result.next_action_type == "custom_action"
 
     def test_all_actions_valid(self):

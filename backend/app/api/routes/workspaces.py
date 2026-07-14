@@ -11,10 +11,10 @@ from app.models.user import AppUser
 from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.workspaces import (
     WorkspaceCreate,
+    WorkspaceMemberResponse,
+    WorkspaceMemberUpdate,
     WorkspaceResponse,
     WorkspaceUpdate,
-    WorkspaceMemberUpdate,
-    WorkspaceMemberResponse,
 )
 from app.services.workspace_service import require_workspace_owner
 
@@ -176,6 +176,7 @@ async def get_member_settings(
         )
     )
     from app.core.errors import NotFoundError
+
     member = result.scalar_one_or_none()
     if not member:
         raise NotFoundError("WorkspaceMember", str(user.id))
@@ -200,6 +201,7 @@ async def update_member_settings(
         )
     )
     from app.core.errors import NotFoundError
+
     member = result.scalar_one_or_none()
     if not member:
         raise NotFoundError("WorkspaceMember", str(user.id))

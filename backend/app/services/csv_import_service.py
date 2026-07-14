@@ -93,10 +93,10 @@ class CsvImportService:
         self.db.add(batch)
         await self.db.flush()
         return ImportPreviewResponse(
-            summary=summary, 
-            rows=preview_rows, 
+            summary=summary,
+            rows=preview_rows,
             provided_headers=provided_headers,
-            import_batch_id=batch.id
+            import_batch_id=batch.id,
         )
 
     async def commit(
@@ -129,17 +129,19 @@ class CsvImportService:
 
             try:
                 tag_ids = await self._resolve_tag_names(data.workspace_id, row.tags)
-                
+
                 if row.status == "update":
                     person = None
                     if row.id:
                         person = await people_service.get(data.workspace_id, row.id)
                     elif row.normalized_profile_url:
-                        person = await people_service._find_by_url(data.workspace_id, row.normalized_profile_url)
-                    
+                        person = await people_service._find_by_url(
+                            data.workspace_id, row.normalized_profile_url
+                        )
+
                     if person:
                         update_data = {}
-                    
+
                     if "name" in data.provided_headers and row.name is not None:
                         update_data["name"] = row.name
                     if "first_name" in data.provided_headers:
@@ -180,12 +182,11 @@ class CsvImportService:
                         update_data["tag_ids"] = tag_ids
 
                     from app.schemas.people import PersonUpdate
+
                     person = await people_service.update(
-                        data.workspace_id, 
-                        person.id, 
-                        PersonUpdate(**update_data)
+                        data.workspace_id, person.id, PersonUpdate(**update_data)
                     )
-                
+
                 if row.status != "update" or not person:
                     person = await people_service.create(
                         data.workspace_id,
@@ -212,7 +213,7 @@ class CsvImportService:
                         ),
                         check_duplicate=False,
                     )
-                
+
                 if row.status == "valid":
                     action_type = ACTION_TO_ACTIVITY[
                         row.initial_action_type or data.default_initial_action_type
@@ -255,7 +256,7 @@ class CsvImportService:
 
         return {
             "summary": {
-                "created_count": len([r for r in created_people]), # just simplified, we can't easily distinguish update/create here, but we can do len(created_people)
+                "created_count": len(created_people),
                 "skipped_duplicates": sum(1 for row in preview_rows if row.status == "duplicate"),
                 "failed_count": len(errors),
             },
@@ -299,7 +300,7 @@ class CsvImportService:
                 field = FIELD_ALIASES.get(normalized, normalized)
                 mapped[field] = (raw_row.get(original) or "").strip()
             rows.append(mapped)
-            
+
         provided_headers = [FIELD_ALIASES.get(norm, norm) for norm in normalized_fields]
         return rows, provided_headers
 
@@ -312,7 +313,7 @@ class CsvImportService:
         default_priority: str,
     ) -> list[ImportPreviewRow]:
         self._validate_defaults(default_initial_action_type, default_priority)
-        
+
         # Get existing IDs if ID is provided
         provided_ids = []
         for row in rows:
@@ -322,14 +323,14 @@ class CsvImportService:
                     provided_ids.append(uuid.UUID(row_id))
                 except ValueError:
                     pass
-                    
+
         existing_ids: set[uuid.UUID] = set()
         if provided_ids:
             id_result = await self.db.execute(
                 select(Person.id).where(
                     Person.workspace_id == workspace_id,
                     Person.id.in_(provided_ids),
-                    Person.deleted_at.is_(None)
+                    Person.deleted_at.is_(None),
                 )
             )
             existing_ids = set(id_result.scalars().all())
@@ -353,7 +354,7 @@ class CsvImportService:
                     row_id = uuid.UUID(row_id_str)
                 except ValueError:
                     errors.append("id must be a valid UUID")
-            
+
             first_name = self._clean(row.get("first_name"))
             last_name = self._clean(row.get("last_name"))
             name = (
@@ -407,14 +408,15 @@ class CsvImportService:
             if not errors:
                 if row_id and row_id in existing_ids:
                     status = "update" if duplicate_strategy == "update" else "duplicate"
-                elif normalized_url and (normalized_url in existing_urls or normalized_url in seen_urls):
+                elif normalized_url and (
+                    normalized_url in existing_urls or normalized_url in seen_urls
+                ):
                     status = "update" if duplicate_strategy == "update" else "duplicate"
-                    # If it's an update but no ID was provided, we need to fetch the ID in commit, but for preview we just mark it.
-                    # Wait, if we match by URL, we should lookup the ID.
+                    # URL matches without an ID are resolved during commit.
                     if status == "update" and not row_id:
                         # We will find the ID in commit
                         pass
-                
+
                 if normalized_url:
                     seen_urls.add(normalized_url)
 

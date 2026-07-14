@@ -35,4 +35,3 @@ class WorkspaceInvite(UUIDMixin, Base):
 
     # Relationships
     workspace: Mapped["Workspace"] = relationship("Workspace")
-

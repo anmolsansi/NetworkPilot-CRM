@@ -3,16 +3,22 @@ import os
 import shutil
 import uuid
 from pathlib import Path
+
 from fastapi import UploadFile
 
 from app.core.config import settings
 
 _module_logger = logging.getLogger(__name__)
 
+
 class StorageService:
     def __init__(self):
         # We use a simple local directory for V1.
-        self.upload_dir = Path(settings.UPLOAD_DIR) if hasattr(settings, "UPLOAD_DIR") else Path("/tmp/networkpilot_uploads")
+        self.upload_dir = (
+            Path(settings.UPLOAD_DIR)
+            if hasattr(settings, "UPLOAD_DIR")
+            else Path("/tmp/networkpilot_uploads")
+        )
         self.upload_dir.mkdir(parents=True, exist_ok=True)
 
     async def save_file(self, workspace_id: uuid.UUID, file: UploadFile) -> str:
@@ -28,7 +34,11 @@ class StorageService:
         with storage_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        _module_logger.info("storage_service.save_file.completed workspace_id=%s path=%s", workspace_id, storage_path)
+        _module_logger.info(
+            "storage_service.save_file.completed workspace_id=%s path=%s",
+            workspace_id,
+            storage_path,
+        )
         return str(storage_path)
 
     def delete_file(self, storage_path: str) -> None:
