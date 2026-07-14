@@ -19,6 +19,9 @@ export interface Activity {
   new_stage: string | null
   message: string | null
   notes: string | null
+  interaction_summary: string | null
+  outcome: string | null
+  next_steps: string | null
   created_at: string
   is_pinned: boolean
   attachments?: Attachment[]
@@ -33,7 +36,12 @@ const sourceVariant = {
 export function ActivityTimeline({ activities, onRefresh }: { activities: Activity[], onRefresh?: () => void }) {
   const { currentWorkspace } = useWorkspaceStore()
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editNotes, setEditNotes] = useState<string>('')
+  const [editDetails, setEditDetails] = useState({
+    notes: '',
+    interaction_summary: '',
+    outcome: '',
+    next_steps: '',
+  })
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -65,13 +73,18 @@ export function ActivityTimeline({ activities, onRefresh }: { activities: Activi
 
   const handleStartEdit = (activity: Activity) => {
     setEditingId(activity.id)
-    setEditNotes(activity.notes || '')
+    setEditDetails({
+      notes: activity.notes || '',
+      interaction_summary: activity.interaction_summary || '',
+      outcome: activity.outcome || '',
+      next_steps: activity.next_steps || '',
+    })
   }
 
   const handleSaveEdit = async (activity: Activity) => {
     if (!currentWorkspace) return
     try {
-      await activitiesApi.update(activity.id, { notes: editNotes }, currentWorkspace.id)
+      await activitiesApi.update(activity.id, editDetails, currentWorkspace.id)
       setEditingId(null)
       onRefresh?.()
     } catch (err) {
@@ -130,10 +143,29 @@ export function ActivityTimeline({ activities, onRefresh }: { activities: Activi
 
                     {editingId === activity.id ? (
                       <div className="mt-2 space-y-2">
-                        <Textarea 
-                          value={editNotes} 
-                          onChange={(e) => setEditNotes(e.target.value)} 
-                          rows={2} 
+                        <Textarea
+                          label="Notes"
+                          value={editDetails.notes}
+                          onChange={(e) => setEditDetails({ ...editDetails, notes: e.target.value })}
+                          rows={2}
+                        />
+                        <Textarea
+                          label="Interaction summary"
+                          value={editDetails.interaction_summary}
+                          onChange={(e) => setEditDetails({ ...editDetails, interaction_summary: e.target.value })}
+                          rows={2}
+                        />
+                        <Textarea
+                          label="Outcome"
+                          value={editDetails.outcome}
+                          onChange={(e) => setEditDetails({ ...editDetails, outcome: e.target.value })}
+                          rows={2}
+                        />
+                        <Textarea
+                          label="Next steps"
+                          value={editDetails.next_steps}
+                          onChange={(e) => setEditDetails({ ...editDetails, next_steps: e.target.value })}
+                          rows={2}
                         />
                         <div className="flex gap-2">
                           <Button size="sm" onClick={() => handleSaveEdit(activity)}>Save</Button>
@@ -141,7 +173,18 @@ export function ActivityTimeline({ activities, onRefresh }: { activities: Activi
                         </div>
                       </div>
                     ) : (
-                      activity.notes && <p className="mt-1 text-sm text-gray-500 whitespace-pre-wrap">{activity.notes}</p>
+                      <div className="mt-2 space-y-1 text-sm text-gray-600">
+                        {activity.notes && <p className="whitespace-pre-wrap">{activity.notes}</p>}
+                        {activity.interaction_summary && (
+                          <p className="whitespace-pre-wrap"><span className="font-medium text-gray-700">Summary:</span> {activity.interaction_summary}</p>
+                        )}
+                        {activity.outcome && (
+                          <p className="whitespace-pre-wrap"><span className="font-medium text-gray-700">Outcome:</span> {activity.outcome}</p>
+                        )}
+                        {activity.next_steps && (
+                          <p className="whitespace-pre-wrap"><span className="font-medium text-gray-700">Next steps:</span> {activity.next_steps}</p>
+                        )}
+                      </div>
                     )}
 
                     {/* Attachments List */}
@@ -177,7 +220,7 @@ export function ActivityTimeline({ activities, onRefresh }: { activities: Activi
                       <button 
                         onClick={() => handleStartEdit(activity)}
                         className="text-xs text-blue-500 hover:text-blue-600 px-1"
-                        title="Edit Note"
+                        title="Edit interaction notes"
                       >
                         ✏️
                       </button>
