@@ -25,7 +25,9 @@ class TaskResponse(BaseModel):
     id: uuid.UUID
     workspace_id: uuid.UUID
     person_id: uuid.UUID
+    person_name: str
     assigned_to: Optional[uuid.UUID]
+    assignee_email: Optional[str]
     title: str
     description: Optional[str]
     due_date: Optional[date]
