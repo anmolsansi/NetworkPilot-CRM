@@ -5,6 +5,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.schemas.dashboard import DashboardConfig
+
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
 
@@ -71,7 +73,7 @@ class WorkspaceResponse(BaseModel):
 
 
 class WorkspaceMemberUpdate(BaseModel):
-    dashboard_config: dict | None = None
+    dashboard_config: DashboardConfig | None = None
     weekly_outreach_target: int | None = None
 
 
@@ -80,9 +82,14 @@ class WorkspaceMemberResponse(BaseModel):
     workspace_id: uuid.UUID
     user_id: uuid.UUID
     role: str
-    dashboard_config: dict
+    dashboard_config: DashboardConfig
     weekly_outreach_target: int
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @field_validator("dashboard_config", mode="before")
+    @classmethod
+    def normalize_dashboard_config(cls, value):
+        return DashboardConfig.normalize(value)
