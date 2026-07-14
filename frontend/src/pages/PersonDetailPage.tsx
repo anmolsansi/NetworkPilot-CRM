@@ -10,6 +10,7 @@ import { Skeleton } from '../components/common/Skeleton'
 import { ErrorAlert } from '../components/common/ErrorAlert'
 import { ActivityTimeline } from '../components/activities/ActivityTimeline'
 import { TagSelect } from '../components/people/TagSelect'
+import { PersonTasksPanel } from '../components/tasks/PersonTasksPanel'
 
 interface Person {
   id: string
@@ -584,6 +585,8 @@ export function PersonDetailPage() {
             <h2 className="text-lg font-medium text-gray-900 mb-4">Activity Timeline</h2>
             <ActivityTimeline activities={activities} onRefresh={fetchData} />
           </div>
+
+          <PersonTasksPanel personId={id!} />
         </div>
       </div>
     </div>

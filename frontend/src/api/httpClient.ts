@@ -348,6 +348,25 @@ export const activitiesApi = {
   },
 }
 
+export const tasksApi = {
+  list: (workspaceId: string, params: Record<string, string> = {}) => {
+    const query = new URLSearchParams({ workspace_id: workspaceId, ...params }).toString()
+    return request<any>(`/tasks?${query}`)
+  },
+  create: (workspaceId: string, data: any) =>
+    request<any>(`/tasks?workspace_id=${workspaceId}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (workspaceId: string, taskId: string, data: any) =>
+    request<any>(`/tasks/${taskId}?workspace_id=${workspaceId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  delete: (workspaceId: string, taskId: string) =>
+    request<void>(`/tasks/${taskId}?workspace_id=${workspaceId}`, { method: 'DELETE' }),
+}
+
 // Dashboard API
 export const dashboardApi = {
   getSummary: (workspaceId: string) =>
