@@ -1,14 +1,21 @@
 import logging
 import uuid
+from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.logging import get_logger, mask_id
 from app.models.user import AppUser
-from app.schemas.activities import ActivityCreate, ActivityResponse, ActivityUpdate
+from app.schemas.activities import (
+    ActivityCreate,
+    ActivityResponse,
+    ActivityUpdate,
+    AttachmentResponse,
+)
 from app.services.activity_service import ActivityService
+from app.services.storage_service import StorageService
 from app.services.workspace_service import require_workspace_access
 
 _module_logger = logging.getLogger(__name__)
@@ -23,6 +30,10 @@ async def list_activities(
     workspace_id: uuid.UUID = Query(...),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    action_type: str | None = Query(None, min_length=1, max_length=50),
+    source: str | None = Query(None, pattern=r"^(web_app|chrome_extension|system|csv_import)$"),
+    created_from: datetime | None = Query(None),
+    created_to: datetime | None = Query(None),
     _workspace: Depends = Depends(require_workspace_access),
     db: AsyncSession = Depends(get_db),
 ):
@@ -35,7 +46,16 @@ async def list_activities(
         offset,
     )
     service = ActivityService(db)
-    activities = await service.list(workspace_id, person_id, limit, offset)
+    activities = await service.list(
+        workspace_id,
+        person_id,
+        limit,
+        offset,
+        action_type=action_type,
+        source=source,
+        created_from=created_from,
+        created_to=created_to,
+    )
     logger.info(
         "activities.list.completed workspace_id=%s person_id=%s count=%s",
         mask_id(str(workspace_id)),
@@ -100,9 +120,6 @@ async def update_activity(
         notes=data.notes,
     )
 
-
-from fastapi import Response, UploadFile, File
-
 @router.delete("/activities/{activity_id}", status_code=204)
 async def delete_activity(
     activity_id: uuid.UUID,
@@ -114,10 +131,6 @@ async def delete_activity(
     service = ActivityService(db)
     await service.soft_delete(workspace_id=workspace_id, activity_id=activity_id)
     return Response(status_code=204)
-
-from app.schemas.activities import AttachmentResponse
-from app.services.storage_service import StorageService
-
 @router.post("/activities/{activity_id}/attachments", response_model=AttachmentResponse)
 async def upload_attachment(
     activity_id: uuid.UUID,
@@ -129,11 +142,11 @@ async def upload_attachment(
     """Upload an attachment to an activity."""
     storage_service = StorageService()
     storage_path = await storage_service.save_file(workspace_id, file)
-    
+
     file_size = 0
     if file.size is not None:
         file_size = file.size
-    
+
     service = ActivityService(db)
     attachment = await service.add_attachment(
         workspace_id=workspace_id,
@@ -144,4 +157,3 @@ async def upload_attachment(
         storage_path=storage_path,
     )
     return attachment
-
