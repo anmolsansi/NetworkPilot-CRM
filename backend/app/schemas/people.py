@@ -65,6 +65,7 @@ class PersonUpdate(BaseModel):
     stage_id: uuid.UUID | None = None
     custom_fields_data: dict | None = None
     owner_id: uuid.UUID | None = None
+    manual_warmth: int | None = Field(None, ge=1, le=5)
 
     @field_validator("tag_ids")
     @classmethod
@@ -109,6 +110,9 @@ class PersonResponse(BaseModel):
     pipeline_stage: PipelineStageResponse | None = None
     custom_fields_data: dict | None = None
     owner_id: uuid.UUID | None = None
+    manual_warmth: int | None = None
+    calculated_freshness: int | None = None
+    last_engaged_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 

@@ -93,6 +93,7 @@ class ActivityService:
             new_stage=transition.new_stage,
             message=data.message,
             notes=data.notes,
+            template_id=data.template_id,
         )
         self.db.add(activity)
 
@@ -104,6 +105,11 @@ class ActivityService:
         person.next_action_date = transition.next_action_date
 
         await self.db.flush()
+        
+        from app.services.relationship_service import RelationshipService
+        relationship_service = RelationshipService(self.db)
+        person = await relationship_service.recalculate_freshness(workspace_id, person_id)
+        
         _module_logger.info(
             "activity_service.create.completed "
             "workspace_id=%s person_id=%s activity_id=%s old_stage=%s new_stage=%s",
@@ -149,8 +155,11 @@ class ActivityService:
 
         result = await self.db.execute(
             select(Activity)
-            .where(Activity.person_id == person_id)
-            .order_by(Activity.created_at.desc())
+            .where(
+                Activity.person_id == person_id,
+                Activity.deleted_at.is_(None)
+            )
+            .order_by(Activity.is_pinned.desc(), Activity.created_at.desc())
             .offset(offset)
             .limit(limit)
         )
@@ -162,3 +171,84 @@ class ActivityService:
             len(activities),
         )
         return activities
+
+    async def update(
+        self,
+        workspace_id: uuid.UUID,
+        activity_id: uuid.UUID,
+        is_pinned: bool | None = None,
+        message: str | None = None,
+        notes: str | None = None,
+    ) -> Activity:
+        """Update an existing activity."""
+        result = await self.db.execute(
+            select(Activity).where(
+                Activity.id == activity_id,
+                Activity.workspace_id == workspace_id,
+                Activity.deleted_at.is_(None)
+            )
+        )
+        activity = result.scalar_one_or_none()
+        if not activity:
+            raise NotFoundError("Activity", str(activity_id))
+
+        if is_pinned is not None:
+            activity.is_pinned = is_pinned
+        if message is not None:
+            activity.message = message
+        if notes is not None:
+            activity.notes = notes
+
+        await self.db.flush()
+        return activity
+
+    async def soft_delete(self, workspace_id: uuid.UUID, activity_id: uuid.UUID) -> None:
+        """Soft delete an activity."""
+        from datetime import datetime, timezone
+        result = await self.db.execute(
+            select(Activity).where(
+                Activity.id == activity_id,
+                Activity.workspace_id == workspace_id,
+                Activity.deleted_at.is_(None)
+            )
+        )
+        activity = result.scalar_one_or_none()
+        if not activity:
+            raise NotFoundError("Activity", str(activity_id))
+
+        activity.deleted_at = datetime.now(timezone.utc)
+        await self.db.flush()
+
+    async def add_attachment(
+        self,
+        workspace_id: uuid.UUID,
+        activity_id: uuid.UUID,
+        file_name: str,
+        file_size: int,
+        content_type: str,
+        storage_path: str,
+    ):
+        """Add an attachment record for an activity."""
+        from app.models.attachment import Attachment
+        result = await self.db.execute(
+            select(Activity).where(
+                Activity.id == activity_id,
+                Activity.workspace_id == workspace_id,
+                Activity.deleted_at.is_(None)
+            )
+        )
+        activity = result.scalar_one_or_none()
+        if not activity:
+            raise NotFoundError("Activity", str(activity_id))
+
+        attachment = Attachment(
+            workspace_id=workspace_id,
+            activity_id=activity_id,
+            file_name=file_name,
+            file_size=file_size,
+            content_type=content_type,
+            storage_path=storage_path,
+        )
+        self.db.add(attachment)
+        await self.db.flush()
+        return attachment

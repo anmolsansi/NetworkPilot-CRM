@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_db
 from app.core.logging import get_logger, mask_id
 from app.models.user import AppUser
-from app.schemas.activities import ActivityCreate, ActivityResponse
+from app.schemas.activities import ActivityCreate, ActivityResponse, ActivityUpdate
 from app.services.activity_service import ActivityService
 from app.services.workspace_service import require_workspace_access
 
@@ -80,3 +80,68 @@ async def create_activity(
         mask_id(str(activity.id)),
     )
     return activity
+
+
+@router.patch("/activities/{activity_id}", response_model=ActivityResponse)
+async def update_activity(
+    activity_id: uuid.UUID,
+    data: ActivityUpdate,
+    workspace_id: uuid.UUID = Query(...),
+    _workspace: Depends = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update an existing activity."""
+    service = ActivityService(db)
+    return await service.update(
+        workspace_id=workspace_id,
+        activity_id=activity_id,
+        is_pinned=data.is_pinned,
+        message=data.message,
+        notes=data.notes,
+    )
+
+
+from fastapi import Response, UploadFile, File
+
+@router.delete("/activities/{activity_id}", status_code=204)
+async def delete_activity(
+    activity_id: uuid.UUID,
+    workspace_id: uuid.UUID = Query(...),
+    _workspace: Depends = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """Soft delete an activity."""
+    service = ActivityService(db)
+    await service.soft_delete(workspace_id=workspace_id, activity_id=activity_id)
+    return Response(status_code=204)
+
+from app.schemas.activities import AttachmentResponse
+from app.services.storage_service import StorageService
+
+@router.post("/activities/{activity_id}/attachments", response_model=AttachmentResponse)
+async def upload_attachment(
+    activity_id: uuid.UUID,
+    file: UploadFile = File(...),
+    workspace_id: uuid.UUID = Query(...),
+    _workspace: Depends = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload an attachment to an activity."""
+    storage_service = StorageService()
+    storage_path = await storage_service.save_file(workspace_id, file)
+    
+    file_size = 0
+    if file.size is not None:
+        file_size = file.size
+    
+    service = ActivityService(db)
+    attachment = await service.add_attachment(
+        workspace_id=workspace_id,
+        activity_id=activity_id,
+        file_name=file.filename or "unknown",
+        file_size=file_size,
+        content_type=file.content_type or "application/octet-stream",
+        storage_path=storage_path,
+    )
+    return attachment
+

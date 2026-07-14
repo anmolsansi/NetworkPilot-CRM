@@ -21,6 +21,24 @@ class ActivityCreate(BaseModel):
     notes: str | None = Field(None, max_length=5000)
     next_action_date: date | None = None
     next_action_type: str | None = None
+    template_id: uuid.UUID | None = None
+
+
+class ActivityUpdate(BaseModel):
+    is_pinned: bool | None = None
+    message: str | None = Field(None, max_length=5000)
+    notes: str | None = Field(None, max_length=5000)
+
+
+class AttachmentResponse(BaseModel):
+    id: uuid.UUID
+    activity_id: uuid.UUID
+    file_name: str
+    file_size: int
+    content_type: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class ActivityResponse(BaseModel):
@@ -34,6 +52,9 @@ class ActivityResponse(BaseModel):
     new_stage: str | None
     message: str | None
     notes: str | None
+    is_pinned: bool
     created_at: datetime
+    template_id: uuid.UUID | None = None
+    attachments: list[AttachmentResponse] = []
 
     model_config = {"from_attributes": True}

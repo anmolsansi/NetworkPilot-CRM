@@ -13,6 +13,8 @@ from app.schemas.workspaces import (
     WorkspaceCreate,
     WorkspaceResponse,
     WorkspaceUpdate,
+    WorkspaceMemberUpdate,
+    WorkspaceMemberResponse,
 )
 from app.services.workspace_service import require_workspace_owner
 
@@ -155,3 +157,57 @@ async def trigger_digest(
     db.add(job)
     await db.flush()
     return {"status": "queued", "job_id": str(job.id)}
+
+
+@router.get(
+    "/{workspace_id}/members/me",
+    response_model=WorkspaceMemberResponse,
+)
+async def get_member_settings(
+    workspace_id: uuid.UUID,
+    user: AppUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get workspace member settings like dashboard config."""
+    result = await db.execute(
+        select(WorkspaceMember).where(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == user.id,
+        )
+    )
+    from app.core.errors import NotFoundError
+    member = result.scalar_one_or_none()
+    if not member:
+        raise NotFoundError("WorkspaceMember", str(user.id))
+    return member
+
+
+@router.patch(
+    "/{workspace_id}/members/me",
+    response_model=WorkspaceMemberResponse,
+)
+async def update_member_settings(
+    workspace_id: uuid.UUID,
+    data: WorkspaceMemberUpdate,
+    user: AppUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update workspace member settings like dashboard config."""
+    result = await db.execute(
+        select(WorkspaceMember).where(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == user.id,
+        )
+    )
+    from app.core.errors import NotFoundError
+    member = result.scalar_one_or_none()
+    if not member:
+        raise NotFoundError("WorkspaceMember", str(user.id))
+
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(member, field, value)
+
+    await db.flush()
+    await db.refresh(member)
+    return member

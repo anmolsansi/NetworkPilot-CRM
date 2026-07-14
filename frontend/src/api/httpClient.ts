@@ -196,6 +196,19 @@ export const workspaceApi = {
   update: (id: string, data: any) => request<any>(`/workspaces/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 }
 
+// Workspace Members API
+export const workspaceMembersApi = {
+  getMe: (workspaceId: string) => request<any>(`/workspaces/${workspaceId}/members/me`),
+  updateMe: (workspaceId: string, data: any) => request<any>(`/workspaces/${workspaceId}/members/me`, { method: 'PATCH', body: JSON.stringify(data) }),
+}
+
+// Workspace Invites API
+export const workspaceInvitesApi = {
+  list: (workspaceId: string) => request<any[]>(`/workspaces/${workspaceId}/invites`),
+  create: (workspaceId: string, data: any) => request<any>(`/workspaces/${workspaceId}/invites`, { method: 'POST', body: JSON.stringify(data) }),
+  delete: (workspaceId: string, inviteId: string) => request<void>(`/workspaces/${workspaceId}/invites/${inviteId}`, { method: 'DELETE' }),
+}
+
 // People API
 export const peopleApi = {
   list: (params: Record<string, string>) => {
@@ -316,12 +329,23 @@ export const exportsApi = {
   },
 }
 
-// Activities API
 export const activitiesApi = {
   list: (personId: string, workspaceId: string) =>
     request<any[]>(`/people/${personId}/activities?workspace_id=${workspaceId}`),
   create: (personId: string, data: any, workspaceId: string) =>
     request<any>(`/people/${personId}/activities?workspace_id=${workspaceId}`, { method: 'POST', body: JSON.stringify(data) }),
+  update: (activityId: string, data: any, workspaceId: string) =>
+    request<any>(`/activities/${activityId}?workspace_id=${workspaceId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (activityId: string, workspaceId: string) =>
+    request<void>(`/activities/${activityId}?workspace_id=${workspaceId}`, { method: 'DELETE' }),
+  uploadAttachment: (activityId: string, file: File, workspaceId: string) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request<any>(`/activities/${activityId}/attachments?workspace_id=${workspaceId}`, {
+      method: 'POST',
+      body: formData,
+    })
+  },
 }
 
 // Dashboard API
@@ -386,6 +410,14 @@ export const savedViewsApi = {
     request<any>(`/saved-views/${id}?workspace_id=${workspaceId}`, { method: 'PATCH', body: JSON.stringify(data) }),
   delete: (id: string, workspaceId: string) =>
     request<void>(`/saved-views/${id}?workspace_id=${workspaceId}`, { method: 'DELETE' }),
+}
+
+// Analytics API
+export const analyticsApi = {
+  getFunnel: (workspaceId: string) => request<any>(`/workspaces/${workspaceId}/analytics/funnel`),
+  getPerformance: (workspaceId: string) => request<any[]>(`/workspaces/${workspaceId}/analytics/performance`),
+  getGoals: (workspaceId: string) => request<any>(`/workspaces/${workspaceId}/analytics/goals`),
+  exportCsv: (workspaceId: string) => requestBlob(`/workspaces/${workspaceId}/analytics/export`),
 }
 
 console.debug('[NetworkPilot Module]', 'module.loaded file=frontend/src/api/httpClient.ts')

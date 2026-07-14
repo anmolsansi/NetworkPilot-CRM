@@ -253,7 +253,7 @@ class TestV001ToV010Completion:
     ):
         workspace_id = await self._workspace(client, mock_headers, "Notification Completion")
         person = await self._person(client, mock_headers, workspace_id, "Due Person")
-        due_date = date.today() - timedelta(days=1)
+        due_date = date.today() - timedelta(days=2)
         await client.post(
             "/api/v1/people/bulk-actions",
             json={

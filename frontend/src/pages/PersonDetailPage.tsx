@@ -37,6 +37,9 @@ interface Person {
   next_action_date: string | null
   tags: { id: string; name: string; color: string | null }[]
   custom_fields_data: Record<string, any> | null
+  manual_warmth: number | null
+  calculated_freshness: number | null
+  last_engaged_at: string | null
 }
 
 const priorityVariant = {
@@ -57,7 +60,7 @@ export function PersonDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({
-    name: '', role: '', company: '', notes: '', is_favorite: false, favorite_notes: '', tag_ids: [] as string[], stage_id: '', custom_fields_data: {} as Record<string, any>
+    name: '', role: '', company: '', notes: '', is_favorite: false, favorite_notes: '', tag_ids: [] as string[], stage_id: '', custom_fields_data: {} as Record<string, any>, manual_warmth: null as number | null
   })
   const [actionNote, setActionNote] = useState('')
   const [deleted, setDeleted] = useState(false)
@@ -92,6 +95,7 @@ export function PersonDetailPage() {
         tag_ids: personData.tags?.map((t: any) => t.id) || [],
         stage_id: personData.stage_id || '',
         custom_fields_data: personData.custom_fields_data || {},
+        manual_warmth: personData.manual_warmth,
       })
       console.info('[NetworkPilot PersonDetail]', 'Person detail loaded', {
         workspaceId: currentWorkspace.id.slice(-8),
@@ -310,6 +314,21 @@ export function PersonDetailPage() {
                 onChange={(tagIds) => setEditForm({ ...editForm, tag_ids: tagIds })}
               />
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Manual Warmth</label>
+                <select
+                  value={editForm.manual_warmth || ''}
+                  onChange={(e) => setEditForm({ ...editForm, manual_warmth: e.target.value ? parseInt(e.target.value, 10) : null })}
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                >
+                  <option value="">Auto (Use Calculated Freshness)</option>
+                  <option value="1">1 - Ice Cold</option>
+                  <option value="2">2 - Cold</option>
+                  <option value="3">3 - Warm</option>
+                  <option value="4">4 - Hot</option>
+                  <option value="5">5 - On Fire</option>
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
                 <select
                   value={editForm.stage_id}
@@ -449,6 +468,22 @@ export function PersonDetailPage() {
                 <span className="text-sm text-gray-500">Invite accepted</span>
                 <p className="text-sm text-gray-900">{person.invite_accepted_at ? new Date(person.invite_accepted_at).toLocaleString() : '-'}</p>
               </div>
+              <div>
+                <span className="text-sm text-gray-500">Last engaged</span>
+                <p className="text-sm text-gray-900">{person.last_engaged_at ? new Date(person.last_engaged_at).toLocaleString() : 'Never'}</p>
+              </div>
+              <div className="flex flex-col space-y-1">
+                <span className="text-sm text-gray-500">Relationship Strength</span>
+                <div className="flex items-center space-x-2">
+                  <div className="flex-1 bg-gray-200 rounded-full h-2.5 max-w-[150px]">
+                    <div className="bg-primary-600 h-2.5 rounded-full" style={{ width: `${person.calculated_freshness || 0}%` }}></div>
+                  </div>
+                  <span className="text-xs text-gray-600">{person.calculated_freshness || 0}/100</span>
+                </div>
+                {person.manual_warmth && (
+                  <span className="text-xs text-amber-600 font-medium">Overridden (Manual: {person.manual_warmth}/5)</span>
+                )}
+              </div>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-500">Priority</span>
                 <Badge variant={priorityVariant[person.priority as keyof typeof priorityVariant]}>
@@ -515,7 +550,7 @@ export function PersonDetailPage() {
           {/* Activity Timeline */}
           <div className="bg-white shadow rounded-lg p-6">
             <h2 className="text-lg font-medium text-gray-900 mb-4">Activity Timeline</h2>
-            <ActivityTimeline activities={activities} />
+            <ActivityTimeline activities={activities} onRefresh={fetchData} />
           </div>
         </div>
       </div>
