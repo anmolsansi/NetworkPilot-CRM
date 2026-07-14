@@ -1,14 +1,19 @@
 import uuid
-from typing import Dict
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
 
+class FunnelStageMetrics(BaseModel):
+    key: Literal["saved", "invite_sent", "accepted", "messaged", "replied"]
+    label: str
+    count: int = 0
+    conversion_from_previous: float = 0.0
+    conversion_from_saved: float = 0.0
+
+
 class FunnelMetrics(BaseModel):
-    total_saved: int = 0
-    contacted: int = 0
-    replied: int = 0
-    conversion_rate: float = 0.0
+    stages: list[FunnelStageMetrics]
 
     model_config = ConfigDict(from_attributes=True)
 
