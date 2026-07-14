@@ -25,6 +25,7 @@ class ImportPreviewSummary(BaseModel):
 class ImportPreviewRow(BaseModel):
     row_number: int
     status: str
+    id: uuid.UUID | None = None
     name: str | None = None
     first_name: str | None = None
     last_name: str | None = None
@@ -53,10 +54,12 @@ class ImportPreviewRow(BaseModel):
 class ImportPreviewResponse(BaseModel):
     summary: ImportPreviewSummary
     rows: list[ImportPreviewRow]
+    provided_headers: list[str] = Field(default_factory=list)
     import_batch_id: uuid.UUID | None = None
 
 
 class ImportCommitRow(BaseModel):
+    id: uuid.UUID | None = None
     name: str
     first_name: str | None = None
     last_name: str | None = None
@@ -85,6 +88,7 @@ class ImportCommitRequest(BaseModel):
     default_initial_action_type: str = Field(default="invite_sent")
     duplicate_strategy: str = Field(default="skip")
     default_priority: str = Field(default="B")
+    provided_headers: list[str] = Field(default_factory=list)
     rows: list[ImportCommitRow]
     import_batch_id: uuid.UUID | None = None
     chunk_index: int = Field(default=0, ge=0)

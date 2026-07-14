@@ -18,6 +18,7 @@ from app.api.routes import (
     pipeline_stages,
     saved_views,
     tags,
+    tasks,
     templates,
     workspaces,
 )
@@ -46,3 +47,4 @@ api_router.include_router(
 api_router.include_router(calendar.router, prefix="/calendar", tags=["calendar"])
 api_router.include_router(saved_views.router, prefix="/saved-views", tags=["saved_views"])
 api_router.include_router(custom_fields.router, prefix="/custom-fields", tags=["custom_fields"])
+api_router.include_router(tasks.router, prefix="/tasks", tags=["tasks"])

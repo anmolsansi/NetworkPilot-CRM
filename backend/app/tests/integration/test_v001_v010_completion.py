@@ -174,11 +174,11 @@ class TestV001ToV010Completion:
             stage_id=first_stage.json()["id"],
             custom_fields_data={custom_field.json()["id"]: "Warm"},
         )
-        filtered = await client.get(
-            f"/api/v1/people?workspace_id={workspace_id}&tag_id={tag_id}",
+        list_response = await client.get(
+            f"/api/v1/people?workspace_id={workspace_id}&tag_ids={tag_id}",
             headers=mock_headers,
         )
-        assert filtered.json()["total"] == 1
+        assert list_response.json()["total"] == 1
         invalid_value = await client.patch(
             f"/api/v1/people/{person['id']}?workspace_id={workspace_id}",
             json={"custom_fields_data": {custom_field.json()["id"]: "Invalid"}},
