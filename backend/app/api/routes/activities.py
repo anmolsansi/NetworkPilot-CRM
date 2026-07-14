@@ -1,14 +1,21 @@
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.logging import get_logger, mask_id
 from app.models.user import AppUser
-from app.schemas.activities import ActivityCreate, ActivityResponse, ActivityUpdate
+from app.schemas.activities import (
+    ActivityCreate,
+    ActivityResponse,
+    ActivityUpdate,
+    AttachmentDownloadResponse,
+    AttachmentResponse,
+)
 from app.services.activity_service import ActivityService
+from app.services.storage_service import DOWNLOAD_URL_TTL_SECONDS, StorageService
 from app.services.workspace_service import require_workspace_access
 
 _module_logger = logging.getLogger(__name__)
@@ -100,9 +107,6 @@ async def update_activity(
         notes=data.notes,
     )
 
-
-from fastapi import Response, UploadFile, File
-
 @router.delete("/activities/{activity_id}", status_code=204)
 async def delete_activity(
     activity_id: uuid.UUID,
@@ -112,11 +116,15 @@ async def delete_activity(
 ):
     """Soft delete an activity."""
     service = ActivityService(db)
+    activity = await service.get_attachment_activity(workspace_id, activity_id)
+    if activity.attachments:
+        storage_service = StorageService()
+        for attachment in activity.attachments:
+            await storage_service.delete_file(attachment.storage_path)
+        for attachment in activity.attachments:
+            await db.delete(attachment)
     await service.soft_delete(workspace_id=workspace_id, activity_id=activity_id)
     return Response(status_code=204)
-
-from app.schemas.activities import AttachmentResponse
-from app.services.storage_service import StorageService
 
 @router.post("/activities/{activity_id}/attachments", response_model=AttachmentResponse)
 async def upload_attachment(
@@ -127,21 +135,51 @@ async def upload_attachment(
     db: AsyncSession = Depends(get_db),
 ):
     """Upload an attachment to an activity."""
-    storage_service = StorageService()
-    storage_path = await storage_service.save_file(workspace_id, file)
-    
-    file_size = 0
-    if file.size is not None:
-        file_size = file.size
-    
     service = ActivityService(db)
-    attachment = await service.add_attachment(
-        workspace_id=workspace_id,
-        activity_id=activity_id,
-        file_name=file.filename or "unknown",
-        file_size=file_size,
-        content_type=file.content_type or "application/octet-stream",
-        storage_path=storage_path,
-    )
-    return attachment
+    await service.get_attachment_activity(workspace_id, activity_id)
 
+    storage_service = StorageService()
+    stored_file = await storage_service.save_file(workspace_id, activity_id, file)
+    try:
+        return await service.add_attachment(
+            workspace_id=workspace_id,
+            activity_id=activity_id,
+            file_name=file.filename or "unknown",
+            file_size=stored_file.file_size,
+            content_type=stored_file.content_type,
+            storage_path=stored_file.object_key,
+        )
+    except Exception:
+        await storage_service.delete_file(stored_file.object_key)
+        raise
+
+
+@router.get(
+    "/attachments/{attachment_id}/download-url",
+    response_model=AttachmentDownloadResponse,
+)
+async def get_attachment_download_url(
+    attachment_id: uuid.UUID,
+    workspace_id: uuid.UUID = Query(...),
+    _workspace: Depends = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_db),
+) -> AttachmentDownloadResponse:
+    """Authorize access and return a short-lived private download URL."""
+    attachment = await ActivityService(db).get_attachment(workspace_id, attachment_id)
+    url = StorageService().create_download_url(attachment.storage_path)
+    return AttachmentDownloadResponse(url=url, expires_in=DOWNLOAD_URL_TTL_SECONDS)
+
+
+@router.delete("/attachments/{attachment_id}", status_code=204)
+async def delete_attachment(
+    attachment_id: uuid.UUID,
+    workspace_id: uuid.UUID = Query(...),
+    _workspace: Depends = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Delete a private object and its attachment record."""
+    service = ActivityService(db)
+    attachment = await service.get_attachment(workspace_id, attachment_id)
+    await StorageService().delete_file(attachment.storage_path)
+    await service.delete_attachment(workspace_id, attachment_id)
+    return Response(status_code=204)

@@ -105,11 +105,12 @@ class ActivityService:
         person.next_action_date = transition.next_action_date
 
         await self.db.flush()
-        
+
         from app.services.relationship_service import RelationshipService
+
         relationship_service = RelationshipService(self.db)
         person = await relationship_service.recalculate_freshness(workspace_id, person_id)
-        
+
         _module_logger.info(
             "activity_service.create.completed "
             "workspace_id=%s person_id=%s activity_id=%s old_stage=%s new_stage=%s",
@@ -230,17 +231,8 @@ class ActivityService:
     ):
         """Add an attachment record for an activity."""
         from app.models.attachment import Attachment
-        result = await self.db.execute(
-            select(Activity).where(
-                Activity.id == activity_id,
-                Activity.workspace_id == workspace_id,
-                Activity.deleted_at.is_(None)
-            )
-        )
-        activity = result.scalar_one_or_none()
-        if not activity:
-            raise NotFoundError("Activity", str(activity_id))
 
+        await self.get_attachment_activity(workspace_id, activity_id)
         attachment = Attachment(
             workspace_id=workspace_id,
             activity_id=activity_id,
@@ -252,3 +244,50 @@ class ActivityService:
         self.db.add(attachment)
         await self.db.flush()
         return attachment
+
+    async def get_attachment_activity(
+        self,
+        workspace_id: uuid.UUID,
+        activity_id: uuid.UUID,
+    ) -> Activity:
+        result = await self.db.execute(
+            select(Activity).where(
+                Activity.id == activity_id,
+                Activity.workspace_id == workspace_id,
+                Activity.deleted_at.is_(None),
+            )
+        )
+        activity = result.scalar_one_or_none()
+        if not activity:
+            raise NotFoundError("Activity", str(activity_id))
+        return activity
+
+    async def get_attachment(
+        self,
+        workspace_id: uuid.UUID,
+        attachment_id: uuid.UUID,
+    ):
+        from app.models.attachment import Attachment
+
+        result = await self.db.execute(
+            select(Attachment)
+            .join(Activity, Activity.id == Attachment.activity_id)
+            .where(
+                Attachment.id == attachment_id,
+                Attachment.workspace_id == workspace_id,
+                Activity.deleted_at.is_(None),
+            )
+        )
+        attachment = result.scalar_one_or_none()
+        if not attachment:
+            raise NotFoundError("Attachment", str(attachment_id))
+        return attachment
+
+    async def delete_attachment(
+        self,
+        workspace_id: uuid.UUID,
+        attachment_id: uuid.UUID,
+    ) -> None:
+        attachment = await self.get_attachment(workspace_id, attachment_id)
+        await self.db.delete(attachment)
+        await self.db.flush()
