@@ -12,6 +12,7 @@ import { ImportsPage } from '../features/imports/ImportsPage'
 import { NotificationsPage } from '../pages/NotificationsPage'
 import { AnalyticsPage } from '../pages/AnalyticsPage'
 import { AppLayout } from '../components/layout/AppLayout'
+import { InviteAcceptPage } from '../pages/InviteAcceptPage'
 
 export function AppRoutes() {
   return (
@@ -36,6 +37,7 @@ export function AppRoutes() {
           <Route path="imports" element={<ImportsPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="invites/accept" element={<InviteAcceptPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

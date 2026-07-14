@@ -207,6 +207,8 @@ export const workspaceInvitesApi = {
   list: (workspaceId: string) => request<any[]>(`/workspaces/${workspaceId}/invites`),
   create: (workspaceId: string, data: any) => request<any>(`/workspaces/${workspaceId}/invites`, { method: 'POST', body: JSON.stringify(data) }),
   delete: (workspaceId: string, inviteId: string) => request<void>(`/workspaces/${workspaceId}/invites/${inviteId}`, { method: 'DELETE' }),
+  resend: (workspaceId: string, inviteId: string) => request<any>(`/workspaces/${workspaceId}/invites/${inviteId}/resend`, { method: 'POST' }),
+  accept: (token: string) => request<any>('/invites/accept', { method: 'POST', body: JSON.stringify({ token }) }),
 }
 
 // People API
