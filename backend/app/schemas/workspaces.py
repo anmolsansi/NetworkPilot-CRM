@@ -93,3 +93,9 @@ class WorkspaceMemberResponse(BaseModel):
     @classmethod
     def normalize_dashboard_config(cls, value):
         return DashboardConfig.normalize(value)
+
+class WorkspaceMemberDirectoryEntry(BaseModel):
+    user_id: uuid.UUID
+    email: str
+    display_name: str | None
+    role: str

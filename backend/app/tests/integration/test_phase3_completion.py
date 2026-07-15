@@ -47,9 +47,13 @@ class TestPhase3Completion:
         )
         assert funnel_resp.status_code == 200
         data = funnel_resp.json()
-        assert "total_saved" in data
-        assert "contacted" in data
-        assert "replied" in data
+        assert [stage["key"] for stage in data["stages"]] == [
+            "saved",
+            "invite_sent",
+            "accepted",
+            "messaged",
+            "replied",
+        ]
 
         # Test performance
         perf_resp = await client.get(
@@ -68,4 +72,4 @@ class TestPhase3Completion:
         assert export_resp.status_code == 200
         assert export_resp.headers["content-type"] == "text/csv; charset=utf-8"
         content = export_resp.text
-        assert "Metric,Value" in content
+        assert "Funnel Stage,Count,From Previous (%),From Saved (%)" in content

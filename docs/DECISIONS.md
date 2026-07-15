@@ -57,6 +57,16 @@
 **Why**: Avoids building full extension OAuth/session handoff before core tracking flow is stable.
 **Follow-up**: Replace or improve before external users; document token storage risk.
 
+## Cloudflare R2 for private attachments
+
+**Decision**: Store activity attachments in a private Cloudflare R2 bucket through its S3-compatible API.
+
+**Why**: R2 provides durable object storage, private workspace-scoped keys, and short-lived presigned downloads without relying on ephemeral application disks.
+
+**Operational constraints**: Keep R2 credentials backend-only, limit uploads to validated file types and 10 MB, issue five-minute download URLs only after workspace authorization, and delete the object before removing its database record.
+
+**Follow-up**: Add a malware-scanning/quarantine service before expanding the file-type allowlist.
+
 ### 12. Canonical Workspace ID Transport
 **Decision**: Workspace-scoped API endpoints must consistently pass `workspace_id` in the same location expected by backend authorization.
 **Why**: Prevents extension/web clients from bypassing or breaking `require_workspace_access`.
