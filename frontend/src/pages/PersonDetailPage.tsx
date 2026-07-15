@@ -10,6 +10,7 @@ import { Skeleton } from '../components/common/Skeleton'
 import { ErrorAlert } from '../components/common/ErrorAlert'
 import { ActivityTimeline } from '../components/activities/ActivityTimeline'
 import { TagSelect } from '../components/people/TagSelect'
+import { PersonOwnerControl } from '../components/people/PersonOwnerControl'
 import { PersonTasksPanel } from '../components/tasks/PersonTasksPanel'
 
 interface Person {
@@ -41,6 +42,7 @@ interface Person {
   manual_warmth: number | null
   calculated_freshness: number | null
   last_engaged_at: string | null
+  owner_id: string | null
 }
 
 const priorityVariant = {
@@ -435,6 +437,7 @@ export function PersonDetailPage() {
                   <p className="whitespace-pre-wrap text-sm text-gray-900">{person.favorite_notes}</p>
                 </div>
               )}
+              <PersonOwnerControl personId={person.id} ownerId={person.owner_id} onUpdated={fetchData} />
               <div>
                 <span className="text-sm text-gray-500">Role</span>
                 <p className="text-sm text-gray-900">{person.role || '-'}</p>

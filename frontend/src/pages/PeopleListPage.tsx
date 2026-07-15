@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useWorkspaceStore } from '../stores/workspaceStore'
-import { exportsApi, peopleApi, pipelineStagesApi, tagsApi } from '../api/httpClient'
+import { exportsApi, peopleApi, pipelineStagesApi, tagsApi, workspaceMembersApi } from '../api/httpClient'
 import { downloadCsvBlob } from '../api/csvDownload'
 import { Button } from '../components/common/Button'
 import { Input } from '../components/common/Input'
@@ -42,6 +42,7 @@ interface Person {
   next_action_type: string | null
   next_action_date: string | null
   tags: { id: string; name: string; color: string | null }[]
+  owner_id: string | null
 }
 
 type SortOrder = 'asc' | 'desc'
@@ -65,6 +66,7 @@ interface PeopleFilters {
   stage: string
   priority: string
   tagId: string
+  ownerId: string
   deleted: boolean
 }
 
@@ -82,6 +84,7 @@ const emptyFilters: PeopleFilters = {
   stage: '',
   priority: '',
   tagId: '',
+  ownerId: '',
   deleted: false,
 }
 
@@ -157,6 +160,7 @@ export function PeopleListPage() {
   const [savedViewsRefreshTrigger, setSavedViewsRefreshTrigger] = useState(0)
   const [pipelineStages, setPipelineStages] = useState<any[]>([])
   const [availableTags, setAvailableTags] = useState<Person['tags']>([])
+  const [members, setMembers] = useState<{ user_id: string; email: string; display_name: string | null }[]>([])
   
   const [searchParams] = useSearchParams()
   const viewParam = searchParams.get('view')
@@ -225,16 +229,19 @@ export function PeopleListPage() {
       }
       if (filters.priority) params.priority = filters.priority
       if (filters.tagId) params.tag_id = filters.tagId
+      if (filters.ownerId) params.owner_id = filters.ownerId
       if (filters.deleted) params.deleted_only = 'true'
 
-      const [response, stagesResponse, tagsResponse] = await Promise.all([
+      const [response, stagesResponse, tagsResponse, membersResponse] = await Promise.all([
         peopleApi.list(params),
         pipelineStagesApi.list(currentWorkspace.id),
         tagsApi.list(currentWorkspace.id),
+        workspaceMembersApi.list(currentWorkspace.id),
       ])
       
       setPipelineStages(stagesResponse)
       setAvailableTags(tagsResponse)
+      setMembers(membersResponse)
       setPeople(response.items)
       setTotal(response.total)
       console.info('[NetworkPilot PeopleList]', 'People loaded', {
@@ -487,6 +494,18 @@ export function PeopleListPage() {
             value={filterDraft.tagId}
             onChange={(e) => setFilterDraft({ ...filterDraft, tagId: e.target.value })}
           />
+          <Select
+            label="Contact owner"
+            options={[
+              { value: '', label: 'All owners' },
+              ...members.map(member => ({
+                value: member.user_id,
+                label: member.display_name || member.email,
+              })),
+            ]}
+            value={filterDraft.ownerId}
+            onChange={(e) => setFilterDraft({ ...filterDraft, ownerId: e.target.value })}
+          />
           <div>
             <Select
               label="Priority"
@@ -685,6 +704,7 @@ export function PeopleListPage() {
             fetchPeople()
           }}
           pipelineStages={pipelineStages}
+          members={members}
         />
       )}
 

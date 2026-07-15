@@ -11,17 +11,49 @@ from app.models.user import AppUser
 from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.workspaces import (
     WorkspaceCreate,
+    WorkspaceMemberDirectoryEntry,
+    WorkspaceMemberResponse,
+    WorkspaceMemberUpdate,
     WorkspaceResponse,
     WorkspaceUpdate,
-    WorkspaceMemberUpdate,
-    WorkspaceMemberResponse,
 )
-from app.services.workspace_service import require_workspace_owner
+from app.services.workspace_service import require_workspace_access, require_workspace_owner
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
 router = APIRouter()
 logger = get_logger(__name__)
+
+
+@router.get(
+    "/{workspace_id}/members",
+    response_model=list[WorkspaceMemberDirectoryEntry],
+)
+async def list_workspace_members(
+    workspace_id: uuid.UUID,
+    _workspace=Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """List active members available for ownership and assignment."""
+    result = await db.execute(
+        select(WorkspaceMember, AppUser)
+        .join(AppUser, AppUser.id == WorkspaceMember.user_id)
+        .where(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.deleted_at.is_(None),
+            AppUser.deleted_at.is_(None),
+        )
+        .order_by(AppUser.display_name.asc().nullslast(), AppUser.email.asc())
+    )
+    return [
+        WorkspaceMemberDirectoryEntry(
+            user_id=member.user_id,
+            email=user.email,
+            display_name=user.display_name,
+            role=member.role,
+        )
+        for member, user in result.all()
+    ]
 
 
 @router.get("", response_model=list[WorkspaceResponse])

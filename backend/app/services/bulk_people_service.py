@@ -11,6 +11,7 @@ from app.models.activity import Activity
 from app.models.person import Person
 from app.models.pipeline_stage import PipelineStage
 from app.models.tag import Tag
+from app.models.workspace import WorkspaceMember
 from app.schemas.people import BulkPeopleActionRequest
 
 _module_logger = logging.getLogger(__name__)
@@ -36,6 +37,7 @@ class BulkPeopleService:
         ordered_people = await self._load_people(workspace_id, data.person_ids)
         computed_tags = await self._compute_tags(workspace_id, ordered_people, data)
         resolved_stage = await self._resolve_stage(workspace_id, data)
+        await self._validate_owner(workspace_id, data)
         await self._validate_stage_transitions(workspace_id, ordered_people, resolved_stage)
         for person in ordered_people:
             self._apply_to_person(person, actor_user_id, data, computed_tags, resolved_stage)
@@ -48,6 +50,23 @@ class BulkPeopleService:
             len(ordered_people),
         )
         return ordered_people
+
+    async def _validate_owner(
+        self,
+        workspace_id: uuid.UUID,
+        data: BulkPeopleActionRequest,
+    ) -> None:
+        if data.action != "set_owner" or data.payload.owner_id is None:
+            return
+        result = await self.db.execute(
+            select(WorkspaceMember).where(
+                WorkspaceMember.workspace_id == workspace_id,
+                WorkspaceMember.user_id == data.payload.owner_id,
+                WorkspaceMember.deleted_at.is_(None),
+            )
+        )
+        if result.scalar_one_or_none() is None:
+            raise ValidationError("Owner must be an active member of this workspace.")
 
     async def _load_people(
         self, workspace_id: uuid.UUID, person_ids: list[uuid.UUID]
@@ -177,6 +196,8 @@ class BulkPeopleService:
         elif data.action == "set_next_action":
             person.next_action_type = data.payload.next_action_type
             person.next_action_date = data.payload.next_action_date
+        elif data.action == "set_owner":
+            person.owner_id = data.payload.owner_id
 
     def _set_stage(
         self,
