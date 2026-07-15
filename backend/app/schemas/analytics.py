@@ -1,3 +1,4 @@
+from datetime import date
 import uuid
 from typing import Literal
 
@@ -18,12 +19,15 @@ class FunnelMetrics(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class TemplatePerformance(BaseModel):
-    template_id: uuid.UUID
-    template_name: str
+class PerformanceBreakdown(BaseModel):
+    dimension: str
+    dimension_key: str
+    dimension_label: str
     sent_count: int = 0
     reply_count: int = 0
     reply_rate: float = 0.0
+    date_from: date | None = None
+    date_to: date | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

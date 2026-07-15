@@ -452,7 +452,10 @@ export const savedViewsApi = {
 // Analytics API
 export const analyticsApi = {
   getFunnel: (workspaceId: string) => request<any>(`/workspaces/${workspaceId}/analytics/funnel`),
-  getPerformance: (workspaceId: string) => request<any[]>(`/workspaces/${workspaceId}/analytics/performance`),
+  getPerformance: (workspaceId: string, params?: Record<string, string>) => {
+    const query = new URLSearchParams(params).toString()
+    return request<any[]>(`/workspaces/${workspaceId}/analytics/performance${query ? `?${query}` : ''}`)
+  },
   getGoals: (workspaceId: string) => request<any>(`/workspaces/${workspaceId}/analytics/goals`),
   exportCsv: (workspaceId: string) => requestBlob(`/workspaces/${workspaceId}/analytics/export`),
 }

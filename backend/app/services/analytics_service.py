@@ -2,16 +2,18 @@ import csv
 import io
 import logging
 import uuid
-from datetime import date, datetime, timedelta
+from collections import defaultdict
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Sequence
 
-from sqlalchemy import case, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.activity import Activity
 from app.models.person import Person
 from app.models.template import MessageTemplate
 from app.models.workspace import WorkspaceMember
+from app.schemas.analytics import FunnelMetrics, PerformanceBreakdown, WeeklyGoalProgress
 from app.schemas.analytics import (
     FunnelMetrics,
     FunnelStageMetrics,
@@ -103,53 +105,127 @@ class AnalyticsService:
         return round((numerator / denominator) * 100, 2)
 
     async def get_template_performance(
-        self, workspace_id: uuid.UUID
-    ) -> Sequence[TemplatePerformance]:
-        """Calculate performance metrics for each template."""
-        # A simple heuristic: Count how many times a template was used
-        # and how many of those people are currently in the 'replied' stage.
-        stmt = (
-            select(
-                MessageTemplate.id,
-                MessageTemplate.name,
-                func.count(Activity.id).label("sent_count"),
-                func.count(
-                    case(
-                        (Person.stage == "replied", 1),
-                        else_=None,
-                    )
-                ).label("reply_count"),
-            )
-            .join(Activity, Activity.template_id == MessageTemplate.id)
+        self,
+        workspace_id: uuid.UUID,
+        *,
+        group_by: str = "template",
+        date_from: date | None = None,
+        date_to: date | None = None,
+        attribution_days: int = 30,
+    ) -> Sequence[PerformanceBreakdown]:
+        """Attribute each reply to the latest eligible send for the same person."""
+        send_query = (
+            select(Activity, Person, MessageTemplate)
             .join(Person, Person.id == Activity.person_id)
+            .outerjoin(MessageTemplate, MessageTemplate.id == Activity.template_id)
             .where(
-                MessageTemplate.workspace_id == workspace_id,
-                MessageTemplate.deleted_at.is_(None),
+                Activity.workspace_id == workspace_id,
+                Activity.action_type.in_(["message_sent", "follow_up_1_sent"]),
                 Activity.deleted_at.is_(None),
+                Person.workspace_id == workspace_id,
+                Person.deleted_at.is_(None),
             )
-            .group_by(MessageTemplate.id)
+            .order_by(Activity.created_at)
         )
-
-        results = await self.db.execute(stmt)
-        rows = results.all()
-
-        performance = []
-        for row in rows:
-            template_id, name, sent_count, reply_count = row
-            rate = 0.0
-            if sent_count > 0:
-                rate = round((reply_count / sent_count) * 100, 2)
-            performance.append(
-                TemplatePerformance(
-                    template_id=template_id,
-                    template_name=name,
-                    sent_count=sent_count,
-                    reply_count=reply_count,
-                    reply_rate=rate,
-                )
+        if date_from:
+            send_query = send_query.where(
+                Activity.created_at >= datetime.combine(date_from, time.min, tzinfo=timezone.utc)
             )
+        if date_to:
+            send_query = send_query.where(
+                Activity.created_at <= datetime.combine(date_to, time.max, tzinfo=timezone.utc)
+            )
+        send_rows = (await self.db.execute(send_query)).all()
+        if not send_rows:
+            return []
 
-        return performance
+        sends_by_person: dict[uuid.UUID, list[Activity]] = defaultdict(list)
+        send_context: dict[uuid.UUID, tuple[Activity, Person, MessageTemplate | None]] = {}
+        for activity, person, template in send_rows:
+            sends_by_person[activity.person_id].append(activity)
+            send_context[activity.id] = (activity, person, template)
+
+        first_sent = min(self._as_utc(row[0].created_at) for row in send_rows)
+        last_sent = max(self._as_utc(row[0].created_at) for row in send_rows)
+        replies = (
+            await self.db.scalars(
+                select(Activity)
+                .where(
+                    Activity.workspace_id == workspace_id,
+                    Activity.person_id.in_(sends_by_person),
+                    Activity.action_type == "reply_received",
+                    Activity.deleted_at.is_(None),
+                    Activity.created_at >= first_sent,
+                    Activity.created_at <= last_sent + timedelta(days=attribution_days),
+                )
+                .order_by(Activity.created_at)
+            )
+        ).all()
+        credited_send_ids: set[uuid.UUID] = set()
+        for reply in replies:
+            reply_at = self._as_utc(reply.created_at)
+            candidates = [
+                send
+                for send in sends_by_person[reply.person_id]
+                if self._as_utc(send.created_at) <= reply_at
+                and reply_at - self._as_utc(send.created_at) <= timedelta(days=attribution_days)
+            ]
+            if candidates:
+                latest_send = max(candidates, key=lambda item: self._as_utc(item.created_at))
+                credited_send_ids.add(latest_send.id)
+
+        grouped: dict[tuple[str, str], dict[str, int]] = defaultdict(
+            lambda: {"sent": 0, "replied": 0}
+        )
+        for send, person, template in send_rows:
+            key, label = self._performance_dimension(group_by, send, person, template)
+            grouped[(key, label)]["sent"] += 1
+            if send.id in credited_send_ids:
+                grouped[(key, label)]["replied"] += 1
+
+        return [
+            PerformanceBreakdown(
+                dimension=group_by,
+                dimension_key=key,
+                dimension_label=label,
+                sent_count=counts["sent"],
+                reply_count=counts["replied"],
+                reply_rate=round((counts["replied"] / counts["sent"]) * 100, 2),
+                date_from=date_from,
+                date_to=date_to,
+            )
+            for (key, label), counts in sorted(grouped.items(), key=lambda item: item[0][1])
+        ]
+
+    @staticmethod
+    def _performance_dimension(
+        group_by: str,
+        activity: Activity,
+        person: Person,
+        template: MessageTemplate | None,
+    ) -> tuple[str, str]:
+        if group_by == "template":
+            return (
+                str(template.id) if template else "untemplated",
+                template.name if template else "No template",
+            )
+        if group_by == "stage":
+            value = activity.previous_stage or "unknown"
+        elif group_by == "company":
+            value = person.company or "Unknown company"
+        elif group_by == "position":
+            value = person.role or "Unknown position"
+        else:
+            week_start = AnalyticsService._as_utc(activity.created_at).date()
+            week_start -= timedelta(days=week_start.weekday())
+            value = week_start.isoformat()
+        return value, value.replace("_", " ").title() if group_by == "stage" else value
+
+    @staticmethod
+    def _as_utc(value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
 
     async def get_weekly_goal_progress(
         self, workspace_id: uuid.UUID, user_id: uuid.UUID
@@ -211,13 +287,11 @@ class AnalyticsService:
             )
         writer.writerow([])
 
-        writer.writerow(["Template Performance"])
-        writer.writerow(
-            ["Template ID", "Template Name", "Sent Count", "Reply Count", "Reply Rate (%)"]
-        )
+        writer.writerow(["Follow-up Performance"])
+        writer.writerow(["Group Key", "Group Label", "Sent Count", "Reply Count", "Reply Rate (%)"])
         for p in performance:
             writer.writerow(
-                [str(p.template_id), p.template_name, p.sent_count, p.reply_count, p.reply_rate]
+                [p.dimension_key, p.dimension_label, p.sent_count, p.reply_count, p.reply_rate]
             )
 
         return output.getvalue()
