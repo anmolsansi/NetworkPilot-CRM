@@ -70,6 +70,7 @@ export function ActivityTimeline({
     next_steps: '',
   })
   const [uploadingId, setUploadingId] = useState<string | null>(null)
+  const [deletedActivityId, setDeletedActivityId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const handleTogglePin = async (activity: Activity) => {
@@ -86,9 +87,21 @@ export function ActivityTimeline({
     if (!currentWorkspace || !window.confirm('Are you sure you want to delete this activity?')) return
     try {
       await activitiesApi.delete(activity.id, currentWorkspace.id)
+      setDeletedActivityId(activity.id)
       onRefresh?.()
     } catch (err) {
       console.error('Failed to delete activity', err)
+    }
+  }
+
+  const handleRestore = async () => {
+    if (!currentWorkspace || !deletedActivityId) return
+    try {
+      await activitiesApi.restore(deletedActivityId, currentWorkspace.id)
+      setDeletedActivityId(null)
+      onRefresh?.()
+    } catch (err) {
+      console.error('Failed to restore activity', err)
     }
   }
 
@@ -150,53 +163,16 @@ export function ActivityTimeline({
   }
 
   return (
-    <div>
-      {onFiltersChange && (
-        <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Select
-            label="Activity type"
-            options={[
-              { value: '', label: 'All activity types' },
-              { value: 'invite_sent', label: 'Invite sent' },
-              { value: 'accepted', label: 'Accepted' },
-              { value: 'message_sent', label: 'Message sent' },
-              { value: 'follow_up_1_sent', label: 'Follow-up 1 sent' },
-              { value: 'follow_up_2_sent', label: 'Follow-up 2 sent' },
-              { value: 'reply_received', label: 'Reply received' },
-            ]}
-            value={filters.action_type}
-            onChange={(event) => onFiltersChange({ ...filters, action_type: event.target.value })}
-          />
-          <Select
-            label="Activity source"
-            options={[
-              { value: '', label: 'All sources' },
-              { value: 'web_app', label: 'Web app' },
-              { value: 'chrome_extension', label: 'Chrome extension' },
-              { value: 'csv_import', label: 'CSV import' },
-              { value: 'system', label: 'System' },
-            ]}
-            value={filters.source}
-            onChange={(event) => onFiltersChange({ ...filters, source: event.target.value })}
-          />
-          <Input
-            label="Activity from"
-            type="date"
-            value={filters.created_from}
-            onChange={(event) => onFiltersChange({ ...filters, created_from: event.target.value })}
-          />
-          <Input
-            label="Activity to"
-            type="date"
-            value={filters.created_to}
-            onChange={(event) => onFiltersChange({ ...filters, created_to: event.target.value })}
-          />
+    <div className="flow-root">
+      {deletedActivityId && (
+        <div className="mb-4 flex items-center justify-between rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <span>Activity deleted.</span>
+          <button className="font-medium underline" onClick={handleRestore}>Undo</button>
         </div>
       )}
       {activities.length === 0 ? (
-        <p className="py-4 text-center text-sm text-gray-500">No activities match these filters.</p>
+        <p className="text-sm text-gray-500 text-center py-4">No activities yet</p>
       ) : (
-      <div className="flow-root">
       <ul className="-mb-8">
         {activities.map((activity, idx) => (
           <li key={activity.id}>
@@ -340,7 +316,6 @@ export function ActivityTimeline({
           </li>
         ))}
       </ul>
-      </div>
       )}
     </div>
   )

@@ -112,6 +112,8 @@ class PersonResponse(BaseModel):
     owner_id: uuid.UUID | None = None
     manual_warmth: int | None = None
     calculated_freshness: int | None = None
+    engagement_score: int = 0
+    relationship_health: str = "cold"
     last_engaged_at: datetime | None = None
     created_at: datetime
     updated_at: datetime

@@ -19,6 +19,7 @@ from app.models.task import Task
 from app.models.workspace import Workspace
 from app.schemas.imports import ImportCommitRequest, ImportCommitRow
 from app.services.csv_import_service import CsvImportService
+from app.services.relationship_service import RelationshipService
 
 logging.basicConfig(
     stream=sys.stdout,
@@ -240,6 +241,29 @@ async def process_background_job(db: AsyncSession, job: BackgroundJob):
                     )
                 )
             job.status = "completed"
+        except Exception as e:
+            job.status = "failed"
+            job.error_log = str(e)
+    elif job.job_type == "relationship_health_refresh":
+        try:
+            now_utc = datetime.now(timezone.utc)
+            refreshed = await RelationshipService(db).refresh_workspace(
+                job.workspace_id, now=now_utc
+            )
+            db.add(
+                BackgroundJob(
+                    workspace_id=job.workspace_id,
+                    job_type="relationship_health_refresh",
+                    status="pending",
+                    run_at=now_utc + timedelta(days=1),
+                )
+            )
+            job.status = "completed"
+            logger.info(
+                "relationship_health.refreshed workspace_id=%s people=%s",
+                job.workspace_id,
+                refreshed,
+            )
         except Exception as e:
             job.status = "failed"
             job.error_log = str(e)

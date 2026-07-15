@@ -119,6 +119,7 @@ async def update_activity(
         data=data,
     )
 
+
 @router.delete("/activities/{activity_id}", status_code=204)
 async def delete_activity(
     activity_id: uuid.UUID,
@@ -137,6 +138,19 @@ async def delete_activity(
             await db.delete(attachment)
     await service.soft_delete(workspace_id=workspace_id, activity_id=activity_id)
     return Response(status_code=204)
+
+
+@router.post("/activities/{activity_id}/restore", response_model=ActivityResponse)
+async def restore_activity(
+    activity_id: uuid.UUID,
+    workspace_id: uuid.UUID = Query(...),
+    _workspace: Depends = Depends(require_workspace_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """Restore a soft-deleted activity."""
+    return await ActivityService(db).restore(workspace_id, activity_id)
+
+
 @router.post("/activities/{activity_id}/attachments", response_model=AttachmentResponse)
 async def upload_attachment(
     activity_id: uuid.UUID,

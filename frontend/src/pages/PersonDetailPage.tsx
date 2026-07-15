@@ -41,6 +41,8 @@ interface Person {
   custom_fields_data: Record<string, any> | null
   manual_warmth: number | null
   calculated_freshness: number | null
+  engagement_score: number
+  relationship_health: string
   last_engaged_at: string | null
   owner_id: string | null
 }
@@ -493,13 +495,17 @@ export function PersonDetailPage() {
                 <p className="text-sm text-gray-900">{person.last_engaged_at ? new Date(person.last_engaged_at).toLocaleString() : 'Never'}</p>
               </div>
               <div className="flex flex-col space-y-1">
-                <span className="text-sm text-gray-500">Relationship Strength</span>
+                <span className="text-sm text-gray-500">Relationship health</span>
+                <Badge variant={person.relationship_health === 'strong' ? 'success' : person.relationship_health === 'healthy' ? 'primary' : person.relationship_health === 'needs_attention' ? 'warning' : 'default'}>
+                  {person.relationship_health.replace(/_/g, ' ')}
+                </Badge>
                 <div className="flex items-center space-x-2">
                   <div className="flex-1 bg-gray-200 rounded-full h-2.5 max-w-[150px]">
                     <div className="bg-primary-600 h-2.5 rounded-full" style={{ width: `${person.calculated_freshness || 0}%` }}></div>
                   </div>
                   <span className="text-xs text-gray-600">{person.calculated_freshness || 0}/100</span>
                 </div>
+                <span className="text-xs text-gray-600">Engagement: {person.engagement_score}/100</span>
                 {person.manual_warmth && (
                   <span className="text-xs text-amber-600 font-medium">Overridden (Manual: {person.manual_warmth}/5)</span>
                 )}

@@ -346,6 +346,8 @@ export const activitiesApi = {
     request<any>(`/activities/${activityId}?workspace_id=${workspaceId}`, { method: 'PATCH', body: JSON.stringify(data) }),
   delete: (activityId: string, workspaceId: string) =>
     request<void>(`/activities/${activityId}?workspace_id=${workspaceId}`, { method: 'DELETE' }),
+  restore: (activityId: string, workspaceId: string) =>
+    request<any>(`/activities/${activityId}/restore?workspace_id=${workspaceId}`, { method: 'POST' }),
   uploadAttachment: (activityId: string, file: File, workspaceId: string) => {
     const formData = new FormData()
     formData.append('file', file)
