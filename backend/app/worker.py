@@ -59,9 +59,11 @@ async def process_job(db: AsyncSession, job: ImportJob):
             default_initial_action_type=job.default_initial_action_type,
             default_priority=job.default_priority,
         )
-        valid_rows = [row for row in preview_rows if row.status == "valid"]
+        committable_rows = [
+            row for row in preview_rows if row.status in {"valid", "update"}
+        ]
         for row_error in preview_rows:
-            if row_error.status == "valid":
+            if row_error.status in {"valid", "update"}:
                 continue
             payload = row_error.model_dump(mode="json")
             payload["row"] = offset + payload["row_number"]
@@ -69,14 +71,14 @@ async def process_job(db: AsyncSession, job: ImportJob):
                 payload["errors"] = ["Duplicate LinkedIn profile URL"]
             errors.append(payload)
 
-        if valid_rows:
+        if committable_rows:
             request = ImportCommitRequest(
                 workspace_id=job.workspace_id,
                 default_initial_action_type=job.default_initial_action_type,
                 duplicate_strategy=job.duplicate_strategy,
                 default_priority=job.default_priority,
                 provided_headers=provided_headers,
-                rows=[ImportCommitRow(**row.model_dump()) for row in valid_rows],
+                rows=[ImportCommitRow(**row.model_dump()) for row in committable_rows],
                 chunk_index=chunk_index,
                 total_chunks=total_chunks,
             )
