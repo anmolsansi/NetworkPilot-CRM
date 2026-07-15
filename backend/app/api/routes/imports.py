@@ -66,10 +66,13 @@ async def commit_people_import(
         raise HTTPException(status_code=400, detail="File must be UTF-8 encoded")
 
     service = CsvImportService(db)
-    rows = service._parse_csv(content)
+    rows, _provided_headers = service._parse_csv(content)
     service._validate_defaults(default_initial_action_type, default_priority)
-    if duplicate_strategy != "skip":
-        raise HTTPException(status_code=422, detail="Only skip duplicate strategy is supported")
+    if duplicate_strategy not in {"skip", "update"}:
+        raise HTTPException(
+            status_code=422,
+            detail="Only skip or update duplicate strategies are supported",
+        )
 
     job = ImportJob(
         workspace_id=workspace_id,

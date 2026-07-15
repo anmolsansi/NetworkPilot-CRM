@@ -12,10 +12,11 @@ from app.schemas.activities import (
     ActivityCreate,
     ActivityResponse,
     ActivityUpdate,
+    AttachmentDownloadResponse,
     AttachmentResponse,
 )
 from app.services.activity_service import ActivityService
-from app.services.storage_service import StorageService
+from app.services.storage_service import DOWNLOAD_URL_TTL_SECONDS, StorageService
 from app.services.workspace_service import require_workspace_access
 
 _module_logger = logging.getLogger(__name__)
@@ -115,9 +116,7 @@ async def update_activity(
     return await service.update(
         workspace_id=workspace_id,
         activity_id=activity_id,
-        is_pinned=data.is_pinned,
-        message=data.message,
-        notes=data.notes,
+        data=data,
     )
 
 @router.delete("/activities/{activity_id}", status_code=204)
@@ -129,6 +128,13 @@ async def delete_activity(
 ):
     """Soft delete an activity."""
     service = ActivityService(db)
+    activity = await service.get_attachment_activity(workspace_id, activity_id)
+    if activity.attachments:
+        storage_service = StorageService()
+        for attachment in activity.attachments:
+            await storage_service.delete_file(attachment.storage_path)
+        for attachment in activity.attachments:
+            await db.delete(attachment)
     await service.soft_delete(workspace_id=workspace_id, activity_id=activity_id)
     return Response(status_code=204)
 @router.post("/activities/{activity_id}/attachments", response_model=AttachmentResponse)
