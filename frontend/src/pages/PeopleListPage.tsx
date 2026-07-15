@@ -445,7 +445,7 @@ export function PeopleListPage() {
           <div className="md:col-span-2">
             <Input
               label="Search"
-              placeholder="Search by name, company, role, email, or location..."
+              placeholder="Search profiles, notes, activities, tags, contact details, or dates..."
               value={filterDraft.search}
               onChange={(e) => setFilterDraft({ ...filterDraft, search: e.target.value })}
             />
