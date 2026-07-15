@@ -47,6 +47,11 @@ class AttachmentResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class AttachmentDownloadResponse(BaseModel):
+    url: str
+    expires_in: int
+
+
 class ActivityResponse(BaseModel):
     id: uuid.UUID
     person_id: uuid.UUID

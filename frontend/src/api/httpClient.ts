@@ -352,6 +352,14 @@ export const activitiesApi = {
       body: formData,
     })
   },
+  getAttachmentDownloadUrl: (attachmentId: string, workspaceId: string) =>
+    request<{ url: string; expires_in: number }>(
+      `/attachments/${attachmentId}/download-url?workspace_id=${workspaceId}`,
+    ),
+  deleteAttachment: (attachmentId: string, workspaceId: string) =>
+    request<void>(`/attachments/${attachmentId}?workspace_id=${workspaceId}`, {
+      method: 'DELETE',
+    }),
 }
 
 export const tasksApi = {

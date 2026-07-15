@@ -9,6 +9,7 @@ export interface Attachment {
   id: string
   file_name: string
   file_size: number
+  content_type: string
 }
 
 export interface Activity {
@@ -109,6 +110,25 @@ export function ActivityTimeline({ activities, onRefresh }: { activities: Activi
     }
   }
 
+  const handleAttachmentDownload = async (attachment: Attachment) => {
+    if (!currentWorkspace) return
+    const { url } = await activitiesApi.getAttachmentDownloadUrl(
+      attachment.id,
+      currentWorkspace.id,
+    )
+    const link = document.createElement('a')
+    link.href = url
+    link.download = attachment.file_name
+    link.rel = 'noopener noreferrer'
+    link.click()
+  }
+
+  const handleAttachmentDelete = async (attachment: Attachment) => {
+    if (!currentWorkspace || !window.confirm(`Delete ${attachment.file_name}?`)) return
+    await activitiesApi.deleteAttachment(attachment.id, currentWorkspace.id)
+    onRefresh?.()
+  }
+
   return (
     <div className="flow-root">
       <ul className="-mb-8">
@@ -191,8 +211,12 @@ export function ActivityTimeline({ activities, onRefresh }: { activities: Activi
                     {activity.attachments && activity.attachments.length > 0 && (
                       <div className="mt-2 flex flex-col gap-1">
                         {activity.attachments.map(att => (
-                          <div key={att.id} className="text-xs text-gray-500 flex items-center gap-1 bg-gray-50 p-1.5 rounded w-fit border border-gray-100">
-                            📎 {att.file_name} <span className="text-gray-400">({Math.round(att.file_size / 1024)} KB)</span>
+                          <div key={att.id} className="text-xs text-gray-500 flex items-center gap-2 bg-gray-50 p-1.5 rounded w-fit border border-gray-100">
+                            <button className="text-primary-600 hover:underline" onClick={() => handleAttachmentDownload(att)}>
+                              📎 {att.file_name}
+                            </button>
+                            <span className="text-gray-400">({Math.round(att.file_size / 1024)} KB)</span>
+                            <button className="text-red-500" aria-label={`Delete ${att.file_name}`} onClick={() => handleAttachmentDelete(att)}>×</button>
                           </div>
                         ))}
                       </div>
