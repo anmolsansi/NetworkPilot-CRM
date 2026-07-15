@@ -2,6 +2,8 @@ import { useState, useRef } from 'react'
 import { Badge } from '../common/Badge'
 import { Button } from '../common/Button'
 import { Textarea } from '../common/Textarea'
+import { Input } from '../common/Input'
+import { Select } from '../common/Select'
 import { activitiesApi } from '../../api/httpClient'
 import { useWorkspaceStore } from '../../stores/workspaceStore'
 
@@ -34,7 +36,31 @@ const sourceVariant = {
   system: 'default',
 } as const
 
-export function ActivityTimeline({ activities, onRefresh }: { activities: Activity[], onRefresh?: () => void }) {
+export interface ActivityFilters {
+  action_type: string
+  source: string
+  created_from: string
+  created_to: string
+}
+
+const emptyActivityFilters: ActivityFilters = {
+  action_type: '',
+  source: '',
+  created_from: '',
+  created_to: '',
+}
+
+export function ActivityTimeline({
+  activities,
+  onRefresh,
+  filters = emptyActivityFilters,
+  onFiltersChange,
+}: {
+  activities: Activity[]
+  onRefresh?: () => void
+  filters?: ActivityFilters
+  onFiltersChange?: (filters: ActivityFilters) => void
+}) {
   const { currentWorkspace } = useWorkspaceStore()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDetails, setEditDetails] = useState({
@@ -45,12 +71,6 @@ export function ActivityTimeline({ activities, onRefresh }: { activities: Activi
   })
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-
-  if (activities.length === 0) {
-    return (
-      <p className="text-sm text-gray-500 text-center py-4">No activities yet</p>
-    )
-  }
 
   const handleTogglePin = async (activity: Activity) => {
     if (!currentWorkspace) return
@@ -130,7 +150,53 @@ export function ActivityTimeline({ activities, onRefresh }: { activities: Activi
   }
 
   return (
-    <div className="flow-root">
+    <div>
+      {onFiltersChange && (
+        <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Select
+            label="Activity type"
+            options={[
+              { value: '', label: 'All activity types' },
+              { value: 'invite_sent', label: 'Invite sent' },
+              { value: 'accepted', label: 'Accepted' },
+              { value: 'message_sent', label: 'Message sent' },
+              { value: 'follow_up_1_sent', label: 'Follow-up 1 sent' },
+              { value: 'follow_up_2_sent', label: 'Follow-up 2 sent' },
+              { value: 'reply_received', label: 'Reply received' },
+            ]}
+            value={filters.action_type}
+            onChange={(event) => onFiltersChange({ ...filters, action_type: event.target.value })}
+          />
+          <Select
+            label="Activity source"
+            options={[
+              { value: '', label: 'All sources' },
+              { value: 'web_app', label: 'Web app' },
+              { value: 'chrome_extension', label: 'Chrome extension' },
+              { value: 'csv_import', label: 'CSV import' },
+              { value: 'system', label: 'System' },
+            ]}
+            value={filters.source}
+            onChange={(event) => onFiltersChange({ ...filters, source: event.target.value })}
+          />
+          <Input
+            label="Activity from"
+            type="date"
+            value={filters.created_from}
+            onChange={(event) => onFiltersChange({ ...filters, created_from: event.target.value })}
+          />
+          <Input
+            label="Activity to"
+            type="date"
+            value={filters.created_to}
+            onChange={(event) => onFiltersChange({ ...filters, created_to: event.target.value })}
+          />
+        </div>
+      )}
+      {activities.length === 0 ? (
+        <p className="py-4 text-center text-sm text-gray-500">No activities match these filters.</p>
+      ) : (
+      <div className="flow-root">
       <ul className="-mb-8">
         {activities.map((activity, idx) => (
           <li key={activity.id}>
@@ -274,6 +340,8 @@ export function ActivityTimeline({ activities, onRefresh }: { activities: Activi
           </li>
         ))}
       </ul>
+      </div>
+      )}
     </div>
   )
 }

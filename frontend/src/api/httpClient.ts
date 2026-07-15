@@ -336,8 +336,10 @@ export const exportsApi = {
 }
 
 export const activitiesApi = {
-  list: (personId: string, workspaceId: string) =>
-    request<any[]>(`/people/${personId}/activities?workspace_id=${workspaceId}`),
+  list: (personId: string, workspaceId: string, params: Record<string, string> = {}) => {
+    const query = new URLSearchParams({ workspace_id: workspaceId, ...params }).toString()
+    return request<any[]>(`/people/${personId}/activities?${query}`)
+  },
   create: (personId: string, data: any, workspaceId: string) =>
     request<any>(`/people/${personId}/activities?workspace_id=${workspaceId}`, { method: 'POST', body: JSON.stringify(data) }),
   update: (activityId: string, data: any, workspaceId: string) =>

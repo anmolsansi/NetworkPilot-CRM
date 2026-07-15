@@ -1,6 +1,6 @@
 import logging
 import uuid
-from datetime import date
+from datetime import date, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -97,6 +97,7 @@ class ActivityService:
             outcome=data.outcome,
             next_steps=data.next_steps,
             template_id=data.template_id,
+            attachments=[],
         )
         self.db.add(activity)
 
@@ -132,6 +133,11 @@ class ActivityService:
         person_id: uuid.UUID,
         limit: int = 50,
         offset: int = 0,
+        *,
+        action_type: str | None = None,
+        source: str | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
     ) -> list[Activity]:
         """List activities for a person in newest-first order."""
         _module_logger.info(
@@ -157,12 +163,22 @@ class ActivityService:
             )
             raise NotFoundError("Person", str(person_id))
 
+        query = select(Activity).where(
+            Activity.workspace_id == workspace_id,
+            Activity.person_id == person_id,
+            Activity.deleted_at.is_(None),
+        )
+        if action_type:
+            query = query.where(Activity.action_type == action_type)
+        if source:
+            query = query.where(Activity.source == source)
+        if created_from:
+            query = query.where(Activity.created_at >= created_from)
+        if created_to:
+            query = query.where(Activity.created_at <= created_to)
+
         result = await self.db.execute(
-            select(Activity)
-            .where(
-                Activity.person_id == person_id,
-                Activity.deleted_at.is_(None)
-            )
+            query
             .order_by(Activity.is_pinned.desc(), Activity.created_at.desc())
             .offset(offset)
             .limit(limit)
