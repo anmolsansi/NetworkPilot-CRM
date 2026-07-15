@@ -2,9 +2,11 @@ import csv
 import io
 import logging
 import uuid
+from datetime import datetime, time, timedelta, timezone
 from collections import defaultdict
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Sequence
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +14,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.activity import Activity
 from app.models.person import Person
 from app.models.template import MessageTemplate
+from app.models.workspace import Workspace, WorkspaceMember
+from app.schemas.analytics import (
+    FunnelMetrics,
+    GoalMetricProgress,
 from app.models.workspace import WorkspaceMember
 from app.schemas.analytics import FunnelMetrics, PerformanceBreakdown, WeeklyGoalProgress
 from app.schemas.analytics import (
@@ -240,30 +246,74 @@ class AnalyticsService:
             )
         ).scalar_one_or_none()
 
-        target = member.weekly_outreach_target if member else 50
+        workspace = await self.db.scalar(select(Workspace).where(Workspace.id == workspace_id))
+        zone = ZoneInfo(workspace.timezone)
+        local_now = datetime.now(timezone.utc).astimezone(zone)
+        week_start_date = local_now.date() - timedelta(days=local_now.weekday())
+        local_start = datetime.combine(week_start_date, time.min, tzinfo=zone)
+        local_end = local_start + timedelta(days=7)
+        period_start = local_start.astimezone(timezone.utc)
+        period_end = local_end.astimezone(timezone.utc)
 
-        # Calculate start of the current week (Monday)
-        today = date.today()
-        start_of_week = today - timedelta(days=today.weekday())
-        start_datetime = datetime.combine(start_of_week, datetime.min.time())
-
-        # Count activities (e.g., messages sent) this week by this user
-        count_stmt = select(func.count(Activity.id)).where(
-            Activity.actor_id == user_id,
-            Activity.created_at >= start_datetime,
-            Activity.deleted_at.is_(None),
-            Activity.activity_type.in_(["message_sent", "connection_sent", "email_sent"]),
+        targets = member.weekly_goals if member else {}
+        defaults = {
+            "profiles_added": 25,
+            "invitations_sent": 50,
+            "follow_ups_sent": 25,
+            "replies_received": 10,
+        }
+        targets = {**defaults, **(targets or {})}
+        profiles_added = await self.db.scalar(
+            select(func.count(Person.id)).where(
+                Person.workspace_id == workspace_id,
+                Person.deleted_at.is_(None),
+                Person.created_at >= period_start,
+                Person.created_at < period_end,
+            )
         )
-        current = (await self.db.execute(count_stmt)).scalar() or 0
-
-        percentage = 0.0
-        if target > 0:
-            percentage = min(100.0, round((current / target) * 100, 2))
-
+        activity_rows = (
+            await self.db.execute(
+                select(Activity.action_type, func.count(Activity.id))
+                .where(
+                    Activity.workspace_id == workspace_id,
+                    Activity.deleted_at.is_(None),
+                    Activity.created_at >= period_start,
+                    Activity.created_at < period_end,
+                )
+                .group_by(Activity.action_type)
+            )
+        ).all()
+        activity_counts = dict(activity_rows)
+        current = {
+            "profiles_added": int(profiles_added or 0),
+            "invitations_sent": activity_counts.get("invite_sent", 0),
+            "follow_ups_sent": activity_counts.get("follow_up_1_sent", 0),
+            "replies_received": activity_counts.get("reply_received", 0),
+        }
+        labels = {
+            "profiles_added": "Profiles added",
+            "invitations_sent": "Invitations sent",
+            "follow_ups_sent": "Follow-ups sent",
+            "replies_received": "Replies received",
+        }
         return WeeklyGoalProgress(
-            target=target,
-            current=current,
-            percentage=percentage,
+            timezone=workspace.timezone,
+            period_start=period_start,
+            period_end=period_end,
+            metrics=[
+                GoalMetricProgress(
+                    metric=metric,
+                    label=labels[metric],
+                    target=targets[metric],
+                    current=current[metric],
+                    percentage=(
+                        min(100.0, round((current[metric] / targets[metric]) * 100, 2))
+                        if targets[metric] > 0
+                        else 0.0
+                    ),
+                )
+                for metric in labels
+            ],
         )
 
     async def export_analytics_csv(self, workspace_id: uuid.UUID) -> str:
@@ -287,11 +337,13 @@ class AnalyticsService:
             )
         writer.writerow([])
 
-        writer.writerow(["Follow-up Performance"])
-        writer.writerow(["Group Key", "Group Label", "Sent Count", "Reply Count", "Reply Rate (%)"])
+        writer.writerow(["Template Performance"])
+        writer.writerow(
+            ["Template ID", "Template Name", "Sent Count", "Reply Count", "Reply Rate (%)"]
+        )
         for p in performance:
             writer.writerow(
-                [p.dimension_key, p.dimension_label, p.sent_count, p.reply_count, p.reply_rate]
+                [str(p.template_id), p.template_name, p.sent_count, p.reply_count, p.reply_rate]
             )
 
         return output.getvalue()

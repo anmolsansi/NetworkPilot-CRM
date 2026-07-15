@@ -75,6 +75,14 @@ class WorkspaceResponse(BaseModel):
 class WorkspaceMemberUpdate(BaseModel):
     dashboard_config: DashboardConfig | None = None
     weekly_outreach_target: int | None = None
+    weekly_goals: "WeeklyGoals | None" = None
+
+
+class WeeklyGoals(BaseModel):
+    profiles_added: int = Field(default=25, ge=0, le=10000)
+    invitations_sent: int = Field(default=50, ge=0, le=10000)
+    follow_ups_sent: int = Field(default=25, ge=0, le=10000)
+    replies_received: int = Field(default=10, ge=0, le=10000)
 
 
 class WorkspaceMemberResponse(BaseModel):
@@ -84,6 +92,7 @@ class WorkspaceMemberResponse(BaseModel):
     role: str
     dashboard_config: DashboardConfig
     weekly_outreach_target: int
+    weekly_goals: WeeklyGoals
     created_at: datetime
     updated_at: datetime
 

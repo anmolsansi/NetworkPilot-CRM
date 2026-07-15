@@ -76,6 +76,17 @@ class WorkspaceMember(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
     weekly_outreach_target: Mapped[int] = mapped_column(
         Integer, server_default="50", nullable=False
     )
+    weekly_goals: Mapped[dict] = mapped_column(
+        postgresql.JSONB(astext_type=Text()),
+        default=lambda: {
+            "profiles_added": 25,
+            "invitations_sent": 50,
+            "follow_ups_sent": 25,
+            "replies_received": 10,
+        },
+        server_default='{"profiles_added":25,"invitations_sent":50,"follow_ups_sent":25,"replies_received":10}',
+        nullable=False,
+    )
 
     # Relationships
     workspace: Mapped["Workspace"] = relationship("Workspace", back_populates="members")
