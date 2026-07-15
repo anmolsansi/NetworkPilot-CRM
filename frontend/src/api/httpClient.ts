@@ -395,6 +395,8 @@ export const dashboardApi = {
   },
   getTags: (workspaceId: string) =>
     request<any[]>(`/dashboard/tags?workspace_id=${workspaceId}`),
+  getWidgets: (workspaceId: string) =>
+    request<any>(`/dashboard/widgets?workspace_id=${workspaceId}&limit=20`),
 }
 
 // Templates API

@@ -18,7 +18,13 @@ class TestPhase3Completion:
         update_resp = await client.patch(
             f"/api/v1/workspaces/{workspace_id}/members/me",
             json={
-                "dashboard_config": {"widgets": ["funnel", "activity"]},
+                "dashboard_config": {
+                    "version": 1,
+                    "widgets": [
+                        {"id": "summary", "visible": True, "limit": 5},
+                        {"id": "due", "visible": True, "limit": 10},
+                    ],
+                },
                 "weekly_outreach_target": 75,
             },
             headers=mock_headers,
@@ -26,7 +32,11 @@ class TestPhase3Completion:
         assert update_resp.status_code == 200
         data = update_resp.json()
         assert data["weekly_outreach_target"] == 75
-        assert data["dashboard_config"] == {"widgets": ["funnel", "activity"]}
+        assert data["dashboard_config"]["version"] == 1
+        assert [widget["id"] for widget in data["dashboard_config"]["widgets"][:2]] == [
+            "summary",
+            "due",
+        ]
 
     async def test_analytics_funnel_and_performance(self, client: AsyncClient, mock_headers: dict):
         workspace_id = await self._workspace(client, mock_headers)
