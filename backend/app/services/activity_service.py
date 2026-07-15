@@ -10,7 +10,7 @@ from app.core.logging import mask_id
 from app.models.activity import Activity
 from app.models.person import Person
 from app.models.workspace import Workspace
-from app.schemas.activities import ActivityCreate
+from app.schemas.activities import ActivityCreate, ActivityUpdate
 from app.services.transition_service import calculate_transition
 
 _module_logger = logging.getLogger(__name__)
@@ -93,6 +93,9 @@ class ActivityService:
             new_stage=transition.new_stage,
             message=data.message,
             notes=data.notes,
+            interaction_summary=data.interaction_summary,
+            outcome=data.outcome,
+            next_steps=data.next_steps,
             template_id=data.template_id,
         )
         self.db.add(activity)
@@ -105,11 +108,12 @@ class ActivityService:
         person.next_action_date = transition.next_action_date
 
         await self.db.flush()
-        
+
         from app.services.relationship_service import RelationshipService
+
         relationship_service = RelationshipService(self.db)
         person = await relationship_service.recalculate_freshness(workspace_id, person_id)
-        
+
         _module_logger.info(
             "activity_service.create.completed "
             "workspace_id=%s person_id=%s activity_id=%s old_stage=%s new_stage=%s",
@@ -176,9 +180,7 @@ class ActivityService:
         self,
         workspace_id: uuid.UUID,
         activity_id: uuid.UUID,
-        is_pinned: bool | None = None,
-        message: str | None = None,
-        notes: str | None = None,
+        data: ActivityUpdate,
     ) -> Activity:
         """Update an existing activity."""
         result = await self.db.execute(
@@ -192,12 +194,8 @@ class ActivityService:
         if not activity:
             raise NotFoundError("Activity", str(activity_id))
 
-        if is_pinned is not None:
-            activity.is_pinned = is_pinned
-        if message is not None:
-            activity.message = message
-        if notes is not None:
-            activity.notes = notes
+        for field, value in data.model_dump(exclude_unset=True).items():
+            setattr(activity, field, value)
 
         await self.db.flush()
         return activity

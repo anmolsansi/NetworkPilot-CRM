@@ -11,6 +11,7 @@ import { ErrorAlert } from '../components/common/ErrorAlert'
 import { ActivityTimeline } from '../components/activities/ActivityTimeline'
 import { TagSelect } from '../components/people/TagSelect'
 import { PersonOwnerControl } from '../components/people/PersonOwnerControl'
+import { PersonTasksPanel } from '../components/tasks/PersonTasksPanel'
 
 interface Person {
   id: string
@@ -64,7 +65,12 @@ export function PersonDetailPage() {
   const [editForm, setEditForm] = useState({
     name: '', role: '', company: '', notes: '', is_favorite: false, favorite_notes: '', tag_ids: [] as string[], stage_id: '', custom_fields_data: {} as Record<string, any>, manual_warmth: null as number | null
   })
-  const [actionNote, setActionNote] = useState('')
+  const [actionDetails, setActionDetails] = useState({
+    notes: '',
+    interaction_summary: '',
+    outcome: '',
+    next_steps: '',
+  })
   const [deleted, setDeleted] = useState(false)
 
   const fetchData = useCallback(async () => {
@@ -160,9 +166,12 @@ export function PersonDetailPage() {
       await activitiesApi.create(id, {
         action_type: actionType,
         source: 'web_app',
-        notes: actionNote || undefined,
+        notes: actionDetails.notes || undefined,
+        interaction_summary: actionDetails.interaction_summary || undefined,
+        outcome: actionDetails.outcome || undefined,
+        next_steps: actionDetails.next_steps || undefined,
       }, currentWorkspace.id)
-      setActionNote('')
+      setActionDetails({ notes: '', interaction_summary: '', outcome: '', next_steps: '' })
       fetchData()
     } catch (err: any) {
       console.error('[NetworkPilot PersonDetail]', 'Failed to record quick action', {
@@ -542,12 +551,36 @@ export function PersonDetailPage() {
               <Button size="sm" onClick={() => handleQuickAction('follow_up_2_sent')}>Follow-up 2</Button>
               <Button size="sm" onClick={() => handleQuickAction('reply_received')}>Reply Received</Button>
             </div>
-            <Textarea
-              placeholder="Add a note to this action (optional)"
-              value={actionNote}
-              onChange={(e) => setActionNote(e.target.value)}
-              rows={2}
-            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Textarea
+                label="Notes"
+                placeholder="Free-form context (optional)"
+                value={actionDetails.notes}
+                onChange={(e) => setActionDetails({ ...actionDetails, notes: e.target.value })}
+                rows={2}
+              />
+              <Textarea
+                label="Interaction summary"
+                placeholder="What was discussed?"
+                value={actionDetails.interaction_summary}
+                onChange={(e) => setActionDetails({ ...actionDetails, interaction_summary: e.target.value })}
+                rows={2}
+              />
+              <Textarea
+                label="Outcome"
+                placeholder="What was decided or achieved?"
+                value={actionDetails.outcome}
+                onChange={(e) => setActionDetails({ ...actionDetails, outcome: e.target.value })}
+                rows={2}
+              />
+              <Textarea
+                label="Next steps"
+                placeholder="What should happen next?"
+                value={actionDetails.next_steps}
+                onChange={(e) => setActionDetails({ ...actionDetails, next_steps: e.target.value })}
+                rows={2}
+              />
+            </div>
           </div>
 
           {/* Activity Timeline */}
@@ -555,6 +588,8 @@ export function PersonDetailPage() {
             <h2 className="text-lg font-medium text-gray-900 mb-4">Activity Timeline</h2>
             <ActivityTimeline activities={activities} onRefresh={fetchData} />
           </div>
+
+          <PersonTasksPanel personId={id!} />
         </div>
       </div>
     </div>

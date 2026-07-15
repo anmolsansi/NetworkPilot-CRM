@@ -19,6 +19,9 @@ class ActivityCreate(BaseModel):
     source: str = Field(..., pattern=r"^(web_app|chrome_extension|system|csv_import)$")
     message: str | None = Field(None, max_length=5000)
     notes: str | None = Field(None, max_length=5000)
+    interaction_summary: str | None = Field(None, max_length=5000)
+    outcome: str | None = Field(None, max_length=5000)
+    next_steps: str | None = Field(None, max_length=5000)
     next_action_date: date | None = None
     next_action_type: str | None = None
     template_id: uuid.UUID | None = None
@@ -28,6 +31,9 @@ class ActivityUpdate(BaseModel):
     is_pinned: bool | None = None
     message: str | None = Field(None, max_length=5000)
     notes: str | None = Field(None, max_length=5000)
+    interaction_summary: str | None = Field(None, max_length=5000)
+    outcome: str | None = Field(None, max_length=5000)
+    next_steps: str | None = Field(None, max_length=5000)
 
 
 class AttachmentResponse(BaseModel):
@@ -52,6 +58,9 @@ class ActivityResponse(BaseModel):
     new_stage: str | None
     message: str | None
     notes: str | None
+    interaction_summary: str | None
+    outcome: str | None
+    next_steps: str | None
     is_pinned: bool
     created_at: datetime
     template_id: uuid.UUID | None = None
