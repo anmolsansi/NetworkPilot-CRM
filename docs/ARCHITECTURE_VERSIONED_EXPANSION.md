@@ -106,7 +106,7 @@ Blocked until the `v0.0.4` provider decision. Required job contract fields acros
 
 ## 8. File Storage
 
-Blocked until provider decision. Required invariants: private bucket/container, generated workspace-scoped keys, extension+MIME+size validation, short-lived signed downloads, no public raw PII, retention deletion, and workspace authorization before issuing download access.
+Cloudflare R2 is the selected provider. Attachment objects use a private bucket, generated workspace/activity-scoped keys, extension+MIME+signature+size validation, five-minute signed downloads, and authorized deletion. R2 credentials remain backend-only. A malware-scanning service is still required before broadening the attachment allowlist beyond the currently validated document, text, and image formats.
 
 ## 9. Integrations
 
@@ -168,4 +168,3 @@ Google Calendar, Gmail, Slack and Google Contacts require OAuth with minimum sco
 - Webhook verification and external retries — security-premium review required.
 - AI prompt privacy, injection and usage metering — security-premium review required.
 - Backup restore correctness — destructive-operation rehearsal and premium review required.
-

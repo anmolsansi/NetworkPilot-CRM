@@ -13,9 +13,9 @@ if TYPE_CHECKING:
     from app.models.activity import Activity
     from app.models.pipeline_stage import PipelineStage
     from app.models.tag import Tag
-    from app.models.workspace import Workspace
-    from app.models.user import AppUser
     from app.models.task import Task
+    from app.models.user import AppUser
+    from app.models.workspace import Workspace
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
@@ -68,6 +68,12 @@ class Person(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
     )
     manual_warmth: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     calculated_freshness: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    engagement_score: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0, server_default="0"
+    )
+    relationship_health: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="cold", server_default="cold"
+    )
     last_engaged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     stage_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -90,6 +96,4 @@ class Person(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
         "Activity", back_populates="person", lazy="raise"
     )
     owner: Mapped["AppUser | None"] = relationship("AppUser", lazy="selectin")
-    tasks: Mapped[list["Task"]] = relationship(
-        "Task", back_populates="person", lazy="raise"
-    )
+    tasks: Mapped[list["Task"]] = relationship("Task", back_populates="person", lazy="raise")

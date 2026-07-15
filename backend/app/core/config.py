@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str = ""
     JWT_SECRET: str = ""
 
+    # Cloudflare R2 private attachment storage
+    R2_ACCOUNT_ID: str = ""
+    R2_ACCESS_KEY_ID: str = ""
+    R2_SECRET_ACCESS_KEY: str = ""
+    R2_BUCKET_NAME: str = ""
+
     # Resend
     RESEND_API_KEY: str = ""
     RESEND_FROM_EMAIL: str = "onboarding@resend.dev"

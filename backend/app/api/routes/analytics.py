@@ -10,6 +10,7 @@ from app.api.deps import get_current_user, get_db
 from app.models.user import AppUser
 from app.schemas.analytics import FunnelMetrics, PerformanceBreakdown, WeeklyGoalProgress
 from app.services.analytics_service import AnalyticsService
+from app.services.workspace_service import require_workspace_access
 
 router = APIRouter()
 
@@ -19,6 +20,7 @@ async def get_funnel_metrics(
     workspace_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: AppUser = Depends(get_current_user),
+    _workspace=Depends(require_workspace_access),
 ) -> FunnelMetrics:
     """Get funnel metrics for a workspace."""
     service = AnalyticsService(db)
@@ -54,6 +56,7 @@ async def get_weekly_goal_progress(
     workspace_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: AppUser = Depends(get_current_user),
+    _workspace=Depends(require_workspace_access),
 ) -> WeeklyGoalProgress:
     """Get weekly goal progress for the current user."""
     service = AnalyticsService(db)
@@ -66,6 +69,7 @@ async def export_analytics(
     export_type: str = "funnel",
     db: AsyncSession = Depends(get_db),
     current_user: AppUser = Depends(get_current_user),
+    _workspace=Depends(require_workspace_access),
 ) -> Response:
     """Export analytics as CSV."""
     service = AnalyticsService(db)

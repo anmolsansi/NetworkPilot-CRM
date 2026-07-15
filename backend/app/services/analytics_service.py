@@ -14,6 +14,12 @@ from app.models.person import Person
 from app.models.template import MessageTemplate
 from app.models.workspace import WorkspaceMember
 from app.schemas.analytics import FunnelMetrics, PerformanceBreakdown, WeeklyGoalProgress
+from app.schemas.analytics import (
+    FunnelMetrics,
+    FunnelStageMetrics,
+    TemplatePerformance,
+    WeeklyGoalProgress,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,35 +29,80 @@ class AnalyticsService:
         self.db = db
 
     async def get_funnel_metrics(self, workspace_id: uuid.UUID) -> FunnelMetrics:
-        """Calculate high-level funnel metrics based on current Person stages."""
-        base_query = select(Person).where(
-            Person.workspace_id == workspace_id,
-            Person.deleted_at.is_(None),
-            Person.status == "active",
+        """Build a cumulative funnel from durable activity events."""
+        total_saved = await self.db.scalar(
+            select(func.count(Person.id)).where(
+                Person.workspace_id == workspace_id,
+                Person.deleted_at.is_(None),
+            )
         )
-
-        total_saved_query = select(func.count()).select_from(base_query.subquery())
-        contacted_query = select(func.count()).select_from(
-            base_query.where(Person.stage != "saved_for_later").subquery()
+        event_rows = await self.db.execute(
+            select(Activity.person_id, Activity.action_type)
+            .join(Person, Person.id == Activity.person_id)
+            .where(
+                Activity.workspace_id == workspace_id,
+                Activity.deleted_at.is_(None),
+                Person.workspace_id == workspace_id,
+                Person.deleted_at.is_(None),
+            )
+            .distinct()
         )
-        replied_query = select(func.count()).select_from(
-            base_query.where(Person.stage == "replied").subquery()
+        events_by_person: dict[uuid.UUID, set[str]] = {}
+        for person_id, action_type in event_rows:
+            events_by_person.setdefault(person_id, set()).add(action_type)
+
+        reached_actions = {
+            "invite_sent": {
+                "invite_sent",
+                "accepted",
+                "message_sent",
+                "follow_up_1_sent",
+                "reply_received",
+            },
+            "accepted": {
+                "accepted",
+                "message_sent",
+                "follow_up_1_sent",
+                "reply_received",
+            },
+            "messaged": {"message_sent", "follow_up_1_sent", "reply_received"},
+            "replied": {"reply_received"},
+        }
+        counts = {"saved": int(total_saved or 0)}
+        counts.update(
+            {
+                stage: sum(bool(events & actions) for events in events_by_person.values())
+                for stage, actions in reached_actions.items()
+            }
         )
+        labels = {
+            "saved": "Saved",
+            "invite_sent": "Invite sent",
+            "accepted": "Accepted",
+            "messaged": "Messaged",
+            "replied": "Replied",
+        }
+        ordered_stages = ["saved", "invite_sent", "accepted", "messaged", "replied"]
+        stages: list[FunnelStageMetrics] = []
+        for index, key in enumerate(ordered_stages):
+            count = counts[key]
+            previous_count = counts[ordered_stages[index - 1]] if index else count
+            stages.append(
+                FunnelStageMetrics(
+                    key=key,
+                    label=labels[key],
+                    count=count,
+                    conversion_from_previous=self._percentage(count, previous_count),
+                    conversion_from_saved=self._percentage(count, counts["saved"]),
+                )
+            )
+        return FunnelMetrics(stages=stages)
 
-        total_saved = (await self.db.execute(total_saved_query)).scalar() or 0
-        contacted = (await self.db.execute(contacted_query)).scalar() or 0
-        replied = (await self.db.execute(replied_query)).scalar() or 0
-
-        conversion_rate = 0.0
-        if contacted > 0:
-            conversion_rate = round((replied / contacted) * 100, 2)
-
-        return FunnelMetrics(
-            total_saved=total_saved,
-            contacted=contacted,
-            replied=replied,
-            conversion_rate=conversion_rate,
-        )
+    @staticmethod
+    def _percentage(numerator: int, denominator: int) -> float:
+        if denominator == 0:
+            return 0.0
+        return round((numerator / denominator) * 100, 2)
 
     async def get_template_performance(
         self,
@@ -224,10 +275,16 @@ class AnalyticsService:
         writer = csv.writer(output)
 
         writer.writerow(["Metric", "Value"])
-        writer.writerow(["Total Saved", funnel.total_saved])
-        writer.writerow(["Contacted", funnel.contacted])
-        writer.writerow(["Replied", funnel.replied])
-        writer.writerow(["Overall Conversion Rate (%)", funnel.conversion_rate])
+        writer.writerow(["Funnel Stage", "Count", "From Previous (%)", "From Saved (%)"])
+        for stage in funnel.stages:
+            writer.writerow(
+                [
+                    stage.label,
+                    stage.count,
+                    stage.conversion_from_previous,
+                    stage.conversion_from_saved,
+                ]
+            )
         writer.writerow([])
 
         writer.writerow(["Follow-up Performance"])

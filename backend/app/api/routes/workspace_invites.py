@@ -13,6 +13,7 @@ from app.schemas.workspace_invite import (
 )
 from app.schemas.workspaces import WorkspaceMemberResponse
 from app.services.workspace_invite_service import WorkspaceInviteService
+from app.services.workspace_service import require_workspace_owner
 
 router = APIRouter()
 
@@ -26,7 +27,7 @@ async def create_invite(
     workspace_id: uuid.UUID,
     data: WorkspaceInviteCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: AppUser = Depends(get_current_user),
+    _workspace=Depends(require_workspace_owner),
 ) -> WorkspaceInviteResponse:
     """Create a workspace invite and send an email."""
     service = WorkspaceInviteService(db)
@@ -40,7 +41,7 @@ async def create_invite(
 async def list_invites(
     workspace_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: AppUser = Depends(get_current_user),
+    _workspace=Depends(require_workspace_owner),
 ) -> Sequence[WorkspaceInviteResponse]:
     """List pending invites for a workspace."""
     service = WorkspaceInviteService(db)
@@ -55,7 +56,7 @@ async def revoke_invite(
     workspace_id: uuid.UUID,
     invite_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: AppUser = Depends(get_current_user),
+    _workspace=Depends(require_workspace_owner),
 ):
     """Revoke a workspace invite."""
     service = WorkspaceInviteService(db)

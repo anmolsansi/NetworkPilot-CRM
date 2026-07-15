@@ -1,7 +1,5 @@
-import uuid
-from datetime import datetime, timezone
-import pytest
 from httpx import AsyncClient
+
 
 class TestPhase3Completion:
     async def _workspace(self, client: AsyncClient, headers: dict) -> str:
@@ -15,15 +13,15 @@ class TestPhase3Completion:
 
     async def test_dashboard_config(self, client: AsyncClient, mock_headers: dict):
         workspace_id = await self._workspace(client, mock_headers)
-        
+
         # Update settings via me endpoint
         update_resp = await client.patch(
             f"/api/v1/workspaces/{workspace_id}/members/me",
             json={
                 "dashboard_config": {"widgets": ["funnel", "activity"]},
-                "weekly_outreach_target": 75
+                "weekly_outreach_target": 75,
             },
-            headers=mock_headers
+            headers=mock_headers,
         )
         assert update_resp.status_code == 200
         data = update_resp.json()
@@ -32,22 +30,24 @@ class TestPhase3Completion:
 
     async def test_analytics_funnel_and_performance(self, client: AsyncClient, mock_headers: dict):
         workspace_id = await self._workspace(client, mock_headers)
-        
+
         # Test funnel
         funnel_resp = await client.get(
-            f"/api/v1/workspaces/{workspace_id}/analytics/funnel",
-            headers=mock_headers
+            f"/api/v1/workspaces/{workspace_id}/analytics/funnel", headers=mock_headers
         )
         assert funnel_resp.status_code == 200
         data = funnel_resp.json()
-        assert "total_saved" in data
-        assert "contacted" in data
-        assert "replied" in data
+        assert [stage["key"] for stage in data["stages"]] == [
+            "saved",
+            "invite_sent",
+            "accepted",
+            "messaged",
+            "replied",
+        ]
 
         # Test performance
         perf_resp = await client.get(
-            f"/api/v1/workspaces/{workspace_id}/analytics/performance",
-            headers=mock_headers
+            f"/api/v1/workspaces/{workspace_id}/analytics/performance", headers=mock_headers
         )
         assert perf_resp.status_code == 200
         data = perf_resp.json()
@@ -55,12 +55,11 @@ class TestPhase3Completion:
 
     async def test_analytics_export(self, client: AsyncClient, mock_headers: dict):
         workspace_id = await self._workspace(client, mock_headers)
-        
+
         export_resp = await client.get(
-            f"/api/v1/workspaces/{workspace_id}/analytics/export.csv",
-            headers=mock_headers
+            f"/api/v1/workspaces/{workspace_id}/analytics/export.csv", headers=mock_headers
         )
         assert export_resp.status_code == 200
         assert export_resp.headers["content-type"] == "text/csv; charset=utf-8"
         content = export_resp.text
-        assert "Metric,Value" in content
+        assert "Funnel Stage,Count,From Previous (%),From Saved (%)" in content
