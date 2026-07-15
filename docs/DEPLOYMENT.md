@@ -88,8 +88,14 @@ See [SUPABASE_SETUP.md](SUPABASE_SETUP.md) for details.
 | `SUPABASE_ANON_KEY` | Supabase anonymous key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
 | `JWT_SECRET` | Supabase JWT secret |
+| `R2_ACCOUNT_ID` | Cloudflare account ID for the private attachment bucket |
+| `R2_ACCESS_KEY_ID` | Cloudflare R2 S3 API access key ID |
+| `R2_SECRET_ACCESS_KEY` | Cloudflare R2 S3 API secret access key |
+| `R2_BUCKET_NAME` | Private Cloudflare R2 bucket name |
 | `ENVIRONMENT` | `development` or `production` |
 | `CORS_ORIGINS` | Comma-separated allowed origins |
+
+Create a private Cloudflare R2 bucket before enabling attachments. Create an R2 API token scoped to object read/write for that bucket, then configure the four `R2_*` variables on the backend web service. Do not enable public bucket access; downloads are authorized by the API and use five-minute presigned URLs.
 
 ### Frontend
 | Variable | Description |

@@ -24,6 +24,11 @@ vi.mock('../api/httpClient', () => ({
   workspaceApi: {
     update: vi.fn(),
   },
+  workspaceMembersApi: {
+    list: vi.fn().mockResolvedValue([
+      { user_id: 'user-1', email: 'owner@example.com', display_name: 'Owner' },
+    ]),
+  },
   calendarApi: {
     getReminderLink: vi.fn(),
   },
@@ -95,12 +100,14 @@ describe('workspace-required pages', () => {
     fireEvent.change(screen.getByLabelText('Premium'), { target: { value: 'true' } })
     fireEvent.change(screen.getByLabelText('Favourite'), { target: { value: 'true' } })
     fireEvent.change(screen.getByLabelText('Favourite notes contain'), { target: { value: 'candidate' } })
+    fireEvent.change(screen.getByLabelText('Contact owner'), { target: { value: 'user-1' } })
     fireEvent.click(screen.getByRole('button', { name: 'Apply Filters' }))
     await waitFor(() => expect(peopleApi.list).toHaveBeenLastCalledWith(expect.objectContaining({
       company: 'Acme',
       premium: 'true',
       favorite: 'true',
       favorite_notes: 'candidate',
+      owner_id: 'user-1',
     })))
 
     fireEvent.click(screen.getByRole('button', { name: 'Sort by Company' }))

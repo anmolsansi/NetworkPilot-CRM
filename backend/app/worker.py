@@ -15,6 +15,7 @@ from app.models.background_job import BackgroundJob
 from app.models.import_job import ImportJob
 from app.models.notification import Notification
 from app.models.person import Person
+from app.models.task import Task
 from app.models.workspace import Workspace
 from app.schemas.imports import ImportCommitRequest, ImportCommitRow
 from app.services.csv_import_service import CsvImportService
@@ -59,9 +60,11 @@ async def process_job(db: AsyncSession, job: ImportJob):
             default_initial_action_type=job.default_initial_action_type,
             default_priority=job.default_priority,
         )
-        valid_rows = [row for row in preview_rows if row.status == "valid"]
+        committable_rows = [
+            row for row in preview_rows if row.status in {"valid", "update"}
+        ]
         for row_error in preview_rows:
-            if row_error.status == "valid":
+            if row_error.status in {"valid", "update"}:
                 continue
             payload = row_error.model_dump(mode="json")
             payload["row"] = offset + payload["row_number"]
@@ -69,14 +72,14 @@ async def process_job(db: AsyncSession, job: ImportJob):
                 payload["errors"] = ["Duplicate LinkedIn profile URL"]
             errors.append(payload)
 
-        if valid_rows:
+        if committable_rows:
             request = ImportCommitRequest(
                 workspace_id=job.workspace_id,
                 default_initial_action_type=job.default_initial_action_type,
                 duplicate_strategy=job.duplicate_strategy,
                 default_priority=job.default_priority,
                 provided_headers=provided_headers,
-                rows=[ImportCommitRow(**row.model_dump()) for row in valid_rows],
+                rows=[ImportCommitRow(**row.model_dump()) for row in committable_rows],
                 chunk_index=chunk_index,
                 total_chunks=total_chunks,
             )
@@ -138,6 +141,41 @@ async def process_background_job(db: AsyncSession, job: BackgroundJob):
             people = result.scalars().all()
 
             due_people = list(people)
+            task_result = await db.execute(
+                select(Task).where(
+                    Task.workspace_id == workspace_id,
+                    Task.status == "open",
+                    Task.due_date.is_not(None),
+                    Task.due_date <= today,
+                )
+            )
+            due_tasks = list(task_result.scalars().all())
+            tasks_by_user = {}
+            for task in due_tasks:
+                recipient_id = task.assigned_to or ws.owner_id
+                tasks_by_user.setdefault(recipient_id, []).append(task)
+
+            for recipient_id, recipient_tasks in tasks_by_user.items():
+                overdue_tasks = sum(task.due_date < today for task in recipient_tasks)
+                db.add(
+                    Notification(
+                        workspace_id=workspace_id,
+                        user_id=recipient_id,
+                        person_id=(
+                            recipient_tasks[0].person_id if len(recipient_tasks) == 1 else None
+                        ),
+                        notification_type="task_reminder",
+                        title=(
+                            f"{len(recipient_tasks)} task"
+                            f"{'s' if len(recipient_tasks) != 1 else ''} due"
+                        ),
+                        body=(
+                            f"{overdue_tasks} overdue and "
+                            f"{len(recipient_tasks) - overdue_tasks} due today."
+                        ),
+                    )
+                )
+
             if due_people:
                 overdue_count = sum(person.next_action_date < today for person in due_people)
                 db.add(

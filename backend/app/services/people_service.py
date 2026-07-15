@@ -4,12 +4,13 @@ import logging
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import Text, cast, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.logging import mask_id
+from app.models.activity import Activity
 from app.models.custom_field import CustomField
 from app.models.person import Person
 from app.models.pipeline_stage import PipelineStage
@@ -214,12 +215,35 @@ class PeopleService:
             query = query.where(
                 or_(
                     Person.name.ilike(search_pattern),
+                    Person.first_name.ilike(search_pattern),
+                    Person.last_name.ilike(search_pattern),
                     Person.company.ilike(search_pattern),
                     Person.role.ilike(search_pattern),
                     Person.email.ilike(search_pattern),
                     Person.location.ilike(search_pattern),
+                    Person.phone_number.ilike(search_pattern),
+                    Person.company_website.ilike(search_pattern),
+                    Person.favorite_notes.ilike(search_pattern),
                     Person.notes.ilike(search_pattern),
                     Person.connection_note.ilike(search_pattern),
+                    Person.stage.ilike(search_pattern),
+                    Person.status.ilike(search_pattern),
+                    Person.priority.ilike(search_pattern),
+                    cast(Person.custom_fields_data, Text).ilike(search_pattern),
+                    cast(Person.processed_at, Text).ilike(search_pattern),
+                    cast(Person.invite_accepted_at, Text).ilike(search_pattern),
+                    cast(Person.next_action_date, Text).ilike(search_pattern),
+                    cast(Person.last_action_date, Text).ilike(search_pattern),
+                    Person.tags.any(Tag.name.ilike(search_pattern)),
+                    exists().where(
+                        Activity.person_id == Person.id,
+                        Activity.workspace_id == workspace_id,
+                        Activity.deleted_at.is_(None),
+                        or_(
+                            Activity.message.ilike(search_pattern),
+                            Activity.notes.ilike(search_pattern),
+                        ),
+                    ),
                 )
             )
         if company:
