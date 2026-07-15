@@ -8,12 +8,16 @@ import { Skeleton } from '../components/common/Skeleton'
 import { Button } from '../components/common/Button'
 import { logError, maskId } from '../utils/logger'
 
+interface FunnelStageMetrics {
+  key: 'saved' | 'invite_sent' | 'accepted' | 'messaged' | 'replied'
+  label: string
+  count: number
+  conversion_from_previous: number
+  conversion_from_saved: number
+}
+
 interface FunnelMetrics {
-  total_saved: number
-  total_contacted: number
-  total_replied: number
-  contact_rate: number
-  reply_rate: number
+  stages: FunnelStageMetrics[]
 }
 
 interface TemplatePerformance {
@@ -153,25 +157,17 @@ export function AnalyticsPage() {
       {funnel && (
         <section>
           <h2 className="text-lg font-medium text-gray-900 mb-4">Outreach Funnel</h2>
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-            <div className="bg-white overflow-hidden shadow rounded-lg p-5 border-l-4 border-gray-400">
-              <dt className="text-sm font-medium text-gray-500 truncate">Total Saved</dt>
-              <dd className="mt-1 text-3xl font-semibold text-gray-900">{funnel.total_saved}</dd>
-            </div>
-            <div className="bg-white overflow-hidden shadow rounded-lg p-5 border-l-4 border-blue-500">
-              <dt className="text-sm font-medium text-gray-500 truncate">Contacted</dt>
-              <dd className="mt-1 flex items-baseline gap-2">
-                <span className="text-3xl font-semibold text-gray-900">{funnel.total_contacted}</span>
-                <span className="text-sm text-gray-500">({Math.round(funnel.contact_rate)}%)</span>
-              </dd>
-            </div>
-            <div className="bg-white overflow-hidden shadow rounded-lg p-5 border-l-4 border-green-500">
-              <dt className="text-sm font-medium text-gray-500 truncate">Replied</dt>
-              <dd className="mt-1 flex items-baseline gap-2">
-                <span className="text-3xl font-semibold text-gray-900">{funnel.total_replied}</span>
-                <span className="text-sm text-gray-500">({Math.round(funnel.reply_rate)}%)</span>
-              </dd>
-            </div>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-5">
+            {funnel.stages.map((stage, index) => (
+              <div key={stage.key} className="bg-white overflow-hidden shadow rounded-lg p-5 border-l-4 border-primary-500">
+                <dt className="text-sm font-medium text-gray-500 truncate">{stage.label}</dt>
+                <dd className="mt-1 text-3xl font-semibold text-gray-900">{stage.count}</dd>
+                <p className="mt-2 text-xs text-gray-500">
+                  {index === 0 ? 'Funnel baseline' : `${Math.round(stage.conversion_from_previous)}% from previous`}
+                </p>
+                <p className="text-xs text-gray-500">{Math.round(stage.conversion_from_saved)}% from saved</p>
+              </div>
+            ))}
           </div>
         </section>
       )}
