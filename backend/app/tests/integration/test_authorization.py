@@ -66,6 +66,20 @@ class TestCrossWorkspaceAuthorization:
         )
         assert resp.status_code == 403
 
+        # User B cannot read analytics or exported reports for Workspace A.
+        analytics_paths = (
+            "analytics/funnel",
+            "analytics/performance",
+            "analytics/goals",
+            "analytics/export.csv",
+        )
+        for path in analytics_paths:
+            resp = await client.get(
+                f"/api/v1/workspaces/{workspace_a_id}/{path}",
+                headers=user_b_headers,
+            )
+            assert resp.status_code == 403, path
+
         # User A creates a person in Workspace A
         resp = await client.post(
             f"/api/v1/people?workspace_id={workspace_a_id}",

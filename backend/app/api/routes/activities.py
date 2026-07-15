@@ -102,9 +102,7 @@ async def update_activity(
     return await service.update(
         workspace_id=workspace_id,
         activity_id=activity_id,
-        is_pinned=data.is_pinned,
-        message=data.message,
-        notes=data.notes,
+        data=data,
     )
 
 @router.delete("/activities/{activity_id}", status_code=204)

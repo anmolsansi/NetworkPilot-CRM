@@ -198,6 +198,7 @@ export const workspaceApi = {
 
 // Workspace Members API
 export const workspaceMembersApi = {
+  list: (workspaceId: string) => request<any[]>(`/workspaces/${workspaceId}/members`),
   getMe: (workspaceId: string) => request<any>(`/workspaces/${workspaceId}/members/me`),
   updateMe: (workspaceId: string, data: any) => request<any>(`/workspaces/${workspaceId}/members/me`, { method: 'PATCH', body: JSON.stringify(data) }),
 }
@@ -248,10 +249,15 @@ export const importsApi = {
     })
   },
 
-  commit: async (workspaceId: string, file: File): Promise<any> => {
+  commit: async (
+    workspaceId: string,
+    file: File,
+    duplicateStrategy: 'skip' | 'update' = 'skip',
+  ): Promise<any> => {
     const formData = new FormData()
     formData.append('workspace_id', workspaceId)
     formData.append('file', file)
+    formData.append('duplicate_strategy', duplicateStrategy)
     return request<any>('/imports/people/commit', {
       method: 'POST',
       body: formData,
@@ -354,6 +360,25 @@ export const activitiesApi = {
     request<void>(`/attachments/${attachmentId}?workspace_id=${workspaceId}`, {
       method: 'DELETE',
     }),
+}
+
+export const tasksApi = {
+  list: (workspaceId: string, params: Record<string, string> = {}) => {
+    const query = new URLSearchParams({ workspace_id: workspaceId, ...params }).toString()
+    return request<any>(`/tasks?${query}`)
+  },
+  create: (workspaceId: string, data: any) =>
+    request<any>(`/tasks?workspace_id=${workspaceId}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (workspaceId: string, taskId: string, data: any) =>
+    request<any>(`/tasks/${taskId}?workspace_id=${workspaceId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  delete: (workspaceId: string, taskId: string) =>
+    request<void>(`/tasks/${taskId}?workspace_id=${workspaceId}`, { method: 'DELETE' }),
 }
 
 // Dashboard API
