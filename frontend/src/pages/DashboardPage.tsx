@@ -18,16 +18,26 @@ interface DashboardSummary {
   active_total: number
 }
 
-interface DashboardConfig {
-  show_summary?: boolean
-  show_tags?: boolean
-  show_due?: boolean
+type WidgetId = 'summary' | 'tags' | 'due' | 'favourites' | 'newly_accepted' | 'stale_relationships' | 'overdue_tasks' | 'recent_imports'
+
+interface WidgetConfig {
+  id: WidgetId
+  visible: boolean
+  limit: number
+}
+
+interface DashboardConfig { version: 1; widgets: WidgetConfig[] }
+
+const WIDGET_LABELS: Record<WidgetId, string> = {
+  summary: 'Summary cards', tags: 'People by tag', due: 'Due follow-ups',
+  favourites: 'Favourite profiles', newly_accepted: 'Newly accepted contacts',
+  stale_relationships: 'Stale relationships', overdue_tasks: 'Overdue tasks',
+  recent_imports: 'Recent imports',
 }
 
 const DEFAULT_CONFIG: DashboardConfig = {
-  show_summary: true,
-  show_tags: true,
-  show_due: true,
+  version: 1,
+  widgets: (Object.keys(WIDGET_LABELS) as WidgetId[]).map((id) => ({ id, visible: true, limit: 5 })),
 }
 
 export function DashboardPage() {
@@ -35,6 +45,7 @@ export function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [duePeople, setDuePeople] = useState<any[]>([])
   const [tagSections, setTagSections] = useState<any[]>([])
+  const [widgets, setWidgets] = useState<any>({ favourites: [], newly_accepted: [], stale_relationships: [], overdue_tasks: [], recent_imports: [] })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [exporting, setExporting] = useState<string | null>(null)
@@ -59,17 +70,19 @@ export function DashboardPage() {
     setLoading(true)
     setError(null)
     try {
-      const [summaryData, dueData, tagData, memberData] = await Promise.all([
+      const [summaryData, dueData, tagData, widgetData, memberData] = await Promise.all([
         dashboardApi.getSummary(currentWorkspace.id),
         dashboardApi.getDue(currentWorkspace.id, { include_overdue: 'true' }),
         dashboardApi.getTags(currentWorkspace.id),
+        dashboardApi.getWidgets(currentWorkspace.id),
         workspaceMembersApi.getMe(currentWorkspace.id).catch(() => null),
       ])
       setSummary(summaryData)
       setDuePeople(dueData)
       setTagSections(tagData)
+      setWidgets(widgetData)
       if (memberData?.dashboard_config) {
-        setConfig({ ...DEFAULT_CONFIG, ...memberData.dashboard_config })
+        setConfig(memberData.dashboard_config.widgets ? memberData.dashboard_config : DEFAULT_CONFIG)
       }
       logInfo('DashboardPage', 'Dashboard data loaded', {
         workspaceId: maskId(currentWorkspace.id),
@@ -161,6 +174,52 @@ export function DashboardPage() {
     } finally {
       setSavingConfig(false)
     }
+  }
+
+  const updateWidget = (id: WidgetId, changes: Partial<WidgetConfig>) => {
+    setConfig({ ...config, widgets: config.widgets.map((widget) => widget.id === id ? { ...widget, ...changes } : widget) })
+  }
+
+  const moveWidget = (index: number, direction: -1 | 1) => {
+    const target = index + direction
+    if (target < 0 || target >= config.widgets.length) return
+    const next = [...config.widgets]
+    ;[next[index], next[target]] = [next[target], next[index]]
+    setConfig({ ...config, widgets: next })
+  }
+
+  const peopleWidget = (title: string, items: any[], limit: number, empty: string) => (
+    <section className="mt-8">
+      <h2 className="text-lg font-medium text-gray-900">{title}</h2>
+      {items.length === 0 ? <p className="mt-3 text-sm text-gray-500">{empty}</p> : (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {items.slice(0, limit).map((person: any) => (
+            <a key={person.id} href={`/people/${person.id}`} className="rounded-lg bg-white p-4 shadow">
+              <p className="font-medium text-gray-900">{person.name}</p>
+              <p className="text-sm text-gray-500">{[person.role, person.company].filter(Boolean).join(' at ') || person.stage.replace(/_/g, ' ')}</p>
+            </a>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+
+  const renderWidget = (widget: WidgetConfig) => {
+    if (!widget.visible) return null
+    if (widget.id === 'summary' && summary) return (
+      <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {[['Due Today', summary.due_today, 'text-primary-600'], ['Overdue', summary.overdue, 'text-red-600'], ['Waiting for Reply', summary.waiting_for_reply, 'text-yellow-600'], ['Active Total', summary.active_total, 'text-gray-900']].map(([label, value, color]) => (
+          <div key={String(label)} className="bg-white overflow-hidden shadow rounded-lg p-5"><dt className="text-sm font-medium text-gray-500 truncate">{label}</dt><dd className={`mt-1 text-3xl font-semibold ${color}`}>{value}</dd></div>
+        ))}
+      </div>
+    )
+    if (widget.id === 'tags') return tagSections.length > 0 ? <section className="mt-8"><h2 className="text-lg font-medium text-gray-900">People by tag</h2><div className="mt-3 flex flex-wrap gap-3">{tagSections.slice(0, widget.limit).map((tag: any) => <a key={tag.id} href={`/people?tag_id=${tag.id}`} className="rounded-lg border bg-white px-4 py-3 shadow-sm"><span className="rounded px-2 py-1 text-sm text-white" style={{ backgroundColor: tag.color || '#64748b' }}>{tag.name}</span><span className="ml-3 font-semibold text-gray-900">{tag.people_count}</span></a>)}</div></section> : null
+    if (widget.id === 'due') return <section className="mt-8"><h2 className="text-lg font-medium text-gray-900">Due Follow-ups</h2>{duePeople.length === 0 ? <EmptyState title="No due follow-ups" description="All caught up! No one needs follow-up right now." /> : <div className="mt-4 space-y-4">{duePeople.slice(0, widget.limit).map((person) => <DuePersonCard key={person.id} person={person} onUpdate={fetchData} />)}</div>}</section>
+    if (widget.id === 'favourites') return peopleWidget('Favourite profiles', widgets.favourites, widget.limit, 'No favourite profiles yet.')
+    if (widget.id === 'newly_accepted') return peopleWidget('Newly accepted contacts', widgets.newly_accepted, widget.limit, 'No contacts accepted in the last 14 days.')
+    if (widget.id === 'stale_relationships') return peopleWidget('Stale relationships', widgets.stale_relationships, widget.limit, 'No relationships are stale.')
+    if (widget.id === 'overdue_tasks') return <section className="mt-8"><h2 className="text-lg font-medium text-gray-900">Overdue tasks</h2><div className="mt-3 space-y-2">{widgets.overdue_tasks.slice(0, widget.limit).map((task: any) => <a key={task.id} href={`/people/${task.person_id}`} className="flex justify-between rounded-lg bg-white p-4 shadow"><span>{task.title} · {task.person_name}</span><span className="text-sm text-red-600">{task.due_date}</span></a>)}</div></section>
+    return <section className="mt-8"><h2 className="text-lg font-medium text-gray-900">Recent imports</h2><div className="mt-3 space-y-2">{widgets.recent_imports.slice(0, widget.limit).map((job: any) => <div key={job.id} className="flex justify-between rounded-lg bg-white p-4 shadow"><span>{job.file_name || 'CSV import'} · {job.total_rows} rows</span><span className="text-sm text-gray-500">{job.status}</span></div>)}</div></section>
   }
 
   if (loading && !summary) {
@@ -269,65 +328,7 @@ export function DashboardPage() {
         </Button>
       </div>
 
-      {/* Summary Cards */}
-      {config.show_summary !== false && summary && (
-        <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="bg-white overflow-hidden shadow rounded-lg p-5">
-            <dt className="text-sm font-medium text-gray-500 truncate">Due Today</dt>
-            <dd className="mt-1 text-3xl font-semibold text-primary-600">{summary.due_today}</dd>
-          </div>
-          <div className="bg-white overflow-hidden shadow rounded-lg p-5">
-            <dt className="text-sm font-medium text-gray-500 truncate">Overdue</dt>
-            <dd className="mt-1 text-3xl font-semibold text-red-600">{summary.overdue}</dd>
-          </div>
-          <div className="bg-white overflow-hidden shadow rounded-lg p-5">
-            <dt className="text-sm font-medium text-gray-500 truncate">Waiting for Reply</dt>
-            <dd className="mt-1 text-3xl font-semibold text-yellow-600">{summary.waiting_for_reply}</dd>
-          </div>
-          <div className="bg-white overflow-hidden shadow rounded-lg p-5">
-            <dt className="text-sm font-medium text-gray-500 truncate">Active Total</dt>
-            <dd className="mt-1 text-3xl font-semibold text-gray-900">{summary.active_total}</dd>
-          </div>
-        </div>
-      )}
-
-      {/* Tags Widget */}
-      {config.show_tags !== false && tagSections.length > 0 && (
-        <section className="mt-8">
-          <h2 className="text-lg font-medium text-gray-900">People by tag</h2>
-          <div className="mt-3 flex flex-wrap gap-3">
-            {tagSections.map(tag => (
-              <a
-                key={tag.id}
-                href={`/people?tag_id=${tag.id}`}
-                className="rounded-lg border bg-white px-4 py-3 shadow-sm"
-              >
-                <span className="rounded px-2 py-1 text-sm text-white" style={{ backgroundColor: tag.color || '#64748b' }}>{tag.name}</span>
-                <span className="ml-3 font-semibold text-gray-900">{tag.people_count}</span>
-              </a>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Due People List */}
-      {config.show_due !== false && (
-        <div className="mt-8">
-          <h2 className="text-lg font-medium text-gray-900">Due Follow-ups</h2>
-          {duePeople.length === 0 ? (
-            <EmptyState
-              title="No due follow-ups"
-              description="All caught up! No one needs follow-up right now."
-            />
-          ) : (
-            <div className="mt-4 space-y-4">
-              {duePeople.map((person) => (
-                <DuePersonCard key={person.id} person={person} onUpdate={fetchData} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {config.widgets.map((widget) => <div key={widget.id}>{renderWidget(widget)}</div>)}
 
       <Modal
         isOpen={isCustomizing}
@@ -335,37 +336,18 @@ export function DashboardPage() {
         title="Customize Dashboard"
       >
         <div className="space-y-4">
-          <p className="text-sm text-gray-500">Choose which widgets to display on your dashboard.</p>
-          
-          <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={config.show_summary !== false}
-              onChange={(e) => setConfig({ ...config, show_summary: e.target.checked })}
-              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600"
-            />
-            <span className="text-sm font-medium text-gray-900">Summary Cards</span>
-          </label>
-
-          <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={config.show_due !== false}
-              onChange={(e) => setConfig({ ...config, show_due: e.target.checked })}
-              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600"
-            />
-            <span className="text-sm font-medium text-gray-900">Due Follow-ups List</span>
-          </label>
-
-          <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={config.show_tags !== false}
-              onChange={(e) => setConfig({ ...config, show_tags: e.target.checked })}
-              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600"
-            />
-            <span className="text-sm font-medium text-gray-900">People by Tag Widget</span>
-          </label>
+          <p className="text-sm text-gray-500">Choose visibility, order, and item limits.</p>
+          {config.widgets.map((widget, index) => (
+            <div key={widget.id} className="flex flex-wrap items-center gap-3 rounded-md border p-3">
+              <label className="flex flex-1 items-center gap-3">
+                <input type="checkbox" checked={widget.visible} onChange={(event) => updateWidget(widget.id, { visible: event.target.checked })} className="h-4 w-4 rounded border-gray-300 text-primary-600" />
+                <span className="text-sm font-medium text-gray-900">{WIDGET_LABELS[widget.id]}</span>
+              </label>
+              <label className="text-xs text-gray-500">Items <input aria-label={`${WIDGET_LABELS[widget.id]} limit`} type="number" min="1" max="20" value={widget.limit} onChange={(event) => updateWidget(widget.id, { limit: Math.max(1, Math.min(20, Number(event.target.value))) })} className="ml-1 w-16 rounded border-gray-300" /></label>
+              <button type="button" aria-label={`Move ${WIDGET_LABELS[widget.id]} up`} disabled={index === 0} onClick={() => moveWidget(index, -1)}>↑</button>
+              <button type="button" aria-label={`Move ${WIDGET_LABELS[widget.id]} down`} disabled={index === config.widgets.length - 1} onClick={() => moveWidget(index, 1)}>↓</button>
+            </div>
+          ))}
 
           <div className="mt-6 flex justify-end gap-3">
             <Button variant="secondary" onClick={() => setIsCustomizing(false)}>

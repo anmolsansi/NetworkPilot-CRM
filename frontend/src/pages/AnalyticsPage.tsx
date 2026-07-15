@@ -8,19 +8,24 @@ import { Skeleton } from '../components/common/Skeleton'
 import { Button } from '../components/common/Button'
 import { logError, maskId } from '../utils/logger'
 
+interface FunnelStageMetrics {
+  key: 'saved' | 'invite_sent' | 'accepted' | 'messaged' | 'replied'
+  label: string
+  count: number
+  conversion_from_previous: number
+  conversion_from_saved: number
+}
+
 interface FunnelMetrics {
-  total_saved: number
-  total_contacted: number
-  total_replied: number
-  contact_rate: number
-  reply_rate: number
+  stages: FunnelStageMetrics[]
 }
 
 interface TemplatePerformance {
-  template_id: string
-  template_name: string
-  times_used: number
-  replies_received: number
+  dimension: string
+  dimension_key: string
+  dimension_label: string
+  sent_count: number
+  reply_count: number
   reply_rate: number
 }
 
@@ -39,6 +44,9 @@ export function AnalyticsPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [performanceGroup, setPerformanceGroup] = useState('template')
+  const [performanceFrom, setPerformanceFrom] = useState('')
+  const [performanceTo, setPerformanceTo] = useState('')
 
   const fetchData = useCallback(async () => {
     if (!currentWorkspace) return
@@ -48,7 +56,11 @@ export function AnalyticsPage() {
     try {
       const [funnelData, perfData, goalsData] = await Promise.all([
         analyticsApi.getFunnel(currentWorkspace.id),
-        analyticsApi.getPerformance(currentWorkspace.id),
+        analyticsApi.getPerformance(currentWorkspace.id, {
+          group_by: performanceGroup,
+          ...(performanceFrom ? { date_from: performanceFrom } : {}),
+          ...(performanceTo ? { date_to: performanceTo } : {}),
+        }),
         analyticsApi.getGoals(currentWorkspace.id),
       ])
       setFunnel(funnelData)
@@ -63,7 +75,7 @@ export function AnalyticsPage() {
     } finally {
       setLoading(false)
     }
-  }, [currentWorkspace])
+  }, [currentWorkspace, performanceFrom, performanceGroup, performanceTo])
 
   useEffect(() => {
     fetchData()
@@ -138,25 +150,17 @@ export function AnalyticsPage() {
       {funnel && (
         <section>
           <h2 className="text-lg font-medium text-gray-900 mb-4">Outreach Funnel</h2>
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-            <div className="bg-white overflow-hidden shadow rounded-lg p-5 border-l-4 border-gray-400">
-              <dt className="text-sm font-medium text-gray-500 truncate">Total Saved</dt>
-              <dd className="mt-1 text-3xl font-semibold text-gray-900">{funnel.total_saved}</dd>
-            </div>
-            <div className="bg-white overflow-hidden shadow rounded-lg p-5 border-l-4 border-blue-500">
-              <dt className="text-sm font-medium text-gray-500 truncate">Contacted</dt>
-              <dd className="mt-1 flex items-baseline gap-2">
-                <span className="text-3xl font-semibold text-gray-900">{funnel.total_contacted}</span>
-                <span className="text-sm text-gray-500">({Math.round(funnel.contact_rate)}%)</span>
-              </dd>
-            </div>
-            <div className="bg-white overflow-hidden shadow rounded-lg p-5 border-l-4 border-green-500">
-              <dt className="text-sm font-medium text-gray-500 truncate">Replied</dt>
-              <dd className="mt-1 flex items-baseline gap-2">
-                <span className="text-3xl font-semibold text-gray-900">{funnel.total_replied}</span>
-                <span className="text-sm text-gray-500">({Math.round(funnel.reply_rate)}%)</span>
-              </dd>
-            </div>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-5">
+            {funnel.stages.map((stage, index) => (
+              <div key={stage.key} className="bg-white overflow-hidden shadow rounded-lg p-5 border-l-4 border-primary-500">
+                <dt className="text-sm font-medium text-gray-500 truncate">{stage.label}</dt>
+                <dd className="mt-1 text-3xl font-semibold text-gray-900">{stage.count}</dd>
+                <p className="mt-2 text-xs text-gray-500">
+                  {index === 0 ? 'Funnel baseline' : `${Math.round(stage.conversion_from_previous)}% from previous`}
+                </p>
+                <p className="text-xs text-gray-500">{Math.round(stage.conversion_from_saved)}% from saved</p>
+              </div>
+            ))}
           </div>
         </section>
       )}
@@ -164,28 +168,42 @@ export function AnalyticsPage() {
       {/* Performance Table */}
       <section>
         <h2 className="text-lg font-medium text-gray-900 mb-4">Follow-up Performance</h2>
+        <div className="mb-4 grid gap-3 rounded-lg bg-white p-4 shadow sm:grid-cols-3">
+          <label className="text-sm text-gray-700">
+            Break down by
+            <select aria-label="Performance breakdown" value={performanceGroup} onChange={(event) => setPerformanceGroup(event.target.value)} className="mt-1 block w-full rounded-md border-gray-300">
+              <option value="template">Template</option>
+              <option value="stage">Pipeline stage</option>
+              <option value="company">Company</option>
+              <option value="position">Position</option>
+              <option value="week">Week</option>
+            </select>
+          </label>
+          <label className="text-sm text-gray-700">From<input aria-label="Performance from" type="date" value={performanceFrom} onChange={(event) => setPerformanceFrom(event.target.value)} className="mt-1 block w-full rounded-md border-gray-300" /></label>
+          <label className="text-sm text-gray-700">To<input aria-label="Performance to" type="date" value={performanceTo} onChange={(event) => setPerformanceTo(event.target.value)} className="mt-1 block w-full rounded-md border-gray-300" /></label>
+        </div>
         {performance.length > 0 ? (
           <div className="bg-white shadow overflow-hidden sm:rounded-lg">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Template</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Times Used</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Replies Received</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Group</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sends</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attributed replies</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reply Rate</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {performance.map((item) => (
-                  <tr key={item.template_id}>
+                  <tr key={item.dimension_key}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {item.template_name || 'Unknown Template'}
+                      {item.dimension_label}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.times_used}
+                      {item.sent_count}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.replies_received}
+                      {item.reply_count}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {Math.round(item.reply_rate)}%

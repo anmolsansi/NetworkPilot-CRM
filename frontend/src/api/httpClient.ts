@@ -198,6 +198,7 @@ export const workspaceApi = {
 
 // Workspace Members API
 export const workspaceMembersApi = {
+  list: (workspaceId: string) => request<any[]>(`/workspaces/${workspaceId}/members`),
   getMe: (workspaceId: string) => request<any>(`/workspaces/${workspaceId}/members/me`),
   updateMe: (workspaceId: string, data: any) => request<any>(`/workspaces/${workspaceId}/members/me`, { method: 'PATCH', body: JSON.stringify(data) }),
 }
@@ -248,10 +249,15 @@ export const importsApi = {
     })
   },
 
-  commit: async (workspaceId: string, file: File): Promise<any> => {
+  commit: async (
+    workspaceId: string,
+    file: File,
+    duplicateStrategy: 'skip' | 'update' = 'skip',
+  ): Promise<any> => {
     const formData = new FormData()
     formData.append('workspace_id', workspaceId)
     formData.append('file', file)
+    formData.append('duplicate_strategy', duplicateStrategy)
     return request<any>('/imports/people/commit', {
       method: 'POST',
       body: formData,
@@ -330,14 +336,18 @@ export const exportsApi = {
 }
 
 export const activitiesApi = {
-  list: (personId: string, workspaceId: string) =>
-    request<any[]>(`/people/${personId}/activities?workspace_id=${workspaceId}`),
+  list: (personId: string, workspaceId: string, params: Record<string, string> = {}) => {
+    const query = new URLSearchParams({ workspace_id: workspaceId, ...params }).toString()
+    return request<any[]>(`/people/${personId}/activities?${query}`)
+  },
   create: (personId: string, data: any, workspaceId: string) =>
     request<any>(`/people/${personId}/activities?workspace_id=${workspaceId}`, { method: 'POST', body: JSON.stringify(data) }),
   update: (activityId: string, data: any, workspaceId: string) =>
     request<any>(`/activities/${activityId}?workspace_id=${workspaceId}`, { method: 'PATCH', body: JSON.stringify(data) }),
   delete: (activityId: string, workspaceId: string) =>
     request<void>(`/activities/${activityId}?workspace_id=${workspaceId}`, { method: 'DELETE' }),
+  restore: (activityId: string, workspaceId: string) =>
+    request<any>(`/activities/${activityId}/restore?workspace_id=${workspaceId}`, { method: 'POST' }),
   uploadAttachment: (activityId: string, file: File, workspaceId: string) => {
     const formData = new FormData()
     formData.append('file', file)
@@ -346,6 +356,33 @@ export const activitiesApi = {
       body: formData,
     })
   },
+  getAttachmentDownloadUrl: (attachmentId: string, workspaceId: string) =>
+    request<{ url: string; expires_in: number }>(
+      `/attachments/${attachmentId}/download-url?workspace_id=${workspaceId}`,
+    ),
+  deleteAttachment: (attachmentId: string, workspaceId: string) =>
+    request<void>(`/attachments/${attachmentId}?workspace_id=${workspaceId}`, {
+      method: 'DELETE',
+    }),
+}
+
+export const tasksApi = {
+  list: (workspaceId: string, params: Record<string, string> = {}) => {
+    const query = new URLSearchParams({ workspace_id: workspaceId, ...params }).toString()
+    return request<any>(`/tasks?${query}`)
+  },
+  create: (workspaceId: string, data: any) =>
+    request<any>(`/tasks?workspace_id=${workspaceId}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (workspaceId: string, taskId: string, data: any) =>
+    request<any>(`/tasks/${taskId}?workspace_id=${workspaceId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  delete: (workspaceId: string, taskId: string) =>
+    request<void>(`/tasks/${taskId}?workspace_id=${workspaceId}`, { method: 'DELETE' }),
 }
 
 // Dashboard API
@@ -358,6 +395,8 @@ export const dashboardApi = {
   },
   getTags: (workspaceId: string) =>
     request<any[]>(`/dashboard/tags?workspace_id=${workspaceId}`),
+  getWidgets: (workspaceId: string) =>
+    request<any>(`/dashboard/widgets?workspace_id=${workspaceId}&limit=20`),
 }
 
 // Templates API
@@ -415,7 +454,10 @@ export const savedViewsApi = {
 // Analytics API
 export const analyticsApi = {
   getFunnel: (workspaceId: string) => request<any>(`/workspaces/${workspaceId}/analytics/funnel`),
-  getPerformance: (workspaceId: string) => request<any[]>(`/workspaces/${workspaceId}/analytics/performance`),
+  getPerformance: (workspaceId: string, params?: Record<string, string>) => {
+    const query = new URLSearchParams(params).toString()
+    return request<any[]>(`/workspaces/${workspaceId}/analytics/performance${query ? `?${query}` : ''}`)
+  },
   getGoals: (workspaceId: string) => request<any>(`/workspaces/${workspaceId}/analytics/goals`),
   exportCsv: (workspaceId: string) => requestBlob(`/workspaces/${workspaceId}/analytics/export`),
 }
