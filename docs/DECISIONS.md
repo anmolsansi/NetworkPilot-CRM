@@ -97,6 +97,15 @@
 **Decision**: Due follow-ups create durable in-app notifications; email is an optional delivery channel governed by workspace preferences and quiet hours.
 **Why**: A transient email-provider failure must not erase the underlying reminder.
 
+### 19. Version Completion Requires Four-Dimension Acceptance Evidence
+**Decision**: A version can be marked complete only after positive, negative, tenant-isolation,
+and populated-data API evidence passes together with its user-facing workflow evidence on the
+same integrated commit.
+**Why**: Route existence and empty-response smoke tests did not detect authorization gaps,
+frontend/backend contract drift, or populated-data crashes in v0.0.11-v0.0.23.
+**Follow-up**: Expected failures identify unmerged prerequisites but never count as release
+passes. Record the commit, environment, commands, and results in the release completion report.
+
 ## Future Considerations (V2+)
 
 - Gmail notification parsing

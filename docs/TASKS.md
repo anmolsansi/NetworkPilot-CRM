@@ -37,8 +37,24 @@ See `DEVELOPMENT_BACKLOG.md` for the full ticket list with dependencies.
 | v0.0.8 | Restore archived/deleted people | Complete |
 | v0.0.9 | Custom pipeline stages | Complete |
 | v0.0.10 | Custom fields | Complete |
+| v0.0.11 | Saved notes and interaction summaries | Pending PR #63 and combined acceptance run |
+| v0.0.12 | Tasks | Pending PR #64 and combined acceptance run |
+| v0.0.13 | Contact ownership | Pending PR #65 and combined acceptance run |
+| v0.0.14 | Bulk CSV editing | Pending PR #66 and browser acceptance evidence |
+| v0.0.15 | Advanced search | Pending PR #67 and frontend acceptance evidence |
+| v0.0.16 | Timeline improvements | Pending PRs #68-#69 and combined acceptance run |
+| v0.0.17 | Relationship strength | Pending PR #70 and combined acceptance run |
+| v0.0.18 | Outreach funnel | Pending PRs #61 and #71; tenant test currently expected-failing |
+| v0.0.19 | Follow-up performance | Pending PRs #61 and #72; tenant test currently expected-failing |
+| v0.0.20 | Dashboard widgets | Pending PR #73 and combined acceptance run |
+| v0.0.21 | Goals | Pending PRs #61 and #74; tenant test currently expected-failing |
+| v0.0.22 | Exportable reports | Pending PRs #61 and #75; tenant test currently expected-failing |
+| v0.0.23 | Workspace invitations | Pending PRs #62 and #76; tenant test currently expected-failing |
 
-Release tags remain pending until migrations are applied in staging and browser QA is recorded.
+Detailed acceptance evidence and merge prerequisites are recorded in
+`releases/v0.0.11-v0.0.23-COMPLETION.md`. Release tags remain pending until the
+individual remediation PRs are merged, migrations are applied in staging, all
+expected failures become passes, and authenticated browser QA is recorded.
 
 *Note: The broad V1 implementation is marked as incomplete until the extension authentication, workspace contract, cross-workspace tests, and verifiable QA evidence are fully corrected and recorded.*
 
