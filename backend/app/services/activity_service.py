@@ -1,6 +1,6 @@
 import logging
 import uuid
-from datetime import date
+from datetime import date, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +10,8 @@ from app.core.logging import mask_id
 from app.models.activity import Activity
 from app.models.person import Person
 from app.models.workspace import Workspace
-from app.schemas.activities import ActivityCreate
+from app.schemas.activities import ActivityCreate, ActivityUpdate
+from app.services.relationship_service import RelationshipService
 from app.services.transition_service import calculate_transition
 
 _module_logger = logging.getLogger(__name__)
@@ -93,7 +94,11 @@ class ActivityService:
             new_stage=transition.new_stage,
             message=data.message,
             notes=data.notes,
+            interaction_summary=data.interaction_summary,
+            outcome=data.outcome,
+            next_steps=data.next_steps,
             template_id=data.template_id,
+            attachments=[],
         )
         self.db.add(activity)
 
@@ -105,11 +110,10 @@ class ActivityService:
         person.next_action_date = transition.next_action_date
 
         await self.db.flush()
-        
-        from app.services.relationship_service import RelationshipService
+
         relationship_service = RelationshipService(self.db)
         person = await relationship_service.recalculate_freshness(workspace_id, person_id)
-        
+
         _module_logger.info(
             "activity_service.create.completed "
             "workspace_id=%s person_id=%s activity_id=%s old_stage=%s new_stage=%s",
@@ -128,6 +132,11 @@ class ActivityService:
         person_id: uuid.UUID,
         limit: int = 50,
         offset: int = 0,
+        *,
+        action_type: str | None = None,
+        source: str | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
     ) -> list[Activity]:
         """List activities for a person in newest-first order."""
         _module_logger.info(
@@ -153,13 +162,22 @@ class ActivityService:
             )
             raise NotFoundError("Person", str(person_id))
 
+        query = select(Activity).where(
+            Activity.workspace_id == workspace_id,
+            Activity.person_id == person_id,
+            Activity.deleted_at.is_(None),
+        )
+        if action_type:
+            query = query.where(Activity.action_type == action_type)
+        if source:
+            query = query.where(Activity.source == source)
+        if created_from:
+            query = query.where(Activity.created_at >= created_from)
+        if created_to:
+            query = query.where(Activity.created_at <= created_to)
+
         result = await self.db.execute(
-            select(Activity)
-            .where(
-                Activity.person_id == person_id,
-                Activity.deleted_at.is_(None)
-            )
-            .order_by(Activity.is_pinned.desc(), Activity.created_at.desc())
+            query.order_by(Activity.is_pinned.desc(), Activity.created_at.desc())
             .offset(offset)
             .limit(limit)
         )
@@ -176,28 +194,22 @@ class ActivityService:
         self,
         workspace_id: uuid.UUID,
         activity_id: uuid.UUID,
-        is_pinned: bool | None = None,
-        message: str | None = None,
-        notes: str | None = None,
+        data: ActivityUpdate,
     ) -> Activity:
         """Update an existing activity."""
         result = await self.db.execute(
             select(Activity).where(
                 Activity.id == activity_id,
                 Activity.workspace_id == workspace_id,
-                Activity.deleted_at.is_(None)
+                Activity.deleted_at.is_(None),
             )
         )
         activity = result.scalar_one_or_none()
         if not activity:
             raise NotFoundError("Activity", str(activity_id))
 
-        if is_pinned is not None:
-            activity.is_pinned = is_pinned
-        if message is not None:
-            activity.message = message
-        if notes is not None:
-            activity.notes = notes
+        for field, value in data.model_dump(exclude_unset=True).items():
+            setattr(activity, field, value)
 
         await self.db.flush()
         return activity
@@ -205,11 +217,12 @@ class ActivityService:
     async def soft_delete(self, workspace_id: uuid.UUID, activity_id: uuid.UUID) -> None:
         """Soft delete an activity."""
         from datetime import datetime, timezone
+
         result = await self.db.execute(
             select(Activity).where(
                 Activity.id == activity_id,
                 Activity.workspace_id == workspace_id,
-                Activity.deleted_at.is_(None)
+                Activity.deleted_at.is_(None),
             )
         )
         activity = result.scalar_one_or_none()
@@ -218,6 +231,26 @@ class ActivityService:
 
         activity.deleted_at = datetime.now(timezone.utc)
         await self.db.flush()
+        await RelationshipService(self.db).recalculate_freshness(workspace_id, activity.person_id)
+
+    async def restore(self, workspace_id: uuid.UUID, activity_id: uuid.UUID) -> Activity:
+        """Restore a soft-deleted activity and refresh relationship indicators."""
+        activity = (
+            await self.db.execute(
+                select(Activity).where(
+                    Activity.id == activity_id,
+                    Activity.workspace_id == workspace_id,
+                    Activity.deleted_at.is_not(None),
+                )
+            )
+        ).scalar_one_or_none()
+        if not activity:
+            raise NotFoundError("Activity", str(activity_id))
+
+        activity.deleted_at = None
+        await self.db.flush()
+        await RelationshipService(self.db).recalculate_freshness(workspace_id, activity.person_id)
+        return activity
 
     async def add_attachment(
         self,
@@ -230,17 +263,19 @@ class ActivityService:
     ):
         """Add an attachment record for an activity."""
         from app.models.attachment import Attachment
+
         result = await self.db.execute(
             select(Activity).where(
                 Activity.id == activity_id,
                 Activity.workspace_id == workspace_id,
-                Activity.deleted_at.is_(None)
+                Activity.deleted_at.is_(None),
             )
         )
         activity = result.scalar_one_or_none()
         if not activity:
             raise NotFoundError("Activity", str(activity_id))
 
+        await self.get_attachment_activity(workspace_id, activity_id)
         attachment = Attachment(
             workspace_id=workspace_id,
             activity_id=activity_id,
@@ -252,3 +287,50 @@ class ActivityService:
         self.db.add(attachment)
         await self.db.flush()
         return attachment
+
+    async def get_attachment_activity(
+        self,
+        workspace_id: uuid.UUID,
+        activity_id: uuid.UUID,
+    ) -> Activity:
+        result = await self.db.execute(
+            select(Activity).where(
+                Activity.id == activity_id,
+                Activity.workspace_id == workspace_id,
+                Activity.deleted_at.is_(None),
+            )
+        )
+        activity = result.scalar_one_or_none()
+        if not activity:
+            raise NotFoundError("Activity", str(activity_id))
+        return activity
+
+    async def get_attachment(
+        self,
+        workspace_id: uuid.UUID,
+        attachment_id: uuid.UUID,
+    ):
+        from app.models.attachment import Attachment
+
+        result = await self.db.execute(
+            select(Attachment)
+            .join(Activity, Activity.id == Attachment.activity_id)
+            .where(
+                Attachment.id == attachment_id,
+                Attachment.workspace_id == workspace_id,
+                Activity.deleted_at.is_(None),
+            )
+        )
+        attachment = result.scalar_one_or_none()
+        if not attachment:
+            raise NotFoundError("Attachment", str(attachment_id))
+        return attachment
+
+    async def delete_attachment(
+        self,
+        workspace_id: uuid.UUID,
+        attachment_id: uuid.UUID,
+    ) -> None:
+        attachment = await self.get_attachment(workspace_id, attachment_id)
+        await self.db.delete(attachment)
+        await self.db.flush()

@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { workspaceInvitesApi } from '../../api/httpClient'
 import { Button } from '../common/Button'
 import { Input } from '../common/Input'
-import { Select } from '../common/Select'
 import { ErrorAlert } from '../common/ErrorAlert'
 import { Skeleton } from '../common/Skeleton'
 import { logError } from '../../utils/logger'
@@ -25,10 +24,9 @@ export function WorkspaceInvitationsSettings({ workspaceId }: WorkspaceInvitatio
   const [error, setError] = useState<string | null>(null)
   
   const [email, setEmail] = useState('')
-  const [role, setRole] = useState('member')
   const [sending, setSending] = useState(false)
 
-  const fetchInvites = async () => {
+  const fetchInvites = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -40,11 +38,11 @@ export function WorkspaceInvitationsSettings({ workspaceId }: WorkspaceInvitatio
     } finally {
       setLoading(false)
     }
-  }
+  }, [workspaceId])
 
   useEffect(() => {
     fetchInvites()
-  }, [workspaceId])
+  }, [fetchInvites])
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -53,7 +51,7 @@ export function WorkspaceInvitationsSettings({ workspaceId }: WorkspaceInvitatio
     setSending(true)
     setError(null)
     try {
-      await workspaceInvitesApi.create(workspaceId, { email: email.trim(), role })
+      await workspaceInvitesApi.create(workspaceId, { email: email.trim(), role: 'member' })
       setEmail('')
       await fetchInvites()
     } catch (err: any) {
@@ -97,17 +95,6 @@ export function WorkspaceInvitationsSettings({ workspaceId }: WorkspaceInvitatio
             required 
           />
         </div>
-        <div className="w-32">
-          <Select 
-            label="Role" 
-            value={role} 
-            onChange={(e) => setRole(e.target.value)}
-            options={[
-              { value: 'member', label: 'Member' },
-              { value: 'admin', label: 'Admin' }
-            ]}
-          />
-        </div>
         <Button type="submit" disabled={sending || !email.trim()}>
           {sending ? 'Sending...' : 'Send Invite'}
         </Button>
@@ -128,9 +115,7 @@ export function WorkspaceInvitationsSettings({ workspaceId }: WorkspaceInvitatio
                   Role: <span className="capitalize">{invite.role}</span> &bull; Status: <span className="capitalize text-yellow-600">{invite.status}</span>
                 </p>
               </div>
-              <Button variant="secondary" size="sm" onClick={() => handleDelete(invite.id)}>
-                Revoke
-              </Button>
+              <div className="flex gap-2">{['pending', 'expired'].includes(invite.status) && <Button variant="secondary" size="sm" onClick={async () => { await workspaceInvitesApi.resend(workspaceId, invite.id); await fetchInvites() }}>Resend</Button>}<Button variant="secondary" size="sm" onClick={() => handleDelete(invite.id)}>Revoke</Button></div>
             </div>
           ))}
         </div>

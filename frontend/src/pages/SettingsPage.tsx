@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWorkspaceStore } from '../stores/workspaceStore'
-import { workspaceApi, calendarApi } from '../api/httpClient'
+import { workspaceApi, calendarApi, workspaceMembersApi } from '../api/httpClient'
 import { Button } from '../components/common/Button'
 import { Input } from '../components/common/Input'
 import { Select } from '../components/common/Select'
@@ -42,6 +42,7 @@ export function SettingsPage() {
   })
   const [calendarLink, setCalendarLink] = useState<string | null>(null)
   const [loadingCalendar, setLoadingCalendar] = useState(false)
+  const [weeklyGoals, setWeeklyGoals] = useState({ profiles_added: 25, invitations_sent: 50, follow_ups_sent: 25, replies_received: 10 })
 
   useEffect(() => {
     if (currentWorkspace) {
@@ -57,6 +58,9 @@ export function SettingsPage() {
         daily_digest_enabled: currentWorkspace.daily_digest_enabled,
         overdue_alerts_enabled: currentWorkspace.overdue_alerts_enabled,
       })
+      workspaceMembersApi.getMe(currentWorkspace.id).then((member) => {
+        if (member.weekly_goals) setWeeklyGoals(member.weekly_goals)
+      }).catch(() => undefined)
     }
   }, [currentWorkspace])
 
@@ -71,6 +75,7 @@ export function SettingsPage() {
     setError(null)
     try {
       await workspaceApi.update(currentWorkspace.id, form)
+      await workspaceMembersApi.updateMe(currentWorkspace.id, { weekly_goals: weeklyGoals })
       await fetchWorkspaces()
       console.info('[NetworkPilot Settings]', 'Workspace settings saved', {
         workspaceId: currentWorkspace.id.slice(-8),
@@ -192,6 +197,16 @@ export function SettingsPage() {
               value={form.default_acceptance_check_delay_days}
               onChange={(e) => setForm({ ...form, default_acceptance_check_delay_days: parseInt(e.target.value) || 1 })}
             />
+          </div>
+        </div>
+
+        <div className="bg-white shadow rounded-lg p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Weekly goals</h2>
+          <div className="grid grid-cols-2 gap-4">
+            {([
+              ['profiles_added', 'Profiles added'], ['invitations_sent', 'Invitations sent'],
+              ['follow_ups_sent', 'Follow-ups sent'], ['replies_received', 'Replies received'],
+            ] as const).map(([key, label]) => <Input key={key} label={label} type="number" min={0} max={10000} value={weeklyGoals[key]} onChange={(event) => setWeeklyGoals({ ...weeklyGoals, [key]: Math.max(0, Number(event.target.value)) })} />)}
           </div>
         </div>
 
