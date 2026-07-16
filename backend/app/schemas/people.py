@@ -112,6 +112,8 @@ class PersonResponse(BaseModel):
     owner_id: uuid.UUID | None = None
     manual_warmth: int | None = None
     calculated_freshness: int | None = None
+    engagement_score: int = 0
+    relationship_health: str = "cold"
     last_engaged_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
@@ -212,6 +214,10 @@ class BulkNextActionPayload(StrictModel):
         return value.strip() or None
 
 
+class BulkOwnerPayload(StrictModel):
+    owner_id: uuid.UUID | None
+
+
 class BulkPeopleActionBase(StrictModel):
     workspace_id: uuid.UUID
     person_ids: list[uuid.UUID] = Field(..., min_length=1, max_length=100)
@@ -259,6 +265,11 @@ class BulkSetNextActionRequest(BulkPeopleActionBase):
     payload: BulkNextActionPayload
 
 
+class BulkSetOwnerRequest(BulkPeopleActionBase):
+    action: Literal["set_owner"]
+    payload: BulkOwnerPayload
+
+
 BulkPeopleActionRequest = Annotated[
     Union[
         BulkSetFavoriteRequest,
@@ -268,6 +279,7 @@ BulkPeopleActionRequest = Annotated[
         BulkSetStageRequest,
         BulkArchiveRequest,
         BulkSetNextActionRequest,
+        BulkSetOwnerRequest,
     ],
     Field(discriminator="action"),
 ]

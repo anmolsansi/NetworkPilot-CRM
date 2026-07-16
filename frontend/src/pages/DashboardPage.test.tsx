@@ -9,6 +9,7 @@ vi.mock('../api/httpClient', () => ({
     getSummary: vi.fn(),
     getDue: vi.fn(),
     getTags: vi.fn(),
+    getWidgets: vi.fn(),
   },
   exportsApi: {
     peopleCsv: vi.fn(),
@@ -60,12 +61,11 @@ describe('DashboardPage', () => {
     })
     vi.mocked(dashboardApi.getDue).mockResolvedValue([])
     vi.mocked(dashboardApi.getTags).mockResolvedValue([])
+    vi.mocked(dashboardApi.getWidgets).mockResolvedValue({
+      favourites: [], newly_accepted: [], stale_relationships: [], overdue_tasks: [], recent_imports: [],
+    })
     vi.mocked(workspaceMembersApi.getMe).mockResolvedValue({
-      dashboard_config: {
-        show_summary: true,
-        show_tags: true,
-        show_due: true,
-      }
+      dashboard_config: { version: 1, widgets: [] }
     })
 
     render(<DashboardPage />)
@@ -83,6 +83,46 @@ describe('DashboardPage', () => {
     await waitFor(() => {
       expect(useWorkspaceStore.getState().currentWorkspace).toEqual(workspace)
     })
+  })
+
+  it('renders all required widgets and saves ordering and limits', async () => {
+    useWorkspaceStore.setState({ currentWorkspace: workspace })
+    vi.mocked(dashboardApi.getSummary).mockResolvedValue({ due_today: 0, overdue: 0, waiting_for_reply: 0, active_total: 1 })
+    vi.mocked(dashboardApi.getDue).mockResolvedValue([])
+    vi.mocked(dashboardApi.getTags).mockResolvedValue([])
+    vi.mocked(dashboardApi.getWidgets).mockResolvedValue({
+      favourites: [{ id: 'person-1', name: 'Favourite Person', company: 'Acme', role: 'Engineer', stage: 'accepted' }],
+      newly_accepted: [{ id: 'person-2', name: 'New Contact', company: null, role: null, stage: 'accepted' }],
+      stale_relationships: [{ id: 'person-3', name: 'Stale Contact', company: null, role: null, stage: 'waiting_for_reply' }],
+      overdue_tasks: [{ id: 'task-1', person_id: 'person-1', person_name: 'Favourite Person', title: 'Follow up', due_date: '2026-07-01' }],
+      recent_imports: [{ id: 'import-1', file_name: 'people.csv', total_rows: 5, status: 'completed' }],
+    })
+    vi.mocked(workspaceMembersApi.getMe).mockResolvedValue({ dashboard_config: {
+      version: 1,
+      widgets: [
+        { id: 'favourites', visible: true, limit: 5 }, { id: 'newly_accepted', visible: true, limit: 5 },
+        { id: 'stale_relationships', visible: true, limit: 5 }, { id: 'overdue_tasks', visible: true, limit: 5 },
+        { id: 'recent_imports', visible: true, limit: 5 }, { id: 'summary', visible: true, limit: 5 },
+        { id: 'tags', visible: true, limit: 5 }, { id: 'due', visible: true, limit: 5 },
+      ],
+    } })
+    vi.mocked(workspaceMembersApi.updateMe).mockResolvedValue({})
+
+    render(<DashboardPage />)
+    expect(await screen.findByText('Favourite Person')).toBeInTheDocument()
+    expect(screen.getByText('New Contact')).toBeInTheDocument()
+    expect(screen.getByText('Stale Contact')).toBeInTheDocument()
+    expect(screen.getByText(/Follow up/)).toBeInTheDocument()
+    expect(screen.getByText(/people.csv/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Customize Widgets' }))
+    fireEvent.change(screen.getByLabelText('Favourite profiles limit'), { target: { value: '8' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Move Favourite profiles down' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save Configuration' }))
+    await waitFor(() => expect(workspaceMembersApi.updateMe).toHaveBeenCalledWith(
+      'workspace-1',
+      expect.objectContaining({ dashboard_config: expect.objectContaining({ version: 1, widgets: expect.any(Array) }) }),
+    ))
   })
 })
 

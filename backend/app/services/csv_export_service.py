@@ -14,6 +14,7 @@ from app.services.csv_sanitizer import write_csv
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
 DEFAULT_EXPORT_FIELDS = [
+    "id",
     "name",
     "first_name",
     "last_name",
@@ -131,6 +132,7 @@ class CsvExportService:
         include_private_notes: bool,
     ) -> dict[str, object]:
         row: dict[str, object] = {
+            "id": person.id,
             "name": person.name,
             "first_name": person.first_name,
             "last_name": person.last_name,

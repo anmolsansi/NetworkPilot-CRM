@@ -11,6 +11,7 @@ import { SettingsPage } from '../pages/SettingsPage'
 import { ImportsPage } from '../features/imports/ImportsPage'
 import { NotificationsPage } from '../pages/NotificationsPage'
 import { AnalyticsPage } from '../pages/AnalyticsPage'
+import { TasksPage } from '../pages/TasksPage'
 import { AppLayout } from '../components/layout/AppLayout'
 import { InviteAcceptPage } from '../pages/InviteAcceptPage'
 

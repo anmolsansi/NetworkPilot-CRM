@@ -5,6 +5,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.schemas.dashboard import DashboardConfig
+
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
 
@@ -71,8 +73,16 @@ class WorkspaceResponse(BaseModel):
 
 
 class WorkspaceMemberUpdate(BaseModel):
-    dashboard_config: dict | None = None
+    dashboard_config: DashboardConfig | None = None
     weekly_outreach_target: int | None = None
+    weekly_goals: "WeeklyGoals | None" = None
+
+
+class WeeklyGoals(BaseModel):
+    profiles_added: int = Field(default=25, ge=0, le=10000)
+    invitations_sent: int = Field(default=50, ge=0, le=10000)
+    follow_ups_sent: int = Field(default=25, ge=0, le=10000)
+    replies_received: int = Field(default=10, ge=0, le=10000)
 
 
 class WorkspaceMemberResponse(BaseModel):
@@ -80,9 +90,21 @@ class WorkspaceMemberResponse(BaseModel):
     workspace_id: uuid.UUID
     user_id: uuid.UUID
     role: str
-    dashboard_config: dict
+    dashboard_config: DashboardConfig
     weekly_outreach_target: int
+    weekly_goals: WeeklyGoals
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @field_validator("dashboard_config", mode="before")
+    @classmethod
+    def normalize_dashboard_config(cls, value):
+        return DashboardConfig.normalize(value)
+
+class WorkspaceMemberDirectoryEntry(BaseModel):
+    user_id: uuid.UUID
+    email: str
+    display_name: str | None
+    role: str
