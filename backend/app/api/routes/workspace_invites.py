@@ -31,7 +31,7 @@ async def create_invite(
 ) -> WorkspaceInviteResponse:
     """Create a workspace invite and send an email."""
     service = WorkspaceInviteService(db)
-    return await service.create_invite(workspace_id, data)
+    return await service.create_invite(workspace_id, data, current_user.id)
 
 
 @router.get(
@@ -61,6 +61,18 @@ async def revoke_invite(
     """Revoke a workspace invite."""
     service = WorkspaceInviteService(db)
     await service.revoke_invite(workspace_id, invite_id)
+
+
+@router.post(
+    "/workspaces/{workspace_id}/invites/{invite_id}/resend", response_model=WorkspaceInviteResponse
+)
+async def resend_invite(
+    workspace_id: uuid.UUID,
+    invite_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: AppUser = Depends(get_current_user),
+):
+    return await WorkspaceInviteService(db).resend_invite(workspace_id, invite_id)
 
 
 @router.post(
