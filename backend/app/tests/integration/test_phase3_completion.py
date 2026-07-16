@@ -18,7 +18,13 @@ class TestPhase3Completion:
         update_resp = await client.patch(
             f"/api/v1/workspaces/{workspace_id}/members/me",
             json={
-                "dashboard_config": {"widgets": ["funnel", "activity"]},
+                "dashboard_config": {
+                    "version": 1,
+                    "widgets": [
+                        {"id": "summary", "visible": True, "limit": 5},
+                        {"id": "due", "visible": True, "limit": 10},
+                    ],
+                },
                 "weekly_outreach_target": 75,
             },
             headers=mock_headers,

@@ -63,13 +63,17 @@ async def test_task_crud_and_due_reminder(
     assert list_response.json()["total"] == 1
 
     job = (
-        await db_session.execute(
-            select(BackgroundJob).where(
-                BackgroundJob.workspace_id == uuid.UUID(workspace_id),
-                BackgroundJob.job_type == "daily_digest",
+        (
+            await db_session.execute(
+                select(BackgroundJob).where(
+                    BackgroundJob.workspace_id == uuid.UUID(workspace_id),
+                    BackgroundJob.job_type == "daily_digest",
+                )
             )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     assert job is not None
     await process_background_job(db_session, job)
 

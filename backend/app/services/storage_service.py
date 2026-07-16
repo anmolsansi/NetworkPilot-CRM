@@ -51,9 +51,7 @@ class StorageService:
 
         self.client = boto3.client(
             "s3",
-            endpoint_url=(
-                f"https://{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
-            ),
+            endpoint_url=(f"https://{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com"),
             aws_access_key_id=settings.R2_ACCESS_KEY_ID,
             aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
             region_name="auto",
@@ -87,10 +85,7 @@ class StorageService:
             raise HTTPException(status_code=422, detail="Attachments cannot be empty")
         self._validate_signature(content_type, content)
 
-        object_key = (
-            f"workspaces/{workspace_id}/activities/{activity_id}/"
-            f"{uuid.uuid4()}{extension}"
-        )
+        object_key = f"workspaces/{workspace_id}/activities/{activity_id}/{uuid.uuid4()}{extension}"
         try:
             await asyncio.to_thread(
                 self.client.put_object,

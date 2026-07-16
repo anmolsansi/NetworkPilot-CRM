@@ -38,6 +38,7 @@ export function AppRoutes() {
           <Route path="imports" element={<ImportsPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="tasks" element={<TasksPage />} />
           <Route path="invites/accept" element={<InviteAcceptPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

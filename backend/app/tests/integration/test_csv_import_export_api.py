@@ -96,11 +96,7 @@ class TestCsvImportExportAPI:
             )
             for index in range(IMPORT_BATCH_SIZE + 1)
         ]
-        initial_csv = (
-            "name,linkedin_url,current_role,email\n"
-            + "\n".join(initial_rows)
-            + "\n"
-        )
+        initial_csv = "name,linkedin_url,current_role,email\n" + "\n".join(initial_rows) + "\n"
         initial_job = await self._queue_and_process(
             client,
             db_session,
@@ -124,12 +120,13 @@ class TestCsvImportExportAPI:
         )
         people = people_before.json()["items"]
         updated_emails = {
-            person["id"]: f"updated-{index}@example.com"
-            for index, person in enumerate(people)
+            person["id"]: f"updated-{index}@example.com" for index, person in enumerate(people)
         }
-        update_csv = "id,email\n" + "\n".join(
-            f"{person_id},{email}" for person_id, email in updated_emails.items()
-        ) + "\n"
+        update_csv = (
+            "id,email\n"
+            + "\n".join(f"{person_id},{email}" for person_id, email in updated_emails.items())
+            + "\n"
+        )
 
         update_job = await self._queue_and_process(
             client,

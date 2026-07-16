@@ -39,6 +39,7 @@ async def get_template_performance(
     attribution_days: int = Query(30, ge=1, le=90),
     db: AsyncSession = Depends(get_db),
     current_user: AppUser = Depends(get_current_user),
+    _workspace=Depends(require_workspace_access),
 ) -> Sequence[PerformanceBreakdown]:
     """Get attributed follow-up performance grouped by the selected dimension."""
     service = AnalyticsService(db)
@@ -89,6 +90,7 @@ async def export_analytics_pdf(
     date_to: date | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: AppUser = Depends(get_current_user),
+    _workspace=Depends(require_workspace_access),
 ) -> Response:
     content = await AnalyticsService(db).export_analytics_pdf(workspace_id, date_from, date_to)
     return Response(

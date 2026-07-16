@@ -25,9 +25,7 @@ describe('AnalyticsPage follow-up performance', () => {
         overdue_alerts_enabled: true,
       },
     })
-    vi.mocked(analyticsApi.getFunnel).mockResolvedValue({
-      total_saved: 1, contacted: 1, replied: 1, conversion_rate: 100,
-    })
+    vi.mocked(analyticsApi.getFunnel).mockResolvedValue({ stages: [] })
     vi.mocked(analyticsApi.getPerformance).mockResolvedValue([
       { dimension: 'template', dimension_key: 'template-a', dimension_label: 'Template A', sent_count: 2, reply_count: 1, reply_rate: 50 },
     ])

@@ -60,9 +60,7 @@ async def process_job(db: AsyncSession, job: ImportJob):
             default_initial_action_type=job.default_initial_action_type,
             default_priority=job.default_priority,
         )
-        committable_rows = [
-            row for row in preview_rows if row.status in {"valid", "update"}
-        ]
+        committable_rows = [row for row in preview_rows if row.status in {"valid", "update"}]
         for row_error in preview_rows:
             if row_error.status in {"valid", "update"}:
                 continue

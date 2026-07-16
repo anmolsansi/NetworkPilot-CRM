@@ -33,9 +33,7 @@ async def test_member_directory_and_bulk_contact_ownership(
             select(WorkspaceInvite).where(WorkspaceInvite.workspace_id == workspace_uuid)
         )
     ).scalar_one()
-    member_headers = {
-        "Authorization": "Bearer owner-member:owner-member@example.com"
-    }
+    member_headers = {"Authorization": "Bearer owner-member:owner-member@example.com"}
     accept_response = await client.post(
         "/api/v1/invites/accept",
         json={"token": invite.token},
@@ -77,9 +75,7 @@ async def test_member_directory_and_bulk_contact_ownership(
         headers=mock_headers,
     )
     assert assign_response.status_code == 200
-    assert {item["owner_id"] for item in assign_response.json()["items"]} == {
-        member_user_id
-    }
+    assert {item["owner_id"] for item in assign_response.json()["items"]} == {member_user_id}
 
     filtered_response = await client.get(
         f"/api/v1/people?workspace_id={workspace_id}&owner_id={member_user_id}",

@@ -27,6 +27,7 @@ async def create_invite(
     workspace_id: uuid.UUID,
     data: WorkspaceInviteCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: AppUser = Depends(get_current_user),
     _workspace=Depends(require_workspace_owner),
 ) -> WorkspaceInviteResponse:
     """Create a workspace invite and send an email."""

@@ -44,6 +44,9 @@ export function AnalyticsPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [performanceGroup, setPerformanceGroup] = useState('template')
+  const [performanceFrom, setPerformanceFrom] = useState('')
+  const [performanceTo, setPerformanceTo] = useState('')
   const [reportFrom, setReportFrom] = useState('')
   const [reportTo, setReportTo] = useState('')
 

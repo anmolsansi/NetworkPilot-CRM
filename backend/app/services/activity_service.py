@@ -10,7 +10,7 @@ from app.core.logging import mask_id
 from app.models.activity import Activity
 from app.models.person import Person
 from app.models.workspace import Workspace
-from app.schemas.activities import ActivityCreate
+from app.schemas.activities import ActivityCreate, ActivityUpdate
 from app.services.relationship_service import RelationshipService
 from app.services.transition_service import calculate_transition
 
@@ -177,9 +177,7 @@ class ActivityService:
             query = query.where(Activity.created_at <= created_to)
 
         result = await self.db.execute(
-            select(Activity)
-            .where(Activity.person_id == person_id, Activity.deleted_at.is_(None))
-            .order_by(Activity.is_pinned.desc(), Activity.created_at.desc())
+            query.order_by(Activity.is_pinned.desc(), Activity.created_at.desc())
             .offset(offset)
             .limit(limit)
         )

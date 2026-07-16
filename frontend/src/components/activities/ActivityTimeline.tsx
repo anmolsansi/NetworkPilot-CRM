@@ -164,6 +164,48 @@ export function ActivityTimeline({
 
   return (
     <div className="flow-root">
+      {onFiltersChange && (
+        <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Select
+            label="Activity type"
+            options={[
+              { value: '', label: 'All activity types' },
+              { value: 'invite_sent', label: 'Invite sent' },
+              { value: 'accepted', label: 'Accepted' },
+              { value: 'message_sent', label: 'Message sent' },
+              { value: 'follow_up_1_sent', label: 'Follow-up 1 sent' },
+              { value: 'follow_up_2_sent', label: 'Follow-up 2 sent' },
+              { value: 'reply_received', label: 'Reply received' },
+            ]}
+            value={filters.action_type}
+            onChange={(event) => onFiltersChange({ ...filters, action_type: event.target.value })}
+          />
+          <Select
+            label="Activity source"
+            options={[
+              { value: '', label: 'All sources' },
+              { value: 'web_app', label: 'Web app' },
+              { value: 'chrome_extension', label: 'Chrome extension' },
+              { value: 'csv_import', label: 'CSV import' },
+              { value: 'system', label: 'System' },
+            ]}
+            value={filters.source}
+            onChange={(event) => onFiltersChange({ ...filters, source: event.target.value })}
+          />
+          <Input
+            label="Activity from"
+            type="date"
+            value={filters.created_from}
+            onChange={(event) => onFiltersChange({ ...filters, created_from: event.target.value })}
+          />
+          <Input
+            label="Activity to"
+            type="date"
+            value={filters.created_to}
+            onChange={(event) => onFiltersChange({ ...filters, created_to: event.target.value })}
+          />
+        </div>
+      )}
       {deletedActivityId && (
         <div className="mb-4 flex items-center justify-between rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
           <span>Activity deleted.</span>
@@ -171,7 +213,9 @@ export function ActivityTimeline({
         </div>
       )}
       {activities.length === 0 ? (
-        <p className="text-sm text-gray-500 text-center py-4">No activities yet</p>
+        <p className="text-sm text-gray-500 text-center py-4">
+          {onFiltersChange ? 'No activities match these filters.' : 'No activities yet'}
+        </p>
       ) : (
       <ul className="-mb-8">
         {activities.map((activity, idx) => (

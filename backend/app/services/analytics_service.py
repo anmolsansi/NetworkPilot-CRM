@@ -2,7 +2,6 @@ import csv
 import io
 import logging
 import uuid
-from datetime import datetime, time, timedelta, timezone
 from collections import defaultdict
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Sequence
@@ -13,7 +12,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-from sqlalchemy import case, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.activity import Activity
@@ -22,13 +21,9 @@ from app.models.template import MessageTemplate
 from app.models.workspace import Workspace, WorkspaceMember
 from app.schemas.analytics import (
     FunnelMetrics,
-    GoalMetricProgress,
-from app.models.workspace import WorkspaceMember
-from app.schemas.analytics import FunnelMetrics, PerformanceBreakdown, WeeklyGoalProgress
-from app.schemas.analytics import (
-    FunnelMetrics,
     FunnelStageMetrics,
-    TemplatePerformance,
+    GoalMetricProgress,
+    PerformanceBreakdown,
     WeeklyGoalProgress,
 )
 

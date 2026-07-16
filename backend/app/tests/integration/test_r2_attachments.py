@@ -20,10 +20,7 @@ class FakeR2Client:
         return {}
 
     def generate_presigned_url(self, operation, **kwargs):
-        return (
-            f"https://private-r2.example/{kwargs['Params']['Key']}"
-            f"?expires={kwargs['ExpiresIn']}"
-        )
+        return f"https://private-r2.example/{kwargs['Params']['Key']}?expires={kwargs['ExpiresIn']}"
 
 
 @pytest.mark.anyio
@@ -51,8 +48,7 @@ async def test_private_r2_attachment_lifecycle_and_authorization(
         headers=mock_headers,
     )
     activity_response = await client.post(
-        f"/api/v1/people/{person_response.json()['id']}/activities"
-        f"?workspace_id={workspace_id}",
+        f"/api/v1/people/{person_response.json()['id']}/activities?workspace_id={workspace_id}",
         json={"action_type": "message_sent", "source": "web_app"},
         headers=mock_headers,
     )
@@ -84,21 +80,17 @@ async def test_private_r2_attachment_lifecycle_and_authorization(
     assert attachment["file_size"] == len(b"%PDF-1.7\nprivate")
     assert len(fake_r2.objects) == 1
     object_key = next(iter(fake_r2.objects))
-    assert object_key.startswith(
-        f"workspaces/{workspace_id}/activities/{activity_id}/"
-    )
+    assert object_key.startswith(f"workspaces/{workspace_id}/activities/{activity_id}/")
 
     outsider_headers = {"Authorization": "Bearer outsider:outsider@example.com"}
     outsider_response = await client.get(
-        f"/api/v1/attachments/{attachment['id']}/download-url"
-        f"?workspace_id={workspace_id}",
+        f"/api/v1/attachments/{attachment['id']}/download-url?workspace_id={workspace_id}",
         headers=outsider_headers,
     )
     assert outsider_response.status_code == 403
 
     download_response = await client.get(
-        f"/api/v1/attachments/{attachment['id']}/download-url"
-        f"?workspace_id={workspace_id}",
+        f"/api/v1/attachments/{attachment['id']}/download-url?workspace_id={workspace_id}",
         headers=mock_headers,
     )
     assert download_response.status_code == 200
@@ -113,8 +105,7 @@ async def test_private_r2_attachment_lifecycle_and_authorization(
     assert fake_r2.objects == {}
 
     missing_download_response = await client.get(
-        f"/api/v1/attachments/{attachment['id']}/download-url"
-        f"?workspace_id={workspace_id}",
+        f"/api/v1/attachments/{attachment['id']}/download-url?workspace_id={workspace_id}",
         headers=mock_headers,
     )
     assert missing_download_response.status_code == 404
@@ -134,8 +125,7 @@ async def test_private_r2_attachment_lifecycle_and_authorization(
     assert activity_delete_response.status_code == 204
     assert fake_r2.objects == {}
     deleted_activity_download = await client.get(
-        f"/api/v1/attachments/{second_attachment_id}/download-url"
-        f"?workspace_id={workspace_id}",
+        f"/api/v1/attachments/{second_attachment_id}/download-url?workspace_id={workspace_id}",
         headers=mock_headers,
     )
     assert deleted_activity_download.status_code == 404

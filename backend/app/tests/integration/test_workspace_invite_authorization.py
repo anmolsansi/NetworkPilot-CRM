@@ -72,4 +72,6 @@ async def test_only_owner_can_manage_workspace_invites(
         headers=mock_headers,
     )
     assert owner_list_response.status_code == 200
-    assert [item["id"] for item in owner_list_response.json()] == [pending_invite_id]
+    listed_by_id = {item["id"]: item for item in owner_list_response.json()}
+    assert listed_by_id[pending_invite_id]["status"] == "pending"
+    assert listed_by_id[str(invite.id)]["status"] == "accepted"

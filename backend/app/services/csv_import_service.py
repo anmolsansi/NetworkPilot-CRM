@@ -96,7 +96,7 @@ class CsvImportService:
             summary=summary,
             rows=preview_rows,
             provided_headers=provided_headers,
-            import_batch_id=batch.id
+            import_batch_id=batch.id,
         )
 
     async def commit(
@@ -338,7 +338,7 @@ class CsvImportService:
                 select(Person.id).where(
                     Person.workspace_id == workspace_id,
                     Person.id.in_(provided_ids),
-                    Person.deleted_at.is_(None)
+                    Person.deleted_at.is_(None),
                 )
             )
             existing_ids = set(id_result.scalars().all())

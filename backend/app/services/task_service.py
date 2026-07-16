@@ -20,9 +20,7 @@ class TaskService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def _require_workspace_member(
-        self, workspace_id: uuid.UUID, user_id: uuid.UUID
-    ) -> None:
+    async def _require_workspace_member(self, workspace_id: uuid.UUID, user_id: uuid.UUID) -> None:
         result = await self.db.execute(
             select(WorkspaceMember).where(
                 WorkspaceMember.workspace_id == workspace_id,
@@ -54,9 +52,9 @@ class TaskService:
             mask_id(str(workspace_id)),
             mask_id(str(data.person_id)),
         )
-        
+
         await self._require_person_in_workspace(workspace_id, data.person_id)
-        
+
         if data.assigned_to:
             await self._require_workspace_member(workspace_id, data.assigned_to)
 
@@ -72,7 +70,7 @@ class TaskService:
 
         self.db.add(task)
         await self.db.flush()
-        
+
         _module_logger.info(
             "task_service.create.completed workspace_id=%s task_id=%s",
             mask_id(str(workspace_id)),
@@ -103,7 +101,7 @@ class TaskService:
 
         if "assigned_to" in update_data and update_data["assigned_to"]:
             await self._require_workspace_member(workspace_id, update_data["assigned_to"])
-            
+
         if "status" in update_data:
             if update_data["status"] == "completed" and task.status != "completed":
                 task.completed_at = datetime.now(timezone.utc)
@@ -125,9 +123,13 @@ class TaskService:
         page: int = 1,
         limit: int = 50,
     ) -> tuple[list[Task], int]:
-        query = select(Task).where(Task.workspace_id == workspace_id).options(
-            selectinload(Task.person),
-            selectinload(Task.assignee),
+        query = (
+            select(Task)
+            .where(Task.workspace_id == workspace_id)
+            .options(
+                selectinload(Task.person),
+                selectinload(Task.assignee),
+            )
         )
 
         if person_id:
@@ -141,7 +143,11 @@ class TaskService:
         total = (await self.db.execute(count_query)).scalar()
 
         offset = (page - 1) * limit
-        query = query.order_by(Task.due_date.asc().nullslast(), Task.created_at.desc()).offset(offset).limit(limit)
+        query = (
+            query.order_by(Task.due_date.asc().nullslast(), Task.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
 
         result = await self.db.execute(query)
         tasks = result.scalars().all()
