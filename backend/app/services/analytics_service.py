@@ -8,7 +8,12 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Sequence
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, select
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import mm
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.activity import Activity
@@ -316,34 +321,97 @@ class AnalyticsService:
             ],
         )
 
-    async def export_analytics_csv(self, workspace_id: uuid.UUID) -> str:
-        """Export analytics as a CSV string."""
-        funnel = await self.get_funnel_metrics(workspace_id)
-        performance = await self.get_template_performance(workspace_id)
+    async def get_report_rows(
+        self, workspace_id: uuid.UUID, date_from: date | None, date_to: date | None
+    ) -> list[tuple[str, int]]:
+        person_query = select(func.count(Person.id)).where(
+            Person.workspace_id == workspace_id, Person.deleted_at.is_(None)
+        )
+        activity_query = select(Activity.action_type, func.count(Activity.id)).where(
+            Activity.workspace_id == workspace_id, Activity.deleted_at.is_(None)
+        )
+        if date_from:
+            start = datetime.combine(date_from, datetime.min.time())
+            person_query = person_query.where(Person.created_at >= start)
+            activity_query = activity_query.where(Activity.created_at >= start)
+        if date_to:
+            end = datetime.combine(date_to + timedelta(days=1), datetime.min.time())
+            person_query = person_query.where(Person.created_at < end)
+            activity_query = activity_query.where(Activity.created_at < end)
+        activity_counts = dict(
+            (await self.db.execute(activity_query.group_by(Activity.action_type))).all()
+        )
+        return [
+            ("Profiles saved", int(await self.db.scalar(person_query) or 0)),
+            ("Invitations sent", activity_counts.get("invite_sent", 0)),
+            ("Accepted", activity_counts.get("accepted", 0)),
+            (
+                "Messages sent",
+                activity_counts.get("message_sent", 0) + activity_counts.get("follow_up_1_sent", 0),
+            ),
+            ("Replies received", activity_counts.get("reply_received", 0)),
+        ]
 
+    async def export_analytics_csv(
+        self, workspace_id: uuid.UUID, date_from: date | None = None, date_to: date | None = None
+    ) -> str:
+        """Export analytics as a CSV string."""
         output = io.StringIO()
         writer = csv.writer(output)
+        writer.writerow(["NetworkPilot Analytics Report"])
+        writer.writerow(["Date from", date_from.isoformat() if date_from else "All time"])
+        writer.writerow(["Date to", date_to.isoformat() if date_to else "All time"])
+        writer.writerow([])
+        writer.writerow(["Metric", "Count"])
+        writer.writerows(await self.get_report_rows(workspace_id, date_from, date_to))
+        return output.getvalue()
 
-        writer.writerow(["Metric", "Value"])
-        writer.writerow(["Funnel Stage", "Count", "From Previous (%)", "From Saved (%)"])
-        for stage in funnel.stages:
-            writer.writerow(
+    async def export_analytics_pdf(
+        self, workspace_id: uuid.UUID, date_from: date | None = None, date_to: date | None = None
+    ) -> bytes:
+        output = io.BytesIO()
+        document = SimpleDocTemplate(
+            output,
+            pagesize=A4,
+            leftMargin=18 * mm,
+            rightMargin=18 * mm,
+            topMargin=18 * mm,
+            bottomMargin=18 * mm,
+        )
+        styles = getSampleStyleSheet()
+        period_start = date_from.isoformat() if date_from else "All time"
+        period_end = date_to.isoformat() if date_to else "present"
+        period = f"{period_start} to {period_end}"
+        table = Table(
+            [["Metric", "Count"], *await self.get_report_rows(workspace_id, date_from, date_to)],
+            colWidths=[125 * mm, 30 * mm],
+        )
+        table.setStyle(
+            TableStyle(
                 [
-                    stage.label,
-                    stage.count,
-                    stage.conversion_from_previous,
-                    stage.conversion_from_saved,
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1d4ed8")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+                    (
+                        "ROWBACKGROUNDS",
+                        (0, 1),
+                        (-1, -1),
+                        [colors.white, colors.HexColor("#f8fafc")],
+                    ),
+                    ("ALIGN", (1, 1), (1, -1), "RIGHT"),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
                 ]
             )
-        writer.writerow([])
-
-        writer.writerow(["Template Performance"])
-        writer.writerow(
-            ["Template ID", "Template Name", "Sent Count", "Reply Count", "Reply Rate (%)"]
         )
-        for p in performance:
-            writer.writerow(
-                [str(p.template_id), p.template_name, p.sent_count, p.reply_count, p.reply_rate]
-            )
-
+        document.build(
+            [
+                Paragraph("NetworkPilot Analytics Report", styles["Title"]),
+                Spacer(1, 4 * mm),
+                Paragraph(f"Reporting period: {period}", styles["BodyText"]),
+                Spacer(1, 7 * mm),
+                table,
+            ]
+        )
         return output.getvalue()

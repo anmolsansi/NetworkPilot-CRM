@@ -18,13 +18,7 @@ class TestPhase3Completion:
         update_resp = await client.patch(
             f"/api/v1/workspaces/{workspace_id}/members/me",
             json={
-                "dashboard_config": {
-                    "version": 1,
-                    "widgets": [
-                        {"id": "summary", "visible": True, "limit": 5},
-                        {"id": "due", "visible": True, "limit": 10},
-                    ],
-                },
+                "dashboard_config": {"widgets": ["funnel", "activity"]},
                 "weekly_outreach_target": 75,
             },
             headers=mock_headers,
@@ -72,4 +66,14 @@ class TestPhase3Completion:
         assert export_resp.status_code == 200
         assert export_resp.headers["content-type"] == "text/csv; charset=utf-8"
         content = export_resp.text
-        assert "Funnel Stage,Count,From Previous (%),From Saved (%)" in content
+        assert "Metric,Count" in content
+
+        pdf_resp = await client.get(
+            f"/api/v1/workspaces/{workspace_id}/analytics/export.pdf",
+            params={"date_from": "2026-01-01", "date_to": "2026-12-31"},
+            headers=mock_headers,
+        )
+        assert pdf_resp.status_code == 200
+        assert pdf_resp.headers["content-type"] == "application/pdf"
+        assert "networkpilot-analytics.pdf" in pdf_resp.headers["content-disposition"]
+        assert pdf_resp.content.startswith(b"%PDF")
