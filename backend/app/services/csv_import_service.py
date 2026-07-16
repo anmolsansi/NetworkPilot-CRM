@@ -121,6 +121,8 @@ class CsvImportService:
         workspace = await self.db.get(Workspace, data.workspace_id)
         created_people: list[ImportCreatedPerson] = []
         errors: list[ImportPreviewRow] = []
+        created_count = 0
+        updated_count = 0
 
         for row in preview_rows:
             if row.status not in ("valid", "update"):
@@ -136,56 +138,60 @@ class CsvImportService:
                         person = await people_service.get(data.workspace_id, row.id)
                     elif row.normalized_profile_url:
                         person = await people_service._find_by_url(
-                            data.workspace_id, row.normalized_profile_url
+                            data.workspace_id,
+                            row.normalized_profile_url,
                         )
 
                     if person:
                         update_data = {}
 
-                    if "name" in data.provided_headers and row.name is not None:
-                        update_data["name"] = row.name
-                    if "first_name" in data.provided_headers:
-                        update_data["first_name"] = row.first_name
-                    if "last_name" in data.provided_headers:
-                        update_data["last_name"] = row.last_name
-                    if "linkedin_url" in data.provided_headers and row.linkedin_url:
-                        update_data["linkedin_url"] = row.linkedin_url
-                    if "current_role" in data.provided_headers:
-                        update_data["role"] = row.current_role
-                    if "current_company" in data.provided_headers:
-                        update_data["company"] = row.current_company
-                    if "location" in data.provided_headers:
-                        update_data["location"] = row.location
-                    if "email" in data.provided_headers:
-                        update_data["email"] = row.email
-                    if "phone_number" in data.provided_headers:
-                        update_data["phone_number"] = row.phone_number
-                    if "premium" in data.provided_headers:
-                        update_data["premium"] = row.premium
-                    if "company_website" in data.provided_headers:
-                        update_data["company_website"] = row.company_website
-                    if "processed_at" in data.provided_headers:
-                        update_data["processed_at"] = row.processed_at
-                    if "processed_at_millis" in data.provided_headers:
-                        update_data["processed_at_millis"] = row.processed_at_millis
-                    if "invite_accepted_at" in data.provided_headers:
-                        update_data["invite_accepted_at"] = row.invite_accepted_at
-                    if "invite_accepted_at_millis" in data.provided_headers:
-                        update_data["invite_accepted_at_millis"] = row.invite_accepted_at_millis
-                    if "priority" in data.provided_headers and row.priority:
-                        update_data["priority"] = row.priority
-                    if "connection_note" in data.provided_headers:
-                        update_data["connection_note"] = row.connection_note
-                    if "conversation_context" in data.provided_headers:
-                        update_data["notes"] = row.conversation_context
-                    if "tags" in data.provided_headers:
-                        update_data["tag_ids"] = tag_ids
+                        if "name" in data.provided_headers and row.name is not None:
+                            update_data["name"] = row.name
+                        if "first_name" in data.provided_headers:
+                            update_data["first_name"] = row.first_name
+                        if "last_name" in data.provided_headers:
+                            update_data["last_name"] = row.last_name
+                        if "linkedin_url" in data.provided_headers and row.linkedin_url:
+                            update_data["linkedin_url"] = row.linkedin_url
+                        if "current_role" in data.provided_headers:
+                            update_data["role"] = row.current_role
+                        if "current_company" in data.provided_headers:
+                            update_data["company"] = row.current_company
+                        if "location" in data.provided_headers:
+                            update_data["location"] = row.location
+                        if "email" in data.provided_headers:
+                            update_data["email"] = row.email
+                        if "phone_number" in data.provided_headers:
+                            update_data["phone_number"] = row.phone_number
+                        if "premium" in data.provided_headers:
+                            update_data["premium"] = row.premium
+                        if "company_website" in data.provided_headers:
+                            update_data["company_website"] = row.company_website
+                        if "processed_at" in data.provided_headers:
+                            update_data["processed_at"] = row.processed_at
+                        if "processed_at_millis" in data.provided_headers:
+                            update_data["processed_at_millis"] = row.processed_at_millis
+                        if "invite_accepted_at" in data.provided_headers:
+                            update_data["invite_accepted_at"] = row.invite_accepted_at
+                        if "invite_accepted_at_millis" in data.provided_headers:
+                            update_data["invite_accepted_at_millis"] = row.invite_accepted_at_millis
+                        if "priority" in data.provided_headers and row.priority:
+                            update_data["priority"] = row.priority
+                        if "connection_note" in data.provided_headers:
+                            update_data["connection_note"] = row.connection_note
+                        if "conversation_context" in data.provided_headers:
+                            update_data["notes"] = row.conversation_context
+                        if "tags" in data.provided_headers:
+                            update_data["tag_ids"] = tag_ids
 
-                    from app.schemas.people import PersonUpdate
+                        from app.schemas.people import PersonUpdate
 
-                    person = await people_service.update(
-                        data.workspace_id, person.id, PersonUpdate(**update_data)
-                    )
+                        person = await people_service.update(
+                            data.workspace_id,
+                            person.id,
+                            PersonUpdate(**update_data),
+                        )
+                        updated_count += 1
 
                 if row.status != "update" or not person:
                     person = await people_service.create(
@@ -213,6 +219,7 @@ class CsvImportService:
                         ),
                         check_duplicate=False,
                     )
+                    created_count += 1
 
                 if row.status == "valid":
                     action_type = ACTION_TO_ACTIVITY[
@@ -256,7 +263,8 @@ class CsvImportService:
 
         return {
             "summary": {
-                "created_count": len(created_people),
+                "created_count": created_count,
+                "updated_count": updated_count,
                 "skipped_duplicates": sum(1 for row in preview_rows if row.status == "duplicate"),
                 "failed_count": len(errors),
             },
@@ -412,10 +420,6 @@ class CsvImportService:
                     normalized_url in existing_urls or normalized_url in seen_urls
                 ):
                     status = "update" if duplicate_strategy == "update" else "duplicate"
-                    # URL matches without an ID are resolved during commit.
-                    if status == "update" and not row_id:
-                        # We will find the ID in commit
-                        pass
 
                 if normalized_url:
                     seen_urls.add(normalized_url)

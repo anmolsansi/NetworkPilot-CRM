@@ -42,10 +42,18 @@ class Task(UUIDMixin, TimestampMixin, Base):
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    status: Mapped[str] = mapped_column(String, nullable=False, default="open")  # open, completed
+    status: Mapped[str] = mapped_column(String, nullable=False, default="open")
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     workspace: Mapped["Workspace"] = relationship("Workspace", lazy="raise")
     person: Mapped["Person"] = relationship("Person", back_populates="tasks")
     assignee: Mapped["AppUser | None"] = relationship("AppUser", lazy="selectin")
+
+    @property
+    def person_name(self) -> str:
+        return self.person.name
+
+    @property
+    def assignee_email(self) -> str | None:
+        return self.assignee.email if self.assignee else None

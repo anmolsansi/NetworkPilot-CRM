@@ -1,7 +1,7 @@
 import logging
 import secrets
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Sequence
 
 import resend
@@ -28,10 +28,21 @@ class WorkspaceInviteService:
         result = await self.db.execute(
             select(WorkspaceInvite).where(WorkspaceInvite.workspace_id == workspace_id)
         )
-        return result.scalars().all()
+        invites = result.scalars().all()
+        now = datetime.now(timezone.utc)
+        for invite in invites:
+            expiry = (
+                invite.expires_at
+                if invite.expires_at.tzinfo
+                else invite.expires_at.replace(tzinfo=timezone.utc)
+            )
+            if invite.status == "pending" and expiry <= now:
+                invite.status = "expired"
+        await self.db.flush()
+        return invites
 
     async def create_invite(
-        self, workspace_id: uuid.UUID, data: WorkspaceInviteCreate
+        self, workspace_id: uuid.UUID, data: WorkspaceInviteCreate, invited_by_user_id: uuid.UUID
     ) -> WorkspaceInvite:
         # Check if already a member
         existing_member = await self.db.execute(
@@ -57,14 +68,19 @@ class WorkspaceInviteService:
         if invite:
             # Refresh token and expiry
             invite.token = secrets.token_urlsafe(32)
-            invite.expires_at = datetime.utcnow() + timedelta(days=7)
+            invite.expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+            invite.status = "pending"
+            invite.resend_count += 1
+            invite.last_sent_at = datetime.now(timezone.utc)
         else:
             invite = WorkspaceInvite(
                 workspace_id=workspace_id,
                 email=data.email,
                 role=data.role,
+                invited_by_user_id=invited_by_user_id,
                 token=secrets.token_urlsafe(32),
-                expires_at=datetime.utcnow() + timedelta(days=7),
+                expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+                last_sent_at=datetime.now(timezone.utc),
             )
             self.db.add(invite)
 
@@ -77,18 +93,16 @@ class WorkspaceInviteService:
 
         if settings.RESEND_API_KEY and settings.RESEND_FROM_EMAIL:
             invite_url = f"{settings.FRONTEND_URL}/invites/accept?token={invite.token}"
-            email_html = (
-                f"<p>You've been invited to join the <strong>{ws.name}</strong> "
-                f"workspace.</p><p><a href='{invite_url}'>Click here to accept "
-                "the invitation</a>.</p>"
-            )
             try:
                 resend.Emails.send(
                     {
                         "from": settings.RESEND_FROM_EMAIL,
                         "to": data.email,
                         "subject": f"You have been invited to join {ws.name}",
-                        "html": email_html,
+                        "html": (
+                            f"<p>You've been invited to join the <strong>{ws.name}</strong> "
+                            f"workspace.</p><p><a href='{invite_url}'>Accept invitation</a>.</p>"
+                        ),
                     }
                 )
             except Exception as e:
@@ -108,8 +122,25 @@ class WorkspaceInviteService:
         if not invite:
             raise NotFoundError("WorkspaceInvite", str(invite_id))
 
-        await self.db.delete(invite)
+        invite.status = "revoked"
+        invite.revoked_at = datetime.now(timezone.utc)
         await self.db.flush()
+
+    async def resend_invite(self, workspace_id: uuid.UUID, invite_id: uuid.UUID) -> WorkspaceInvite:
+        invite = await self.db.scalar(
+            select(WorkspaceInvite).where(
+                WorkspaceInvite.id == invite_id, WorkspaceInvite.workspace_id == workspace_id
+            )
+        )
+        if not invite or invite.status not in {"pending", "expired"}:
+            raise ValidationError("Only pending or expired invitations can be resent.")
+        invite.token = secrets.token_urlsafe(32)
+        invite.expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+        invite.status = "pending"
+        invite.resend_count += 1
+        invite.last_sent_at = datetime.now(timezone.utc)
+        await self.db.flush()
+        return invite
 
     async def accept_invite(self, token: str, user: AppUser) -> WorkspaceMember:
         result = await self.db.execute(
@@ -120,7 +151,14 @@ class WorkspaceInviteService:
         if not invite:
             raise ValidationError("Invalid or expired invitation token.")
 
-        if invite.expires_at < datetime.utcnow():
+        expiry = (
+            invite.expires_at
+            if invite.expires_at.tzinfo
+            else invite.expires_at.replace(tzinfo=timezone.utc)
+        )
+        if invite.status != "pending" or expiry <= datetime.now(timezone.utc):
+            if invite.status == "pending":
+                invite.status = "expired"
             raise ValidationError("Invitation has expired.")
 
         if user.email.lower() != invite.email.lower():
@@ -137,7 +175,8 @@ class WorkspaceInviteService:
 
         if member:
             # Already a member, just delete the invite and return
-            await self.db.delete(invite)
+            invite.status = "accepted"
+            invite.accepted_at = datetime.now(timezone.utc)
             await self.db.flush()
             return member
 
@@ -148,7 +187,8 @@ class WorkspaceInviteService:
             role=invite.role,
         )
         self.db.add(member)
-        await self.db.delete(invite)
+        invite.status = "accepted"
+        invite.accepted_at = datetime.now(timezone.utc)
         await self.db.flush()
 
         return member

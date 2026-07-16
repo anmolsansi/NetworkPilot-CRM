@@ -2,7 +2,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFoundError
@@ -16,7 +16,13 @@ class RelationshipService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def recalculate_freshness(self, workspace_id: uuid.UUID, person_id: uuid.UUID) -> Person:
+    async def recalculate_freshness(
+        self,
+        workspace_id: uuid.UUID,
+        person_id: uuid.UUID,
+        *,
+        now: datetime | None = None,
+    ) -> Person:
         """
         Calculate freshness (0-100) based on recent activities.
         Decay algorithm:
@@ -37,7 +43,9 @@ class RelationshipService:
         if not person:
             raise NotFoundError("Person", str(person_id))
 
-        # Find the most recent interaction activity
+        now = self._as_utc(now or datetime.now(timezone.utc))
+
+        # Find the most recent interaction activity and interaction volume.
         activity_result = await self.db.execute(
             select(Activity)
             .where(
@@ -49,28 +57,33 @@ class RelationshipService:
             .limit(1)
         )
         latest_activity = activity_result.scalar_one_or_none()
+        activity_count = await self.db.scalar(
+            select(func.count(Activity.id)).where(
+                Activity.person_id == person_id,
+                Activity.workspace_id == workspace_id,
+                Activity.deleted_at.is_(None),
+            )
+        )
 
         if latest_activity:
-            person.last_engaged_at = latest_activity.created_at
-
-            activity_date = latest_activity.created_at
-            if activity_date.tzinfo is None:
-                activity_date = activity_date.replace(tzinfo=timezone.utc)
-
-            days_ago = (datetime.now(timezone.utc) - activity_date).days
-
-            if days_ago <= 7:
-                person.calculated_freshness = 100
-            elif days_ago <= 14:
-                person.calculated_freshness = 80
-            elif days_ago <= 30:
-                person.calculated_freshness = 50
-            elif days_ago <= 60:
-                person.calculated_freshness = 20
-            else:
-                person.calculated_freshness = 0
+            activity_date = self._as_utc(latest_activity.created_at)
+            person.last_engaged_at = activity_date
+            person.calculated_freshness = self.freshness_for(activity_date, now)
         else:
             person.calculated_freshness = 0
+            person.last_engaged_at = None
+
+        # Engagement rewards interaction volume while freshness captures recency.
+        person.engagement_score = min(
+            100,
+            int(person.calculated_freshness * 0.6) + min(int(activity_count or 0), 10) * 4,
+        )
+        effective_score = (
+            person.manual_warmth * 20
+            if person.manual_warmth is not None
+            else round((person.calculated_freshness + person.engagement_score) / 2)
+        )
+        person.relationship_health = self.health_for(effective_score)
 
         await self.db.flush()
         _module_logger.info(
@@ -79,3 +92,48 @@ class RelationshipService:
             person.calculated_freshness,
         )
         return person
+
+    async def refresh_workspace(
+        self, workspace_id: uuid.UUID, *, now: datetime | None = None
+    ) -> int:
+        """Backfill time-dependent relationship indicators for active people."""
+        person_ids = (
+            await self.db.scalars(
+                select(Person.id).where(
+                    Person.workspace_id == workspace_id,
+                    Person.deleted_at.is_(None),
+                )
+            )
+        ).all()
+        for person_id in person_ids:
+            await self.recalculate_freshness(workspace_id, person_id, now=now)
+        return len(person_ids)
+
+    @staticmethod
+    def freshness_for(activity_date: datetime, now: datetime) -> int:
+        days_ago = max(0, (now - RelationshipService._as_utc(activity_date)).days)
+        if days_ago <= 7:
+            return 100
+        if days_ago <= 14:
+            return 80
+        if days_ago <= 30:
+            return 50
+        if days_ago <= 60:
+            return 20
+        return 0
+
+    @staticmethod
+    def health_for(score: int) -> str:
+        if score >= 80:
+            return "strong"
+        if score >= 60:
+            return "healthy"
+        if score >= 30:
+            return "needs_attention"
+        return "cold"
+
+    @staticmethod
+    def _as_utc(value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)

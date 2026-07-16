@@ -12,6 +12,7 @@ interface BulkActionBarProps {
   onClearSelection: () => void
   onSuccess: () => void
   pipelineStages: any[]
+  members: { user_id: string; email: string; display_name: string | null }[]
 }
 
 const priorityOptions = [
@@ -20,12 +21,12 @@ const priorityOptions = [
   { value: 'C', label: 'C - Low' },
 ]
 
-export function BulkActionBar({ workspaceId, selectedIds, onClearSelection, onSuccess, pipelineStages }: BulkActionBarProps) {
+export function BulkActionBar({ workspaceId, selectedIds, onClearSelection, onSuccess, pipelineStages, members }: BulkActionBarProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Modal states
-  const [modalType, setModalType] = useState<'stage' | 'priority' | 'tags_add' | 'tags_remove' | 'next_action' | null>(null)
+  const [modalType, setModalType] = useState<'stage' | 'priority' | 'tags_add' | 'tags_remove' | 'next_action' | 'owner' | null>(null)
   
   // Form states
   const [stageValue, setStageValue] = useState('')
@@ -33,6 +34,7 @@ export function BulkActionBar({ workspaceId, selectedIds, onClearSelection, onSu
   const [tagsValue, setTagsValue] = useState('')
   const [nextActionType, setNextActionType] = useState('')
   const [nextActionDate, setNextActionDate] = useState('')
+  const [ownerId, setOwnerId] = useState('')
 
   if (selectedIds.length === 0) return null
 
@@ -114,6 +116,21 @@ export function BulkActionBar({ workspaceId, selectedIds, onClearSelection, onSu
             </>
           )}
 
+          {modalType === 'owner' && (
+            <Select
+              label="Contact owner"
+              options={[
+                { value: '', label: 'Unassigned' },
+                ...members.map(member => ({
+                  value: member.user_id,
+                  label: member.display_name || member.email,
+                })),
+              ]}
+              value={ownerId}
+              onChange={(e) => setOwnerId(e.target.value)}
+            />
+          )}
+
           <div className="flex justify-end gap-2 mt-6">
             <Button variant="secondary" onClick={() => setModalType(null)}>Cancel</Button>
             <Button
@@ -124,6 +141,7 @@ export function BulkActionBar({ workspaceId, selectedIds, onClearSelection, onSu
                 if (modalType === 'tags_add') handleBulkAction('add_tags', { tags: tagsValue.split(',').map(t => t.trim()).filter(Boolean) })
                 if (modalType === 'tags_remove') handleBulkAction('remove_tags', { tags: tagsValue.split(',').map(t => t.trim()).filter(Boolean) })
                 if (modalType === 'next_action') handleBulkAction('set_next_action', { next_action_type: nextActionType || null, next_action_date: nextActionDate || null })
+                if (modalType === 'owner') handleBulkAction('set_owner', { owner_id: ownerId || null })
               }}
             >
               {loading ? 'Updating...' : 'Confirm'}
@@ -152,6 +170,7 @@ export function BulkActionBar({ workspaceId, selectedIds, onClearSelection, onSu
           <Button variant="secondary" size="sm" onClick={() => setModalType('tags_add')}>+ Tags</Button>
           <Button variant="secondary" size="sm" onClick={() => setModalType('tags_remove')}>- Tags</Button>
           <Button variant="secondary" size="sm" onClick={() => setModalType('next_action')}>Next Action</Button>
+          <Button variant="secondary" size="sm" onClick={() => setModalType('owner')}>Owner</Button>
           <Button 
             size="sm" 
             className="bg-red-600 hover:bg-red-700 text-white border-none"

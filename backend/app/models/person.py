@@ -68,6 +68,12 @@ class Person(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
     )
     manual_warmth: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     calculated_freshness: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    engagement_score: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0, server_default="0"
+    )
+    relationship_health: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="cold", server_default="cold"
+    )
     last_engaged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     stage_id: Mapped[uuid.UUID | None] = mapped_column(
