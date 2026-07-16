@@ -60,10 +60,10 @@ class ImportPreviewResponse(BaseModel):
 
 class ImportCommitRow(BaseModel):
     id: uuid.UUID | None = None
-    name: str
+    name: str | None = None
     first_name: str | None = None
     last_name: str | None = None
-    linkedin_url: str
+    linkedin_url: str | None = None
     current_role: str | None = None
     current_company: str | None = None
     location: str | None = None

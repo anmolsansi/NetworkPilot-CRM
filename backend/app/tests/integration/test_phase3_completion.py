@@ -1,6 +1,3 @@
-import uuid
-from datetime import datetime, timezone
-import pytest
 from httpx import AsyncClient
 
 
@@ -29,7 +26,11 @@ class TestPhase3Completion:
         assert update_resp.status_code == 200
         data = update_resp.json()
         assert data["weekly_outreach_target"] == 75
-        assert data["dashboard_config"] == {"widgets": ["funnel", "activity"]}
+        assert data["dashboard_config"]["version"] == 1
+        assert [widget["id"] for widget in data["dashboard_config"]["widgets"][:2]] == [
+            "summary",
+            "due",
+        ]
 
     async def test_analytics_funnel_and_performance(self, client: AsyncClient, mock_headers: dict):
         workspace_id = await self._workspace(client, mock_headers)
@@ -40,9 +41,13 @@ class TestPhase3Completion:
         )
         assert funnel_resp.status_code == 200
         data = funnel_resp.json()
-        assert "total_saved" in data
-        assert "contacted" in data
-        assert "replied" in data
+        assert [stage["key"] for stage in data["stages"]] == [
+            "saved",
+            "invite_sent",
+            "accepted",
+            "messaged",
+            "replied",
+        ]
 
         # Test performance
         perf_resp = await client.get(

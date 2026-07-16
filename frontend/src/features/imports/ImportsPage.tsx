@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useRef } from 'react'
 import { importsApi } from '../../api/httpClient'
 import { useWorkspaceStore } from '../../stores/workspaceStore'
 import { Button } from '../../components/common/Button'
+import { Select } from '../../components/common/Select'
 import { useNavigate } from 'react-router-dom'
 
 export function ImportsPage() {
@@ -9,6 +10,7 @@ export function ImportsPage() {
   const [jobs, setJobs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [duplicateStrategy, setDuplicateStrategy] = useState<'skip' | 'update'>('skip')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
 
@@ -44,7 +46,7 @@ export function ImportsPage() {
     const file = e.target.files[0]
     setUploading(true)
     try {
-      await importsApi.commit(currentWorkspace.id, file)
+      await importsApi.commit(currentWorkspace.id, file, duplicateStrategy)
       fetchJobs()
     } catch (err) {
       console.error(err)
@@ -84,7 +86,16 @@ export function ImportsPage() {
           </Button>
           <h1 className="text-2xl font-bold">Import History</h1>
         </div>
-        <div>
+        <div className="flex items-end gap-3">
+          <Select
+            label="Existing profiles"
+            options={[
+              { value: 'skip', label: 'Skip duplicates' },
+              { value: 'update', label: 'Update matching profiles' },
+            ]}
+            value={duplicateStrategy}
+            onChange={(event) => setDuplicateStrategy(event.target.value as 'skip' | 'update')}
+          />
           <input
             type="file"
             accept=".csv"

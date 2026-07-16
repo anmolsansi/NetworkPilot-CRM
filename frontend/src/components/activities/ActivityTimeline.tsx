@@ -2,6 +2,8 @@ import { useState, useRef } from 'react'
 import { Badge } from '../common/Badge'
 import { Button } from '../common/Button'
 import { Textarea } from '../common/Textarea'
+import { Input } from '../common/Input'
+import { Select } from '../common/Select'
 import { activitiesApi } from '../../api/httpClient'
 import { useWorkspaceStore } from '../../stores/workspaceStore'
 
@@ -9,6 +11,7 @@ export interface Attachment {
   id: string
   file_name: string
   file_size: number
+  content_type: string
 }
 
 export interface Activity {
@@ -19,6 +22,9 @@ export interface Activity {
   new_stage: string | null
   message: string | null
   notes: string | null
+  interaction_summary: string | null
+  outcome: string | null
+  next_steps: string | null
   created_at: string
   is_pinned: boolean
   attachments?: Attachment[]
@@ -30,18 +36,42 @@ const sourceVariant = {
   system: 'default',
 } as const
 
-export function ActivityTimeline({ activities, onRefresh }: { activities: Activity[], onRefresh?: () => void }) {
+export interface ActivityFilters {
+  action_type: string
+  source: string
+  created_from: string
+  created_to: string
+}
+
+const emptyActivityFilters: ActivityFilters = {
+  action_type: '',
+  source: '',
+  created_from: '',
+  created_to: '',
+}
+
+export function ActivityTimeline({
+  activities,
+  onRefresh,
+  filters = emptyActivityFilters,
+  onFiltersChange,
+}: {
+  activities: Activity[]
+  onRefresh?: () => void
+  filters?: ActivityFilters
+  onFiltersChange?: (filters: ActivityFilters) => void
+}) {
   const { currentWorkspace } = useWorkspaceStore()
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editNotes, setEditNotes] = useState<string>('')
+  const [editDetails, setEditDetails] = useState({
+    notes: '',
+    interaction_summary: '',
+    outcome: '',
+    next_steps: '',
+  })
   const [uploadingId, setUploadingId] = useState<string | null>(null)
+  const [deletedActivityId, setDeletedActivityId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-
-  if (activities.length === 0) {
-    return (
-      <p className="text-sm text-gray-500 text-center py-4">No activities yet</p>
-    )
-  }
 
   const handleTogglePin = async (activity: Activity) => {
     if (!currentWorkspace) return
@@ -57,21 +87,38 @@ export function ActivityTimeline({ activities, onRefresh }: { activities: Activi
     if (!currentWorkspace || !window.confirm('Are you sure you want to delete this activity?')) return
     try {
       await activitiesApi.delete(activity.id, currentWorkspace.id)
+      setDeletedActivityId(activity.id)
       onRefresh?.()
     } catch (err) {
       console.error('Failed to delete activity', err)
     }
   }
 
+  const handleRestore = async () => {
+    if (!currentWorkspace || !deletedActivityId) return
+    try {
+      await activitiesApi.restore(deletedActivityId, currentWorkspace.id)
+      setDeletedActivityId(null)
+      onRefresh?.()
+    } catch (err) {
+      console.error('Failed to restore activity', err)
+    }
+  }
+
   const handleStartEdit = (activity: Activity) => {
     setEditingId(activity.id)
-    setEditNotes(activity.notes || '')
+    setEditDetails({
+      notes: activity.notes || '',
+      interaction_summary: activity.interaction_summary || '',
+      outcome: activity.outcome || '',
+      next_steps: activity.next_steps || '',
+    })
   }
 
   const handleSaveEdit = async (activity: Activity) => {
     if (!currentWorkspace) return
     try {
-      await activitiesApi.update(activity.id, { notes: editNotes }, currentWorkspace.id)
+      await activitiesApi.update(activity.id, editDetails, currentWorkspace.id)
       setEditingId(null)
       onRefresh?.()
     } catch (err) {
@@ -96,8 +143,36 @@ export function ActivityTimeline({ activities, onRefresh }: { activities: Activi
     }
   }
 
+  const handleAttachmentDownload = async (attachment: Attachment) => {
+    if (!currentWorkspace) return
+    const { url } = await activitiesApi.getAttachmentDownloadUrl(
+      attachment.id,
+      currentWorkspace.id,
+    )
+    const link = document.createElement('a')
+    link.href = url
+    link.download = attachment.file_name
+    link.rel = 'noopener noreferrer'
+    link.click()
+  }
+
+  const handleAttachmentDelete = async (attachment: Attachment) => {
+    if (!currentWorkspace || !window.confirm(`Delete ${attachment.file_name}?`)) return
+    await activitiesApi.deleteAttachment(attachment.id, currentWorkspace.id)
+    onRefresh?.()
+  }
+
   return (
     <div className="flow-root">
+      {deletedActivityId && (
+        <div className="mb-4 flex items-center justify-between rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <span>Activity deleted.</span>
+          <button className="font-medium underline" onClick={handleRestore}>Undo</button>
+        </div>
+      )}
+      {activities.length === 0 ? (
+        <p className="text-sm text-gray-500 text-center py-4">No activities yet</p>
+      ) : (
       <ul className="-mb-8">
         {activities.map((activity, idx) => (
           <li key={activity.id}>
@@ -130,10 +205,29 @@ export function ActivityTimeline({ activities, onRefresh }: { activities: Activi
 
                     {editingId === activity.id ? (
                       <div className="mt-2 space-y-2">
-                        <Textarea 
-                          value={editNotes} 
-                          onChange={(e) => setEditNotes(e.target.value)} 
-                          rows={2} 
+                        <Textarea
+                          label="Notes"
+                          value={editDetails.notes}
+                          onChange={(e) => setEditDetails({ ...editDetails, notes: e.target.value })}
+                          rows={2}
+                        />
+                        <Textarea
+                          label="Interaction summary"
+                          value={editDetails.interaction_summary}
+                          onChange={(e) => setEditDetails({ ...editDetails, interaction_summary: e.target.value })}
+                          rows={2}
+                        />
+                        <Textarea
+                          label="Outcome"
+                          value={editDetails.outcome}
+                          onChange={(e) => setEditDetails({ ...editDetails, outcome: e.target.value })}
+                          rows={2}
+                        />
+                        <Textarea
+                          label="Next steps"
+                          value={editDetails.next_steps}
+                          onChange={(e) => setEditDetails({ ...editDetails, next_steps: e.target.value })}
+                          rows={2}
                         />
                         <div className="flex gap-2">
                           <Button size="sm" onClick={() => handleSaveEdit(activity)}>Save</Button>
@@ -141,15 +235,30 @@ export function ActivityTimeline({ activities, onRefresh }: { activities: Activi
                         </div>
                       </div>
                     ) : (
-                      activity.notes && <p className="mt-1 text-sm text-gray-500 whitespace-pre-wrap">{activity.notes}</p>
+                      <div className="mt-2 space-y-1 text-sm text-gray-600">
+                        {activity.notes && <p className="whitespace-pre-wrap">{activity.notes}</p>}
+                        {activity.interaction_summary && (
+                          <p className="whitespace-pre-wrap"><span className="font-medium text-gray-700">Summary:</span> {activity.interaction_summary}</p>
+                        )}
+                        {activity.outcome && (
+                          <p className="whitespace-pre-wrap"><span className="font-medium text-gray-700">Outcome:</span> {activity.outcome}</p>
+                        )}
+                        {activity.next_steps && (
+                          <p className="whitespace-pre-wrap"><span className="font-medium text-gray-700">Next steps:</span> {activity.next_steps}</p>
+                        )}
+                      </div>
                     )}
 
                     {/* Attachments List */}
                     {activity.attachments && activity.attachments.length > 0 && (
                       <div className="mt-2 flex flex-col gap-1">
                         {activity.attachments.map(att => (
-                          <div key={att.id} className="text-xs text-gray-500 flex items-center gap-1 bg-gray-50 p-1.5 rounded w-fit border border-gray-100">
-                            📎 {att.file_name} <span className="text-gray-400">({Math.round(att.file_size / 1024)} KB)</span>
+                          <div key={att.id} className="text-xs text-gray-500 flex items-center gap-2 bg-gray-50 p-1.5 rounded w-fit border border-gray-100">
+                            <button className="text-primary-600 hover:underline" onClick={() => handleAttachmentDownload(att)}>
+                              📎 {att.file_name}
+                            </button>
+                            <span className="text-gray-400">({Math.round(att.file_size / 1024)} KB)</span>
+                            <button className="text-red-500" aria-label={`Delete ${att.file_name}`} onClick={() => handleAttachmentDelete(att)}>×</button>
                           </div>
                         ))}
                       </div>
@@ -177,7 +286,7 @@ export function ActivityTimeline({ activities, onRefresh }: { activities: Activi
                       <button 
                         onClick={() => handleStartEdit(activity)}
                         className="text-xs text-blue-500 hover:text-blue-600 px-1"
-                        title="Edit Note"
+                        title="Edit interaction notes"
                       >
                         ✏️
                       </button>
@@ -207,6 +316,7 @@ export function ActivityTimeline({ activities, onRefresh }: { activities: Activi
           </li>
         ))}
       </ul>
+      )}
     </div>
   )
 }
