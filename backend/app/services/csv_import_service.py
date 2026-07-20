@@ -103,18 +103,23 @@ class CsvImportService:
         self,
         actor_user_id: uuid.UUID,
         data: ImportCommitRequest,
+        *,
+        validated_rows: list[ImportPreviewRow] | None = None,
     ) -> dict[str, Any]:
         if data.duplicate_strategy not in ("skip", "update"):
             raise ValidationError("Only skip or update duplicate strategies are supported")
 
-        raw_rows = [row.model_dump() for row in data.rows]
-        preview_rows = await self._validate_rows(
-            workspace_id=data.workspace_id,
-            rows=raw_rows,
-            duplicate_strategy=data.duplicate_strategy,
-            default_initial_action_type=data.default_initial_action_type,
-            default_priority=data.default_priority,
-        )
+        if validated_rows is None:
+            raw_rows = [row.model_dump() for row in data.rows]
+            preview_rows = await self._validate_rows(
+                workspace_id=data.workspace_id,
+                rows=raw_rows,
+                duplicate_strategy=data.duplicate_strategy,
+                default_initial_action_type=data.default_initial_action_type,
+                default_priority=data.default_priority,
+            )
+        else:
+            preview_rows = validated_rows
 
         people_service = PeopleService(self.db)
         activity_service = ActivityService(self.db)
@@ -123,6 +128,10 @@ class CsvImportService:
         errors: list[ImportPreviewRow] = []
         created_count = 0
         updated_count = 0
+        tags_by_name = await self._resolve_tag_names(
+            data.workspace_id,
+            [tag for row in preview_rows for tag in row.tags],
+        )
 
         for row in preview_rows:
             if row.status not in ("valid", "update"):
@@ -130,7 +139,8 @@ class CsvImportService:
                 continue
 
             try:
-                tag_ids = await self._resolve_tag_names(data.workspace_id, row.tags)
+                resolved_tags = [tags_by_name[name] for name in row.tags]
+                tag_ids = [tag.id for tag in resolved_tags]
 
                 if row.status == "update":
                     person = None
@@ -190,6 +200,10 @@ class CsvImportService:
                             data.workspace_id,
                             person.id,
                             PersonUpdate(**update_data),
+                            resolved_tags=(
+                                resolved_tags if "tags" in data.provided_headers else None
+                            ),
+                            reload=False,
                         )
                         updated_count += 1
 
@@ -218,6 +232,8 @@ class CsvImportService:
                             tag_ids=tag_ids,
                         ),
                         check_duplicate=False,
+                        resolved_tags=resolved_tags,
+                        reload=False,
                     )
                     created_count += 1
 
@@ -237,6 +253,7 @@ class CsvImportService:
                         ),
                         person=person,
                         workspace=workspace,
+                        known_activity_count=1,
                     )
                 created_people.append(
                     ImportCreatedPerson(
@@ -274,10 +291,10 @@ class CsvImportService:
 
     async def _resolve_tag_names(
         self, workspace_id: uuid.UUID, names: list[str]
-    ) -> list[uuid.UUID]:
+    ) -> dict[str, Tag]:
         normalized = list(dict.fromkeys(name.strip() for name in names if name.strip()))
         if not normalized:
-            return []
+            return {}
         result = await self.db.execute(
             select(Tag).where(Tag.workspace_id == workspace_id, Tag.name.in_(normalized))
         )
@@ -288,7 +305,7 @@ class CsvImportService:
                 self.db.add(tag)
                 await self.db.flush()
                 tags_by_name[name] = tag
-        return [tags_by_name[name].id for name in normalized]
+        return tags_by_name
 
     def _parse_csv(self, content: bytes) -> tuple[list[dict[str, Any]], list[str]]:
         try:

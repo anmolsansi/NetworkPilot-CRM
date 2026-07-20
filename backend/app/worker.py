@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from html import escape
 from zoneinfo import ZoneInfo
@@ -40,6 +41,7 @@ IMPORT_BATCH_SIZE = 40
 
 async def process_job(db: AsyncSession, job: ImportJob):
     """Validate and import a queued CSV in durable 40-row batches."""
+    started_at = time.monotonic()
     logger.info("import_job.started job_id=%s attempt=%s", job.id, job.attempt_count)
     service = CsvImportService(db)
     rows, provided_headers = service._parse_csv(job.file_content.encode("utf-8"))
@@ -52,6 +54,7 @@ async def process_job(db: AsyncSession, job: ImportJob):
     errors: list[dict] = []
     total_chunks = max(1, (len(rows) + IMPORT_BATCH_SIZE - 1) // IMPORT_BATCH_SIZE)
     for chunk_index, offset in enumerate(range(0, len(rows), IMPORT_BATCH_SIZE)):
+        chunk_started_at = time.monotonic()
         chunk = rows[offset : offset + IMPORT_BATCH_SIZE]
         preview_rows = await service._validate_rows(
             workspace_id=job.workspace_id,
@@ -81,7 +84,11 @@ async def process_job(db: AsyncSession, job: ImportJob):
                 chunk_index=chunk_index,
                 total_chunks=total_chunks,
             )
-            result = await service.commit(job.created_by_user_id, request)
+            result = await service.commit(
+                job.created_by_user_id,
+                request,
+                validated_rows=committable_rows,
+            )
             for row_error in result["errors"]:
                 payload = row_error.model_dump(mode="json")
                 payload["row"] = offset + payload["row_number"]
@@ -91,15 +98,25 @@ async def process_job(db: AsyncSession, job: ImportJob):
         job.error_log = errors or None
         job.heartbeat_at = datetime.utcnow()
         await db.commit()
+        logger.info(
+            "import_job.chunk_completed job_id=%s chunk=%s/%s rows=%s failed=%s duration_ms=%s",
+            job.id,
+            chunk_index + 1,
+            total_chunks,
+            len(chunk),
+            job.failed_rows,
+            round((time.monotonic() - chunk_started_at) * 1000),
+        )
 
     job.status = "completed"
     job.completed_at = datetime.utcnow()
     await db.commit()
     logger.info(
-        "import_job.completed job_id=%s processed=%s failed=%s",
+        "import_job.completed job_id=%s processed=%s failed=%s duration_ms=%s",
         job.id,
         job.processed_rows,
         job.failed_rows,
+        round((time.monotonic() - started_at) * 1000),
     )
 
 

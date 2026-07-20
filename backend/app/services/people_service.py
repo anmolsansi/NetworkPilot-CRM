@@ -33,6 +33,8 @@ class PeopleService:
         data: PersonCreate,
         *,
         check_duplicate: bool = True,
+        resolved_tags: list[Tag] | None = None,
+        reload: bool = True,
     ) -> Person:
         """Create a person with URL normalization and duplicate detection."""
         _module_logger.info(
@@ -100,7 +102,11 @@ class PeopleService:
         )
 
         if data.tag_ids:
-            person.tags = await self._resolve_tags(workspace_id, data.tag_ids)
+            person.tags = (
+                self._validate_resolved_tags(workspace_id, data.tag_ids, resolved_tags)
+                if resolved_tags is not None
+                else await self._resolve_tags(workspace_id, data.tag_ids)
+            )
         if data.stage_id:
             await self._require_pipeline_stage(workspace_id, data.stage_id)
         if data.owner_id:
@@ -114,7 +120,7 @@ class PeopleService:
             mask_id(str(person.id)),
             slug,
         )
-        return await self.get(workspace_id, person.id)
+        return await self.get(workspace_id, person.id) if reload else person
 
     async def get(self, workspace_id: uuid.UUID, person_id: uuid.UUID) -> Person:
         """Get a person by ID within workspace."""
@@ -306,7 +312,13 @@ class PeopleService:
         return people, total
 
     async def update(
-        self, workspace_id: uuid.UUID, person_id: uuid.UUID, data: PersonUpdate
+        self,
+        workspace_id: uuid.UUID,
+        person_id: uuid.UUID,
+        data: PersonUpdate,
+        *,
+        resolved_tags: list[Tag] | None = None,
+        reload: bool = True,
     ) -> Person:
         """Update person profile fields."""
         person = await self.get(workspace_id, person_id)
@@ -324,7 +336,12 @@ class PeopleService:
         )
         for field, value in update_data.items():
             if field == "tag_ids":
-                person.tags = await self._resolve_tags(workspace_id, value or [])
+                tag_ids = value or []
+                person.tags = (
+                    self._validate_resolved_tags(workspace_id, tag_ids, resolved_tags)
+                    if resolved_tags is not None
+                    else await self._resolve_tags(workspace_id, tag_ids)
+                )
             elif field == "stage_id":
                 if value is not None:
                     await self._require_pipeline_stage(workspace_id, value)
@@ -352,7 +369,20 @@ class PeopleService:
             mask_id(str(workspace_id)),
             mask_id(str(person.id)),
         )
-        return await self.get(workspace_id, person.id)
+        return await self.get(workspace_id, person.id) if reload else person
+
+    @staticmethod
+    def _validate_resolved_tags(
+        workspace_id: uuid.UUID,
+        tag_ids: list[uuid.UUID],
+        resolved_tags: list[Tag],
+    ) -> list[Tag]:
+        """Validate caller-provided tags without issuing another database query."""
+        if {tag.id for tag in resolved_tags} != set(tag_ids) or any(
+            tag.workspace_id != workspace_id for tag in resolved_tags
+        ):
+            raise ValidationError("One or more tags do not belong to this workspace.")
+        return resolved_tags
 
     async def _resolve_tags(self, workspace_id: uuid.UUID, tag_ids: list[uuid.UUID]) -> list[Tag]:
         if not tag_ids:
