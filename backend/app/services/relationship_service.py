@@ -65,25 +65,12 @@ class RelationshipService:
             )
         )
 
-        if latest_activity:
-            activity_date = self._as_utc(latest_activity.created_at)
-            person.last_engaged_at = activity_date
-            person.calculated_freshness = self.freshness_for(activity_date, now)
-        else:
-            person.calculated_freshness = 0
-            person.last_engaged_at = None
-
-        # Engagement rewards interaction volume while freshness captures recency.
-        person.engagement_score = min(
-            100,
-            int(person.calculated_freshness * 0.6) + min(int(activity_count or 0), 10) * 4,
+        self.apply_activity_metrics(
+            person,
+            latest_activity_at=latest_activity.created_at if latest_activity else None,
+            activity_count=int(activity_count or 0),
+            now=now,
         )
-        effective_score = (
-            person.manual_warmth * 20
-            if person.manual_warmth is not None
-            else round((person.calculated_freshness + person.engagement_score) / 2)
-        )
-        person.relationship_health = self.health_for(effective_score)
 
         await self.db.flush()
         _module_logger.info(
@@ -91,6 +78,38 @@ class RelationshipService:
             person_id,
             person.calculated_freshness,
         )
+        return person
+
+    @classmethod
+    def apply_activity_metrics(
+        cls,
+        person: Person,
+        *,
+        latest_activity_at: datetime | None,
+        activity_count: int,
+        now: datetime | None = None,
+    ) -> Person:
+        """Apply relationship metrics when activity facts are already known."""
+        now = cls._as_utc(now or datetime.now(timezone.utc))
+        if latest_activity_at:
+            activity_date = cls._as_utc(latest_activity_at)
+            person.last_engaged_at = activity_date
+            person.calculated_freshness = cls.freshness_for(activity_date, now)
+        else:
+            person.calculated_freshness = 0
+            person.last_engaged_at = None
+
+        # Engagement rewards interaction volume while freshness captures recency.
+        person.engagement_score = min(
+            100,
+            int(person.calculated_freshness * 0.6) + min(activity_count, 10) * 4,
+        )
+        effective_score = (
+            person.manual_warmth * 20
+            if person.manual_warmth is not None
+            else round((person.calculated_freshness + person.engagement_score) / 2)
+        )
+        person.relationship_health = cls.health_for(effective_score)
         return person
 
     async def refresh_workspace(

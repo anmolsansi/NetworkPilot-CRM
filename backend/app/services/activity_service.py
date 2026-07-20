@@ -31,6 +31,7 @@ class ActivityService:
         *,
         person: Person | None = None,
         workspace: Workspace | None = None,
+        known_activity_count: int | None = None,
     ) -> tuple[Activity, Person]:
         """
         Create an activity and update person state in one transaction.
@@ -112,7 +113,15 @@ class ActivityService:
         await self.db.flush()
 
         relationship_service = RelationshipService(self.db)
-        person = await relationship_service.recalculate_freshness(workspace_id, person_id)
+        if known_activity_count is None:
+            person = await relationship_service.recalculate_freshness(workspace_id, person_id)
+        else:
+            person = relationship_service.apply_activity_metrics(
+                person,
+                latest_activity_at=activity.created_at,
+                activity_count=known_activity_count,
+            )
+            await self.db.flush()
 
         _module_logger.info(
             "activity_service.create.completed "

@@ -6,6 +6,9 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.import_job import ImportJob
+from app.services.csv_import_service import CsvImportService
+from app.services.people_service import PeopleService
+from app.services.relationship_service import RelationshipService
 from app.worker import IMPORT_BATCH_SIZE, process_job
 
 _module_logger = logging.getLogger(__name__)
@@ -52,7 +55,54 @@ class TestCsvImportExportAPI:
         client: AsyncClient,
         mock_headers: dict,
         db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
     ):
+        validation_calls = 0
+        tag_resolution_calls = 0
+        people_tag_queries = 0
+        people_reload_queries = 0
+        relationship_recalculations = 0
+        original_validate = CsvImportService._validate_rows
+        original_resolve_tag_names = CsvImportService._resolve_tag_names
+        original_resolve_tags = PeopleService._resolve_tags
+        original_get = PeopleService.get
+        original_recalculate = RelationshipService.recalculate_freshness
+
+        async def count_validations(service, *args, **kwargs):
+            nonlocal validation_calls
+            validation_calls += 1
+            return await original_validate(service, *args, **kwargs)
+
+        async def count_tag_resolutions(service, *args, **kwargs):
+            nonlocal tag_resolution_calls
+            tag_resolution_calls += 1
+            return await original_resolve_tag_names(service, *args, **kwargs)
+
+        async def count_people_tag_queries(service, *args, **kwargs):
+            nonlocal people_tag_queries
+            people_tag_queries += 1
+            return await original_resolve_tags(service, *args, **kwargs)
+
+        async def count_people_reloads(service, *args, **kwargs):
+            nonlocal people_reload_queries
+            people_reload_queries += 1
+            return await original_get(service, *args, **kwargs)
+
+        async def count_relationship_recalculations(service, *args, **kwargs):
+            nonlocal relationship_recalculations
+            relationship_recalculations += 1
+            return await original_recalculate(service, *args, **kwargs)
+
+        monkeypatch.setattr(CsvImportService, "_validate_rows", count_validations)
+        monkeypatch.setattr(CsvImportService, "_resolve_tag_names", count_tag_resolutions)
+        monkeypatch.setattr(PeopleService, "_resolve_tags", count_people_tag_queries)
+        monkeypatch.setattr(PeopleService, "get", count_people_reloads)
+        monkeypatch.setattr(
+            RelationshipService,
+            "recalculate_freshness",
+            count_relationship_recalculations,
+        )
+
         workspace_response = await client.post(
             "/api/v1/workspaces",
             json={"name": "Batched Import Workspace"},
@@ -60,22 +110,31 @@ class TestCsvImportExportAPI:
         )
         workspace_id = workspace_response.json()["id"]
         rows = [
-            f"Batch {index},https://linkedin.com/in/batch-{index}/"
+            f"Batch {index},https://linkedin.com/in/batch-{index}/,shared"
             for index in range(IMPORT_BATCH_SIZE + 1)
         ]
-        csv_content = "name,linkedin_url\n" + "\n".join(rows) + "\n"
+        csv_content = "name,linkedin_url,tags\n" + "\n".join(rows) + "\n"
         job = await self._queue_and_process(
             client, db_session, mock_headers, workspace_id, "batched.csv", csv_content
         )
         assert job["status"] == "completed"
         assert job["processed_rows"] == IMPORT_BATCH_SIZE + 1
         assert job["failed_rows"] == 0
+        assert validation_calls == 2
+        assert tag_resolution_calls == 2
+        assert people_tag_queries == 0
+        assert people_reload_queries == 0
+        assert relationship_recalculations == 0
 
         people_response = await client.get(
             f"/api/v1/people?workspace_id={workspace_id}",
             headers=mock_headers,
         )
         assert people_response.json()["total"] == IMPORT_BATCH_SIZE + 1
+        imported_person = people_response.json()["items"][0]
+        assert imported_person["calculated_freshness"] == 100
+        assert imported_person["engagement_score"] == 64
+        assert imported_person["relationship_health"] == "strong"
 
     async def test_updates_exported_profiles_across_multiple_chunks(
         self,
