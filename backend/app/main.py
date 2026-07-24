@@ -1,6 +1,8 @@
+import asyncio
 import logging
 import time
 import uuid
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +21,37 @@ from app.core.logging import get_logger, setup_logging
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
 logger = get_logger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Optionally run the durable job pollers inside the web service process."""
+    worker_task: asyncio.Task[None] | None = None
+    worker_engine = None
+
+    if settings.RUN_EMBEDDED_WORKER:
+        from app import worker
+
+        worker_engine = worker.engine
+        worker_task = asyncio.create_task(
+            worker.run_worker(),
+            name="networkpilot-embedded-worker",
+        )
+        logger.info("embedded_worker.started")
+
+    try:
+        yield
+    finally:
+        if worker_task is not None:
+            worker_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await worker_task
+
+        if worker_engine is not None:
+            await worker_engine.dispose()
+
+        if settings.RUN_EMBEDDED_WORKER:
+            logger.info("embedded_worker.stopped")
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -68,6 +101,7 @@ def create_app() -> FastAPI:
         version="0.1.0",
         docs_url="/docs" if not settings.is_production else None,
         redoc_url="/redoc" if not settings.is_production else None,
+        lifespan=lifespan,
     )
 
     # Exception handlers

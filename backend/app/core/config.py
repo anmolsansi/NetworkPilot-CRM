@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
     CORS_ORIGINS: str = "http://localhost:5173,chrome-extension://*"
+    RUN_EMBEDDED_WORKER: bool = False
 
     @property
     def cors_origins_list(self) -> list[str]:
