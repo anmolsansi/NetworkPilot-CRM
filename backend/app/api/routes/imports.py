@@ -88,6 +88,14 @@ async def commit_people_import(
     db.add(job)
     await db.commit()
     await db.refresh(job)
+    logger.info(
+        "import_job.queued job_id=%s workspace_id=%s rows=%s bytes=%s strategy=%s",
+        job.id,
+        workspace_id,
+        len(rows),
+        len(content),
+        duplicate_strategy,
+    )
 
     return job
 
@@ -177,4 +185,10 @@ async def retry_import(
 
     await db.commit()
     await db.refresh(job)
+    logger.info(
+        "import_job.retry_queued job_id=%s workspace_id=%s next_attempt=%s",
+        job.id,
+        workspace_id,
+        job.attempt_count + 1,
+    )
     return job
