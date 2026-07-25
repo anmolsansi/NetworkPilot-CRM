@@ -56,7 +56,9 @@ class TestCsvImportExportAPI:
         mock_headers: dict,
         db_session: AsyncSession,
         monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
     ):
+        caplog.set_level(logging.INFO)
         validation_calls = 0
         tag_resolution_calls = 0
         people_tag_queries = 0
@@ -125,6 +127,17 @@ class TestCsvImportExportAPI:
         assert people_tag_queries == 0
         assert people_reload_queries == 0
         assert relationship_recalculations == 0
+        log_messages = [record.getMessage() for record in caplog.records]
+        assert any("import_job.queued" in message for message in log_messages)
+        assert any("import_job.started" in message for message in log_messages)
+        assert any("import_job.parsed" in message for message in log_messages)
+        chunk_logs = [
+            message for message in log_messages if "import_job.chunk_completed" in message
+        ]
+        assert len(chunk_logs) == 2
+        assert "created=40" in chunk_logs[0]
+        assert "created=1" in chunk_logs[1]
+        assert any("import_job.completed" in message for message in log_messages)
 
         people_response = await client.get(
             f"/api/v1/people?workspace_id={workspace_id}",

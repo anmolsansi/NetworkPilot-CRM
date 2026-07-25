@@ -42,7 +42,12 @@ IMPORT_BATCH_SIZE = 40
 async def process_job(db: AsyncSession, job: ImportJob):
     """Validate and import a queued CSV in durable 40-row batches."""
     started_at = time.monotonic()
-    logger.info("import_job.started job_id=%s attempt=%s", job.id, job.attempt_count)
+    logger.info(
+        "import_job.started job_id=%s workspace_id=%s attempt=%s",
+        job.id,
+        job.workspace_id,
+        job.attempt_count,
+    )
     service = CsvImportService(db)
     rows, provided_headers = service._parse_csv(job.file_content.encode("utf-8"))
     job.total_rows = len(rows)
@@ -53,6 +58,16 @@ async def process_job(db: AsyncSession, job: ImportJob):
 
     errors: list[dict] = []
     total_chunks = max(1, (len(rows) + IMPORT_BATCH_SIZE - 1) // IMPORT_BATCH_SIZE)
+    logger.info(
+        "import_job.parsed job_id=%s rows=%s columns=%s chunks=%s batch_size=%s",
+        job.id,
+        len(rows),
+        len(provided_headers),
+        total_chunks,
+        IMPORT_BATCH_SIZE,
+    )
+    total_created = 0
+    total_updated = 0
     for chunk_index, offset in enumerate(range(0, len(rows), IMPORT_BATCH_SIZE)):
         chunk_started_at = time.monotonic()
         chunk = rows[offset : offset + IMPORT_BATCH_SIZE]
@@ -64,6 +79,9 @@ async def process_job(db: AsyncSession, job: ImportJob):
             default_priority=job.default_priority,
         )
         committable_rows = [row for row in preview_rows if row.status in {"valid", "update"}]
+        validation_rejected_count = len(preview_rows) - len(committable_rows)
+        created_count = 0
+        updated_count = 0
         for row_error in preview_rows:
             if row_error.status in {"valid", "update"}:
                 continue
@@ -89,6 +107,10 @@ async def process_job(db: AsyncSession, job: ImportJob):
                 request,
                 validated_rows=committable_rows,
             )
+            created_count = result["summary"]["created_count"]
+            updated_count = result["summary"]["updated_count"]
+            total_created += created_count
+            total_updated += updated_count
             for row_error in result["errors"]:
                 payload = row_error.model_dump(mode="json")
                 payload["row"] = offset + payload["row_number"]
@@ -99,11 +121,15 @@ async def process_job(db: AsyncSession, job: ImportJob):
         job.heartbeat_at = datetime.utcnow()
         await db.commit()
         logger.info(
-            "import_job.chunk_completed job_id=%s chunk=%s/%s rows=%s failed=%s duration_ms=%s",
+            "import_job.chunk_completed job_id=%s chunk=%s/%s rows=%s created=%s "
+            "updated=%s validation_rejected=%s failed_total=%s duration_ms=%s",
             job.id,
             chunk_index + 1,
             total_chunks,
             len(chunk),
+            created_count,
+            updated_count,
+            validation_rejected_count,
             job.failed_rows,
             round((time.monotonic() - chunk_started_at) * 1000),
         )
@@ -112,9 +138,12 @@ async def process_job(db: AsyncSession, job: ImportJob):
     job.completed_at = datetime.utcnow()
     await db.commit()
     logger.info(
-        "import_job.completed job_id=%s processed=%s failed=%s duration_ms=%s",
+        "import_job.completed job_id=%s processed=%s created=%s updated=%s failed=%s "
+        "duration_ms=%s",
         job.id,
         job.processed_rows,
+        total_created,
+        total_updated,
         job.failed_rows,
         round((time.monotonic() - started_at) * 1000),
     )
