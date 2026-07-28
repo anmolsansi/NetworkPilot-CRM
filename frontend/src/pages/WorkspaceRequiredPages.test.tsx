@@ -129,19 +129,7 @@ describe('workspace-required pages', () => {
         overdue_alerts_enabled: true,
       },
     })
-    const followUp1 = {
-      id: 'follow-up-1',
-      name: 'Follow-up 1',
-      order: 1,
-      allowed_next_stage_ids: ['follow-up-2'],
-    }
-    const followUp2 = {
-      id: 'follow-up-2',
-      name: 'Follow-up 2',
-      order: 2,
-      allowed_next_stage_ids: [],
-    }
-    const person = (id: string, name: string, stage: typeof followUp1) => ({
+    const person = (id: string, name: string, stage: string) => ({
       id,
       name,
       first_name: name,
@@ -160,9 +148,9 @@ describe('workspace-required pages', () => {
       is_favorite: false,
       favorite_notes: null,
       linkedin_url: `linkedin.com/in/${id}`,
-      stage: stage.name,
-      stage_id: stage.id,
-      pipeline_stage: stage,
+      stage,
+      stage_id: null,
+      pipeline_stage: null,
       priority: 'B',
       status: 'active',
       next_action_type: null,
@@ -175,9 +163,9 @@ describe('workspace-required pages', () => {
       page: 1,
       limit: 20,
       items: [
-        person('person-1', 'Person One', followUp1),
-        person('person-2', 'Person Two', followUp1),
-        person('person-3', 'Person Three', followUp2),
+        person('person-1', 'Person One', 'invite_pending'),
+        person('person-2', 'Person Two', 'invite_pending'),
+        person('person-3', 'Person Three', 'accepted'),
       ],
     })
 
@@ -187,7 +175,7 @@ describe('workspace-required pages', () => {
     expect(screen.getByLabelText('Select all eligible people')).toBeDisabled()
     fireEvent.click(screen.getByLabelText('Select Person One'))
 
-    expect(screen.getByText(/Selection locked to/)).toHaveTextContent('Follow-up 1')
+    expect(screen.getByText(/Selection locked to/)).toHaveTextContent('Invite Sent')
     expect(screen.getByLabelText('Select Person Two')).not.toBeDisabled()
     expect(screen.getByLabelText('Select Person Three')).toBeDisabled()
     expect(screen.getByLabelText('Select all eligible people')).not.toBeDisabled()

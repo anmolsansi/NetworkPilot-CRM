@@ -33,6 +33,11 @@ ACTION_TRANSITIONS = {
         "next_action_type": "follow_up_2",
         "use_follow_up_delay": True,
     },
+    "follow_up_2_sent": {
+        "new_stage": "follow_up_2_sent",
+        "next_action_type": None,
+        "next_action_date": None,
+    },
     "reply_received": {
         "new_stage": "replied",
         "next_action_type": None,
@@ -44,6 +49,26 @@ ACTION_TRANSITIONS = {
         "next_action_date": None,
     },
 }
+
+WORKFLOW_STAGE_ALIASES = {
+    "invite_sent": "invite_pending",
+}
+
+WORKFLOW_NEXT_ACTIONS = {
+    "invite_pending": "accepted",
+    "accepted": "message_sent",
+    "waiting_for_reply": "follow_up_1_sent",
+    "follow_up_1_sent": "follow_up_2_sent",
+    "follow_up_2_sent": "reply_received",
+}
+
+
+def normalize_workflow_stage(stage: str) -> str:
+    return WORKFLOW_STAGE_ALIASES.get(stage, stage)
+
+
+def next_workflow_action(stage: str) -> str | None:
+    return WORKFLOW_NEXT_ACTIONS.get(normalize_workflow_stage(stage))
 
 
 def calculate_transition(

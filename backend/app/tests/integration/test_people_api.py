@@ -212,80 +212,92 @@ class TestPeopleAPI:
         }
         assert all(activity["source"] == "web_app" for activity in activities_response.json())
 
-    async def test_bulk_category_moves_require_same_source_and_forward_target(
+    async def test_bulk_workflow_advances_only_people_at_the_same_step(
         self,
         client: AsyncClient,
         mock_headers: dict,
     ):
-        workspace_response = await client.post(
-            "/api/v1/workspaces",
-            json={"name": "Category Guardrail Workspace"},
-            headers=mock_headers,
+        workspace_id, people = await self._create_people(
+            client, mock_headers, "Bulk Workflow Workspace", count=3
         )
-        workspace_id = workspace_response.json()["id"]
-        stages = []
-        for order, name in enumerate(("Invites", "Follow-up 1", "Follow-up 2")):
+        first_two_ids = [people[0]["id"], people[1]["id"]]
+        workflow = (
+            ("accepted", "send_first_message"),
+            ("waiting_for_reply", "follow_up_1"),
+            ("follow_up_1_sent", "follow_up_2"),
+            ("follow_up_2_sent", None),
+            ("replied", None),
+        )
+        for expected_stage, expected_next_action in workflow:
             response = await client.post(
-                f"/api/v1/pipeline-stages?workspace_id={workspace_id}",
-                json={"name": name, "order": order},
-                headers=mock_headers,
-            )
-            assert response.status_code == 201
-            stages.append(response.json())
-
-        people = []
-        for index, stage in enumerate((stages[1], stages[1], stages[2])):
-            response = await client.post(
-                f"/api/v1/people?workspace_id={workspace_id}",
+                "/api/v1/people/bulk-actions",
                 json={
-                    "name": f"Guarded Person {index}",
-                    "linkedin_url": f"https://linkedin.com/in/guarded-{uuid.uuid4()}/",
-                    "stage_id": stage["id"],
+                    "workspace_id": workspace_id,
+                    "person_ids": first_two_ids,
+                    "action": "advance_workflow",
+                    "payload": {},
                 },
                 headers=mock_headers,
             )
-            assert response.status_code == 201
-            people.append(response.json())
+            assert response.status_code == 200
+            assert response.json()["updated_count"] == 2
+            assert all(item["stage"] == expected_stage for item in response.json()["items"])
+            assert all(
+                item["next_action_type"] == expected_next_action
+                for item in response.json()["items"]
+            )
+
+        complete_response = await client.post(
+            "/api/v1/people/bulk-actions",
+            json={
+                "workspace_id": workspace_id,
+                "person_ids": first_two_ids,
+                "action": "advance_workflow",
+                "payload": {},
+            },
+            headers=mock_headers,
+        )
+        assert complete_response.status_code == 422
+        assert "no next workflow action" in complete_response.json()["error"]["message"]
+
+        advance_third = await client.post(
+            "/api/v1/people/bulk-actions",
+            json={
+                "workspace_id": workspace_id,
+                "person_ids": [people[2]["id"]],
+                "action": "advance_workflow",
+                "payload": {},
+            },
+            headers=mock_headers,
+        )
+        assert advance_third.status_code == 200
 
         mixed_response = await client.post(
             "/api/v1/people/bulk-actions",
             json={
                 "workspace_id": workspace_id,
                 "person_ids": [people[0]["id"], people[2]["id"]],
-                "action": "set_stage",
-                "payload": {"stage_id": stages[2]["id"]},
+                "action": "advance_workflow",
+                "payload": {},
             },
             headers=mock_headers,
         )
         assert mixed_response.status_code == 422
-        assert "same current category" in mixed_response.json()["error"]["message"]
+        assert "same current workflow step" in mixed_response.json()["error"]["message"]
 
-        backward_response = await client.post(
-            "/api/v1/people/bulk-actions",
-            json={
-                "workspace_id": workspace_id,
-                "person_ids": [people[0]["id"], people[1]["id"]],
-                "action": "set_stage",
-                "payload": {"stage_id": stages[0]["id"]},
-            },
+        activities_response = await client.get(
+            f"/api/v1/people/{people[0]['id']}/activities?workspace_id={workspace_id}",
             headers=mock_headers,
         )
-        assert backward_response.status_code == 422
-        assert "after their current category" in backward_response.json()["error"]["message"]
-
-        forward_response = await client.post(
-            "/api/v1/people/bulk-actions",
-            json={
-                "workspace_id": workspace_id,
-                "person_ids": [people[0]["id"], people[1]["id"]],
-                "action": "set_stage",
-                "payload": {"stage_id": stages[2]["id"]},
-            },
-            headers=mock_headers,
-        )
-        assert forward_response.status_code == 200
-        assert forward_response.json()["updated_count"] == 2
-        assert all(item["stage_id"] == stages[2]["id"] for item in forward_response.json()["items"])
+        assert activities_response.status_code == 200
+        assert {activity["action_type"] for activity in activities_response.json()} == {
+            "accepted",
+            "message_sent",
+            "follow_up_1_sent",
+            "follow_up_2_sent",
+            "reply_received",
+        }
+        assert all(activity["source"] == "web_app" for activity in activities_response.json())
 
     async def test_bulk_action_validation_and_atomic_workspace_failure(
         self,

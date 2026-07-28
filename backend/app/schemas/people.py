@@ -208,6 +208,10 @@ class BulkArchivePayload(StrictModel):
     pass
 
 
+class BulkAdvanceWorkflowPayload(StrictModel):
+    pass
+
+
 class BulkNextActionPayload(StrictModel):
     next_action_type: str | None = Field(None, max_length=100)
     next_action_date: date | None = None
@@ -266,6 +270,11 @@ class BulkArchiveRequest(BulkPeopleActionBase):
     payload: BulkArchivePayload
 
 
+class BulkAdvanceWorkflowRequest(BulkPeopleActionBase):
+    action: Literal["advance_workflow"]
+    payload: BulkAdvanceWorkflowPayload
+
+
 class BulkSetNextActionRequest(BulkPeopleActionBase):
     action: Literal["set_next_action"]
     payload: BulkNextActionPayload
@@ -284,6 +293,7 @@ BulkPeopleActionRequest = Annotated[
         BulkSetPriorityRequest,
         BulkSetStageRequest,
         BulkArchiveRequest,
+        BulkAdvanceWorkflowRequest,
         BulkSetNextActionRequest,
         BulkSetOwnerRequest,
     ],

@@ -9,15 +9,18 @@ import { Select } from '../components/common/Select'
 import { EmptyState } from '../components/common/EmptyState'
 import { ErrorAlert } from '../components/common/ErrorAlert'
 import { Skeleton } from '../components/common/Skeleton'
-import {
-  BulkActionBar,
-  type PipelineStage,
-  type SelectionCategory,
-} from '../features/bulk-actions/BulkActionBar'
+import { BulkActionBar, type SelectionCategory } from '../features/bulk-actions/BulkActionBar'
 import { SavedViewsDropdown } from '../features/saved-views/SavedViewsDropdown'
 import { SaveViewModal } from '../features/saved-views/SaveViewModal'
 import { DuplicatesModal } from '../features/duplicates/DuplicatesModal'
 import { savedViewsApi } from '../api/httpClient'
+
+interface PipelineStage {
+  id: string
+  name: string
+  order: number
+  allowed_next_stage_ids: string[]
+}
 
 interface Person {
   id: string
@@ -133,6 +136,16 @@ const favoriteOptions = [
   { value: 'true', label: 'Favourites only' },
   { value: 'false', label: 'Not favourites' },
 ]
+
+const workflowSteps: Record<string, { name: string; nextActionLabel: string | null }> = {
+  invite_sent: { name: 'Invite Sent', nextActionLabel: 'Accepted' },
+  invite_pending: { name: 'Invite Sent', nextActionLabel: 'Accepted' },
+  accepted: { name: 'Accepted', nextActionLabel: 'Message Sent' },
+  waiting_for_reply: { name: 'Message Sent', nextActionLabel: 'Follow-up 1' },
+  follow_up_1_sent: { name: 'Follow-up 1', nextActionLabel: 'Follow-up 2' },
+  follow_up_2_sent: { name: 'Follow-up 2', nextActionLabel: 'Reply Received' },
+  replied: { name: 'Reply Received', nextActionLabel: null },
+}
 
 function octopusDate(value: string | null) {
   if (!value) return ''
@@ -285,25 +298,12 @@ export function PeopleListPage() {
   }
 
   const getPersonCategory = (person: Person): SelectionCategory => {
-    const configuredStage = person.stage_id
-      ? pipelineStages.find((stage) => stage.id === person.stage_id)
-      : null
-    const stage = person.pipeline_stage || configuredStage
-    if (person.stage_id) {
-      return {
-        key: `stage:${person.stage_id}`,
-        name: stage?.name || person.stage,
-        stageId: person.stage_id,
-        order: stage?.order ?? null,
-        allowedNextStageIds: stage?.allowed_next_stage_ids || [],
-      }
-    }
+    const normalizedStage = person.stage === 'invite_sent' ? 'invite_pending' : person.stage
+    const workflowStep = workflowSteps[normalizedStage]
     return {
-      key: `legacy:${person.stage}`,
-      name: person.stage,
-      stageId: null,
-      order: null,
-      allowedNextStageIds: [],
+      key: `workflow:${normalizedStage}`,
+      name: workflowStep?.name || person.stage,
+      nextActionLabel: workflowStep?.nextActionLabel ?? null,
     }
   }
 
@@ -605,7 +605,7 @@ export function PeopleListPage() {
         {selectionCategory && (
           <div className="mb-3 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
             Selection locked to <span className="font-medium">{selectionCategory.name}</span>.
-            {' '}Rows in other categories are unavailable.
+            {' '}Rows at other workflow steps are unavailable.
           </div>
         )}
         {people.length === 0 ? (
@@ -626,7 +626,9 @@ export function PeopleListPage() {
                       checked={allEligiblePeopleSelected}
                       disabled={selectAllDisabled}
                       aria-label="Select all eligible people"
-                      title={selectAllDisabled ? 'Select a row first to lock the category.' : undefined}
+                      title={selectAllDisabled
+                        ? 'Select a row first to lock the workflow step.'
+                        : undefined}
                       onChange={toggleSelectAll}
                     />
                   </th>
@@ -728,7 +730,9 @@ export function PeopleListPage() {
                         </span>
                       ) : (
                         <span className="inline-flex items-center px-2 py-0.5 rounded bg-gray-50 text-gray-600 border border-gray-200">
-                          {person.stage === 'archived' ? 'Archived (Legacy)' : person.stage}
+                          {person.stage === 'archived'
+                            ? 'Archived (Legacy)'
+                            : workflowSteps[person.stage]?.name || person.stage}
                         </span>
                       )}
                     </td>
@@ -791,7 +795,6 @@ export function PeopleListPage() {
             clearSelection()
             fetchPeople()
           }}
-          pipelineStages={pipelineStages}
           currentCategory={selectionCategory}
           members={members}
         />

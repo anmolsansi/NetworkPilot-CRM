@@ -2,7 +2,7 @@ import logging
 import uuid
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -12,8 +12,11 @@ from app.models.activity import Activity
 from app.models.person import Person
 from app.models.pipeline_stage import PipelineStage
 from app.models.tag import Tag
-from app.models.workspace import WorkspaceMember
+from app.models.workspace import Workspace, WorkspaceMember
+from app.schemas.activities import ActivityCreate
 from app.schemas.people import BulkPeopleActionRequest
+from app.services.activity_service import ActivityService
+from app.services.transition_service import next_workflow_action, normalize_workflow_stage
 
 _module_logger = logging.getLogger(__name__)
 _module_logger.debug("module.loaded module=%s", __name__)
@@ -36,6 +39,16 @@ class BulkPeopleService:
             len(data.person_ids),
         )
         ordered_people = await self._load_people(workspace_id, data.person_ids)
+        if data.action == "advance_workflow":
+            await self._advance_workflow(workspace_id, actor_user_id, ordered_people)
+            ordered_people = await self._load_people(workspace_id, data.person_ids)
+            _module_logger.info(
+                "bulk_people_service.apply.completed workspace_id=%s action=%s count=%s",
+                mask_id(str(workspace_id)),
+                data.action,
+                len(ordered_people),
+            )
+            return ordered_people
         computed_tags = await self._compute_tags(workspace_id, ordered_people, data)
         resolved_stage = await self._resolve_stage(workspace_id, data)
         await self._validate_owner(workspace_id, data)
@@ -51,6 +64,47 @@ class BulkPeopleService:
             len(ordered_people),
         )
         return ordered_people
+
+    async def _advance_workflow(
+        self,
+        workspace_id: uuid.UUID,
+        actor_user_id: uuid.UUID,
+        people: list[Person],
+    ) -> None:
+        source_stages = {normalize_workflow_stage(person.stage) for person in people}
+        if len(source_stages) != 1:
+            raise ValidationError(
+                "Select people at the same current workflow step before advancing them."
+            )
+        source_stage = next(iter(source_stages))
+        action_type = next_workflow_action(source_stage)
+        if action_type is None:
+            raise ValidationError("The selected people have no next workflow action.")
+
+        workspace = await self.db.get(Workspace, workspace_id)
+        if workspace is None:
+            raise NotFoundError("Workspace", str(workspace_id))
+        counts_result = await self.db.execute(
+            select(Activity.person_id, func.count(Activity.id))
+            .where(
+                Activity.workspace_id == workspace_id,
+                Activity.person_id.in_([person.id for person in people]),
+                Activity.deleted_at.is_(None),
+            )
+            .group_by(Activity.person_id)
+        )
+        activity_counts = dict(counts_result.all())
+        activity_service = ActivityService(self.db)
+        for person in people:
+            await activity_service.create(
+                workspace_id,
+                person.id,
+                actor_user_id,
+                ActivityCreate(action_type=action_type, source="web_app"),
+                person=person,
+                workspace=workspace,
+                known_activity_count=activity_counts.get(person.id, 0) + 1,
+            )
 
     async def _validate_owner(
         self,
@@ -164,41 +218,23 @@ class BulkPeopleService:
         people: list[Person],
         resolved_stage: tuple[uuid.UUID | None, str | None] | None,
     ) -> None:
-        if not resolved_stage:
-            return
-        source_categories = {
-            (person.stage_id, None if person.stage_id else person.stage) for person in people
-        }
-        if len(source_categories) > 1:
-            raise ValidationError(
-                "Select people from the same current category before moving them."
-            )
-        if resolved_stage[0] is None:
+        if not resolved_stage or resolved_stage[0] is None:
             return
         target_id = resolved_stage[0]
-        source_id = next(iter(source_categories))[0]
-        if source_id is None:
+        source_ids = {person.stage_id for person in people if person.stage_id}
+        if not source_ids:
             return
         result = await self.db.execute(
             select(PipelineStage).where(
                 PipelineStage.workspace_id == workspace_id,
-                PipelineStage.id.in_({source_id, target_id}),
+                PipelineStage.id.in_(source_ids),
             )
         )
-        stages_by_id = {stage.id: stage for stage in result.scalars().all()}
-        source_stage = stages_by_id.get(source_id)
-        target_stage = stages_by_id.get(target_id)
-        if source_stage is None or target_stage is None:
-            raise NotFoundError("Pipeline stage")
-        if target_stage.order <= source_stage.order:
-            raise ValidationError("Move people only to a category after their current category.")
-        if (
-            source_stage.allowed_next_stage_ids
-            and str(target_id) not in source_stage.allowed_next_stage_ids
-        ):
-            raise ValidationError(
-                f"The transition from '{source_stage.name}' to the selected stage is not allowed."
-            )
+        for stage in result.scalars().all():
+            if stage.allowed_next_stage_ids and str(target_id) not in stage.allowed_next_stage_ids:
+                raise ValidationError(
+                    f"The transition from '{stage.name}' to the selected stage is not allowed."
+                )
 
     def _apply_to_person(
         self,
