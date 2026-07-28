@@ -15,10 +15,12 @@ ALLOWED_FILTERS = {
     "favoriteNotes",
     "processedFrom",
     "processedTo",
+    "inviteAcceptedOnly",
     "stage",
     "priority",
     "deleted",
     "tagId",
+    "ownerId",
 }
 ALLOWED_SORT_FIELDS = {
     "linkedin_url",

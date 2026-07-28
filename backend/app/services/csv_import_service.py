@@ -22,7 +22,7 @@ from app.schemas.imports import (
     ImportPreviewRow,
     ImportPreviewSummary,
 )
-from app.schemas.people import PersonCreate
+from app.schemas.people import PersonCreate, PersonUpdate
 from app.services.activity_service import ActivityService
 from app.services.people_service import PeopleService
 from app.services.url_normalizer import normalize_linkedin_url
@@ -64,7 +64,7 @@ class CsvImportService:
         content: bytes,
         file_name: str | None,
         default_initial_action_type: str = "invite_sent",
-        duplicate_strategy: str = "skip",
+        duplicate_strategy: str = "update",
         default_priority: str = "B",
     ) -> ImportPreviewResponse:
         if duplicate_strategy not in ("skip", "update"):
@@ -153,59 +153,21 @@ class CsvImportService:
                         )
 
                     if person:
-                        update_data = {}
-
-                        if "name" in data.provided_headers and row.name is not None:
-                            update_data["name"] = row.name
-                        if "first_name" in data.provided_headers:
-                            update_data["first_name"] = row.first_name
-                        if "last_name" in data.provided_headers:
-                            update_data["last_name"] = row.last_name
-                        if "linkedin_url" in data.provided_headers and row.linkedin_url:
-                            update_data["linkedin_url"] = row.linkedin_url
-                        if "current_role" in data.provided_headers:
-                            update_data["role"] = row.current_role
-                        if "current_company" in data.provided_headers:
-                            update_data["company"] = row.current_company
-                        if "location" in data.provided_headers:
-                            update_data["location"] = row.location
-                        if "email" in data.provided_headers:
-                            update_data["email"] = row.email
-                        if "phone_number" in data.provided_headers:
-                            update_data["phone_number"] = row.phone_number
-                        if "premium" in data.provided_headers:
-                            update_data["premium"] = row.premium
-                        if "company_website" in data.provided_headers:
-                            update_data["company_website"] = row.company_website
-                        if "processed_at" in data.provided_headers:
-                            update_data["processed_at"] = row.processed_at
-                        if "processed_at_millis" in data.provided_headers:
-                            update_data["processed_at_millis"] = row.processed_at_millis
-                        if "invite_accepted_at" in data.provided_headers:
-                            update_data["invite_accepted_at"] = row.invite_accepted_at
-                        if "invite_accepted_at_millis" in data.provided_headers:
-                            update_data["invite_accepted_at_millis"] = row.invite_accepted_at_millis
-                        if "priority" in data.provided_headers and row.priority:
-                            update_data["priority"] = row.priority
-                        if "connection_note" in data.provided_headers:
-                            update_data["connection_note"] = row.connection_note
-                        if "conversation_context" in data.provided_headers:
-                            update_data["notes"] = row.conversation_context
-                        if "tags" in data.provided_headers:
-                            update_data["tag_ids"] = tag_ids
-
-                        from app.schemas.people import PersonUpdate
-
-                        person = await people_service.update(
-                            data.workspace_id,
-                            person.id,
-                            PersonUpdate(**update_data),
-                            resolved_tags=(
-                                resolved_tags if "tags" in data.provided_headers else None
-                            ),
-                            reload=False,
+                        update_data = self._duplicate_update_data(
+                            person,
+                            row,
+                            data.provided_headers,
+                            tag_ids,
                         )
-                        updated_count += 1
+                        if update_data:
+                            person = await people_service.update(
+                                data.workspace_id,
+                                person.id,
+                                PersonUpdate(**update_data),
+                                resolved_tags=(resolved_tags if "tag_ids" in update_data else None),
+                                reload=False,
+                            )
+                            updated_count += 1
 
                 if row.status != "update" or not person:
                     person = await people_service.create(
@@ -289,9 +251,59 @@ class CsvImportService:
             "errors": errors,
         }
 
-    async def _resolve_tag_names(
-        self, workspace_id: uuid.UUID, names: list[str]
-    ) -> dict[str, Tag]:
+    @staticmethod
+    def _duplicate_update_data(
+        person: Person,
+        row: ImportPreviewRow,
+        provided_headers: list[str],
+        tag_ids: list[uuid.UUID],
+    ) -> dict[str, Any]:
+        """Return only meaningful CSV values that differ from the stored profile."""
+        mappings = (
+            ("name", "name", row.name),
+            ("first_name", "first_name", row.first_name),
+            ("last_name", "last_name", row.last_name),
+            ("current_role", "role", row.current_role),
+            ("current_company", "company", row.current_company),
+            ("location", "location", row.location),
+            ("email", "email", row.email),
+            ("phone_number", "phone_number", row.phone_number),
+            ("premium", "premium", row.premium),
+            ("company_website", "company_website", row.company_website),
+            ("processed_at", "processed_at", row.processed_at),
+            ("processed_at_millis", "processed_at_millis", row.processed_at_millis),
+            ("invite_accepted_at", "invite_accepted_at", row.invite_accepted_at),
+            (
+                "invite_accepted_at_millis",
+                "invite_accepted_at_millis",
+                row.invite_accepted_at_millis,
+            ),
+            ("priority", "priority", row.priority),
+            ("connection_note", "connection_note", row.connection_note),
+            ("conversation_context", "notes", row.conversation_context),
+        )
+        update_data = {
+            model_field: incoming_value
+            for csv_field, model_field, incoming_value in mappings
+            if csv_field in provided_headers
+            and incoming_value is not None
+            and incoming_value != getattr(person, model_field)
+        }
+        if (
+            "linkedin_url" in provided_headers
+            and row.linkedin_url
+            and row.normalized_profile_url != person.linkedin_url
+        ):
+            update_data["linkedin_url"] = row.linkedin_url
+        if (
+            "tags" in provided_headers
+            and tag_ids
+            and set(tag_ids) != {tag.id for tag in person.tags}
+        ):
+            update_data["tag_ids"] = tag_ids
+        return update_data
+
+    async def _resolve_tag_names(self, workspace_id: uuid.UUID, names: list[str]) -> dict[str, Tag]:
         normalized = list(dict.fromkeys(name.strip() for name in names if name.strip()))
         if not normalized:
             return {}
@@ -398,8 +410,9 @@ class CsvImportService:
             elif linkedin_url and not normalized:
                 errors.append("linkedin_url must be a LinkedIn profile URL")
 
-            priority = (self._clean(row.get("priority")) or default_priority).upper()
-            if priority not in {"A", "B", "C"}:
+            priority_value = self._clean(row.get("priority"))
+            priority = priority_value.upper() if priority_value else None
+            if priority is not None and priority not in {"A", "B", "C"}:
                 errors.append("priority must be A, B, or C")
 
             initial_action_type = (

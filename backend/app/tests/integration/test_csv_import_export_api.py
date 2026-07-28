@@ -25,7 +25,7 @@ class TestCsvImportExportAPI:
         workspace_id: str,
         file_name: str,
         csv_content: str,
-        duplicate_strategy: str = "skip",
+        duplicate_strategy: str = "update",
     ) -> dict:
         queued = await client.post(
             "/api/v1/imports/people/commit",
@@ -221,6 +221,60 @@ class TestCsvImportExportAPI:
         assert people_after.json()["total"] == IMPORT_BATCH_SIZE + 1
         assert all(person["email"] == updated_emails[person["id"]] for person in updated_people)
         assert all(person["role"] == "Engineer" for person in updated_people)
+
+    async def test_default_duplicate_merge_updates_changed_values_without_erasing_blanks(
+        self,
+        client: AsyncClient,
+        mock_headers: dict,
+        db_session: AsyncSession,
+    ):
+        workspace_response = await client.post(
+            "/api/v1/workspaces",
+            json={"name": "Safe Duplicate Merge Workspace"},
+            headers=mock_headers,
+        )
+        workspace_id = workspace_response.json()["id"]
+        created_response = await client.post(
+            f"/api/v1/people?workspace_id={workspace_id}",
+            json={
+                "name": "Existing Person",
+                "linkedin_url": "https://linkedin.com/in/safe-duplicate-merge/",
+                "role": "Engineer",
+                "company": "Original Company",
+                "email": "keep@example.com",
+            },
+            headers=mock_headers,
+        )
+        assert created_response.status_code == 201
+        person_id = created_response.json()["id"]
+        update_csv = (
+            "id,email,current_role,current_company,location,Invite accepted at,"
+            "Invite accepted at millis\n"
+            f"{person_id},,,Changed Company,London,Jul 06 2026 11:06 PM,1783359397124\n"
+        )
+
+        job = await self._queue_and_process(
+            client,
+            db_session,
+            mock_headers,
+            workspace_id,
+            "safe-merge.csv",
+            update_csv,
+        )
+        assert job["status"] == "completed"
+        assert job["failed_rows"] == 0
+
+        person_response = await client.get(
+            f"/api/v1/people/{person_id}?workspace_id={workspace_id}",
+            headers=mock_headers,
+        )
+        person = person_response.json()
+        assert person["email"] == "keep@example.com"
+        assert person["role"] == "Engineer"
+        assert person["company"] == "Changed Company"
+        assert person["location"] == "London"
+        assert person["invite_accepted_at"] is not None
+        assert person["invite_accepted_at_millis"] == 1783359397124
 
     async def test_imports_octopus_connect_export_columns(
         self,

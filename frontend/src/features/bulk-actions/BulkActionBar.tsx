@@ -6,12 +6,28 @@ import { Input } from '../../components/common/Input'
 import { ErrorAlert } from '../../components/common/ErrorAlert'
 import { peopleApi } from '../../api/httpClient'
 
+export interface PipelineStage {
+  id: string
+  name: string
+  order: number
+  allowed_next_stage_ids: string[]
+}
+
+export interface SelectionCategory {
+  key: string
+  name: string
+  stageId: string | null
+  order: number | null
+  allowedNextStageIds: string[]
+}
+
 interface BulkActionBarProps {
   workspaceId: string
   selectedIds: string[]
   onClearSelection: () => void
   onSuccess: () => void
-  pipelineStages: any[]
+  pipelineStages: PipelineStage[]
+  currentCategory: SelectionCategory | null
   members: { user_id: string; email: string; display_name: string | null }[]
 }
 
@@ -21,7 +37,15 @@ const priorityOptions = [
   { value: 'C', label: 'C - Low' },
 ]
 
-export function BulkActionBar({ workspaceId, selectedIds, onClearSelection, onSuccess, pipelineStages, members }: BulkActionBarProps) {
+export function BulkActionBar({
+  workspaceId,
+  selectedIds,
+  onClearSelection,
+  onSuccess,
+  pipelineStages,
+  currentCategory,
+  members,
+}: BulkActionBarProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -37,6 +61,23 @@ export function BulkActionBar({ workspaceId, selectedIds, onClearSelection, onSu
   const [ownerId, setOwnerId] = useState('')
 
   if (selectedIds.length === 0) return null
+
+  const stageOptions = pipelineStages.map((stage) => {
+    const isCurrentOrEarlier = currentCategory?.order != null
+      ? stage.order <= currentCategory.order
+      : stage.id === currentCategory?.stageId
+    const isDisallowedTransition = Boolean(
+      currentCategory?.allowedNextStageIds.length
+      && !currentCategory.allowedNextStageIds.includes(stage.id),
+    )
+    const disabled = isCurrentOrEarlier || isDisallowedTransition
+    return {
+      value: stage.id,
+      label: disabled ? `${stage.name} (unavailable)` : stage.name,
+      disabled,
+    }
+  })
+  const hasAvailableStage = stageOptions.some((option) => !option.disabled)
 
   const handleBulkAction = async (action: string, payload: any) => {
     setLoading(true)
@@ -70,15 +111,26 @@ export function BulkActionBar({ workspaceId, selectedIds, onClearSelection, onSu
           {error && <ErrorAlert message={error} onRetry={() => setError(null)} />}
 
           {modalType === 'stage' && (
-            <Select
-              label="New Stage"
-              options={[
-                { value: '', label: 'No custom stage (Clear)' },
-                ...pipelineStages.map(s => ({ value: s.id, label: s.name }))
-              ]}
-              value={stageValue}
-              onChange={(e) => setStageValue(e.target.value)}
-            />
+            <>
+              {currentCategory && (
+                <p className="text-sm text-gray-600">
+                  Current category: <span className="font-medium">{currentCategory.name}</span>.
+                  {' '}Only later allowed categories can be selected.
+                </p>
+              )}
+              <Select
+                label="Move to category"
+                options={[
+                  { value: '', label: 'Choose a category' },
+                  ...stageOptions,
+                ]}
+                value={stageValue}
+                onChange={(e) => setStageValue(e.target.value)}
+              />
+              {!hasAvailableStage && (
+                <p className="text-sm text-amber-700">No later category is available.</p>
+              )}
+            </>
           )}
 
           {modalType === 'priority' && (
@@ -134,7 +186,7 @@ export function BulkActionBar({ workspaceId, selectedIds, onClearSelection, onSu
           <div className="flex justify-end gap-2 mt-6">
             <Button variant="secondary" onClick={() => setModalType(null)}>Cancel</Button>
             <Button
-              disabled={loading}
+              disabled={loading || (modalType === 'stage' && !stageValue)}
               onClick={() => {
                 if (modalType === 'stage') handleBulkAction('set_stage', { stage_id: stageValue || null })
                 if (modalType === 'priority') handleBulkAction('set_priority', { priority: priorityValue })
@@ -166,7 +218,16 @@ export function BulkActionBar({ workspaceId, selectedIds, onClearSelection, onSu
           <Button variant="secondary" size="sm" onClick={() => handleBulkAction('set_favorite', { is_favorite: true })}>★ Favourite</Button>
           <Button variant="secondary" size="sm" onClick={() => handleBulkAction('set_favorite', { is_favorite: false })}>☆ Unfavourite</Button>
           <Button variant="secondary" size="sm" onClick={() => setModalType('priority')}>Priority</Button>
-          <Button variant="secondary" size="sm" onClick={() => setModalType('stage')}>Stage</Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setStageValue('')
+              setModalType('stage')
+            }}
+          >
+            Move category
+          </Button>
           <Button variant="secondary" size="sm" onClick={() => setModalType('tags_add')}>+ Tags</Button>
           <Button variant="secondary" size="sm" onClick={() => setModalType('tags_remove')}>- Tags</Button>
           <Button variant="secondary" size="sm" onClick={() => setModalType('next_action')}>Next Action</Button>

@@ -10,7 +10,7 @@ export function ImportsPage() {
   const [jobs, setJobs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
-  const [duplicateStrategy, setDuplicateStrategy] = useState<'skip' | 'update'>('skip')
+  const [duplicateStrategy, setDuplicateStrategy] = useState<'skip' | 'update'>('update')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
 
@@ -90,8 +90,8 @@ export function ImportsPage() {
           <Select
             label="Existing profiles"
             options={[
+              { value: 'update', label: 'Update changed or missing values' },
               { value: 'skip', label: 'Skip duplicates' },
-              { value: 'update', label: 'Update matching profiles' },
             ]}
             value={duplicateStrategy}
             onChange={(event) => setDuplicateStrategy(event.target.value as 'skip' | 'update')}

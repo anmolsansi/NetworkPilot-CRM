@@ -194,6 +194,7 @@ class TestPeopleAPI:
             headers=mock_headers,
         )
         assert archive_response.status_code == 200
+
         archived = archive_response.json()["items"][0]
         assert archived["stage"] == "archived"
         assert archived["status"] == "archived"
@@ -210,6 +211,81 @@ class TestPeopleAPI:
             "bulk_stage_change",
         }
         assert all(activity["source"] == "web_app" for activity in activities_response.json())
+
+    async def test_bulk_category_moves_require_same_source_and_forward_target(
+        self,
+        client: AsyncClient,
+        mock_headers: dict,
+    ):
+        workspace_response = await client.post(
+            "/api/v1/workspaces",
+            json={"name": "Category Guardrail Workspace"},
+            headers=mock_headers,
+        )
+        workspace_id = workspace_response.json()["id"]
+        stages = []
+        for order, name in enumerate(("Invites", "Follow-up 1", "Follow-up 2")):
+            response = await client.post(
+                f"/api/v1/pipeline-stages?workspace_id={workspace_id}",
+                json={"name": name, "order": order},
+                headers=mock_headers,
+            )
+            assert response.status_code == 201
+            stages.append(response.json())
+
+        people = []
+        for index, stage in enumerate((stages[1], stages[1], stages[2])):
+            response = await client.post(
+                f"/api/v1/people?workspace_id={workspace_id}",
+                json={
+                    "name": f"Guarded Person {index}",
+                    "linkedin_url": f"https://linkedin.com/in/guarded-{uuid.uuid4()}/",
+                    "stage_id": stage["id"],
+                },
+                headers=mock_headers,
+            )
+            assert response.status_code == 201
+            people.append(response.json())
+
+        mixed_response = await client.post(
+            "/api/v1/people/bulk-actions",
+            json={
+                "workspace_id": workspace_id,
+                "person_ids": [people[0]["id"], people[2]["id"]],
+                "action": "set_stage",
+                "payload": {"stage_id": stages[2]["id"]},
+            },
+            headers=mock_headers,
+        )
+        assert mixed_response.status_code == 422
+        assert "same current category" in mixed_response.json()["error"]["message"]
+
+        backward_response = await client.post(
+            "/api/v1/people/bulk-actions",
+            json={
+                "workspace_id": workspace_id,
+                "person_ids": [people[0]["id"], people[1]["id"]],
+                "action": "set_stage",
+                "payload": {"stage_id": stages[0]["id"]},
+            },
+            headers=mock_headers,
+        )
+        assert backward_response.status_code == 422
+        assert "after their current category" in backward_response.json()["error"]["message"]
+
+        forward_response = await client.post(
+            "/api/v1/people/bulk-actions",
+            json={
+                "workspace_id": workspace_id,
+                "person_ids": [people[0]["id"], people[1]["id"]],
+                "action": "set_stage",
+                "payload": {"stage_id": stages[2]["id"]},
+            },
+            headers=mock_headers,
+        )
+        assert forward_response.status_code == 200
+        assert forward_response.json()["updated_count"] == 2
+        assert all(item["stage_id"] == stages[2]["id"] for item in forward_response.json()["items"])
 
     async def test_bulk_action_validation_and_atomic_workspace_failure(
         self,
@@ -384,6 +460,8 @@ class TestPeopleAPI:
                 "premium": True,
                 "is_favorite": True,
                 "favorite_notes": "Strong AI background",
+                "invite_accepted_at": "2026-07-20T12:00:00Z",
+                "invite_accepted_at_millis": 1784548800000,
             },
             {
                 "name": "Amy Alpha",
@@ -455,6 +533,20 @@ class TestPeopleAPI:
         assert favorite_response.json()["total"] == 1
         assert favorite_response.json()["items"][0]["first_name"] == "Zoe"
         assert favorite_response.json()["items"][0]["favorite_notes"] == "Strong AI background"
+
+        accepted_response = await client.get(
+            "/api/v1/people",
+            params={
+                "workspace_id": workspace_id,
+                "invite_accepted_only": "true",
+            },
+            headers=mock_headers,
+        )
+        assert accepted_response.status_code == 200
+        assert accepted_response.json()["total"] == 1
+        assert accepted_response.json()["items"][0]["first_name"] == "Zoe"
+        assert accepted_response.json()["items"][0]["invite_accepted_at"] is not None
+        assert accepted_response.json()["items"][0]["invite_accepted_at_millis"] is not None
 
     async def test_list_people_requires_auth(self, client: AsyncClient):
         response = await client.get(

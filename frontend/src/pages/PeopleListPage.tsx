@@ -9,7 +9,11 @@ import { Select } from '../components/common/Select'
 import { EmptyState } from '../components/common/EmptyState'
 import { ErrorAlert } from '../components/common/ErrorAlert'
 import { Skeleton } from '../components/common/Skeleton'
-import { BulkActionBar } from '../features/bulk-actions/BulkActionBar'
+import {
+  BulkActionBar,
+  type PipelineStage,
+  type SelectionCategory,
+} from '../features/bulk-actions/BulkActionBar'
 import { SavedViewsDropdown } from '../features/saved-views/SavedViewsDropdown'
 import { SaveViewModal } from '../features/saved-views/SaveViewModal'
 import { DuplicatesModal } from '../features/duplicates/DuplicatesModal'
@@ -36,7 +40,7 @@ interface Person {
   linkedin_url: string
   stage: string
   stage_id: string | null
-  pipeline_stage: any | null
+  pipeline_stage: PipelineStage | null
   priority: string
   status: string
   next_action_type: string | null
@@ -63,6 +67,7 @@ interface PeopleFilters {
   favoriteNotes: string
   processedFrom: string
   processedTo: string
+  inviteAcceptedOnly: boolean
   stage: string
   priority: string
   tagId: string
@@ -81,6 +86,7 @@ const emptyFilters: PeopleFilters = {
   favoriteNotes: '',
   processedFrom: '',
   processedTo: '',
+  inviteAcceptedOnly: false,
   stage: '',
   priority: '',
   tagId: '',
@@ -154,11 +160,12 @@ export function PeopleListPage() {
   const [error, setError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [selectedPersonIds, setSelectedPersonIds] = useState<string[]>([])
+  const [selectionCategory, setSelectionCategory] = useState<SelectionCategory | null>(null)
   
   const [saveViewOpen, setSaveViewOpen] = useState(false)
   const [duplicatesOpen, setDuplicatesOpen] = useState(false)
   const [savedViewsRefreshTrigger, setSavedViewsRefreshTrigger] = useState(0)
-  const [pipelineStages, setPipelineStages] = useState<any[]>([])
+  const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>([])
   const [availableTags, setAvailableTags] = useState<Person['tags']>([])
   const [members, setMembers] = useState<{ user_id: string; email: string; display_name: string | null }[]>([])
   
@@ -222,6 +229,7 @@ export function PeopleListPage() {
       if (filters.favoriteNotes) params.favorite_notes = filters.favoriteNotes
       if (filters.processedFrom) params.processed_from = `${filters.processedFrom}T00:00:00.000Z`
       if (filters.processedTo) params.processed_to = `${filters.processedTo}T23:59:59.999Z`
+      if (filters.inviteAcceptedOnly) params.invite_accepted_only = 'true'
       if (filters.stage) params.stage = filters.stage
       if (filters.stage && filters.stage !== 'archived') {
         delete params.stage
@@ -276,21 +284,69 @@ export function PeopleListPage() {
     setPage(1)
   }
 
-  const toggleSelectAll = () => {
-    if (people.length === 0) return
-    const allOnPageAreSelected = people.every((p) => selectedPersonIds.includes(p.id))
-    if (allOnPageAreSelected) {
-      setSelectedPersonIds((prev) => prev.filter((id) => !people.find((p) => p.id === id)))
-    } else {
-      const idsToAdd = people.filter((p) => !selectedPersonIds.includes(p.id)).map((p) => p.id)
-      setSelectedPersonIds((prev) => [...prev, ...idsToAdd])
+  const getPersonCategory = (person: Person): SelectionCategory => {
+    const configuredStage = person.stage_id
+      ? pipelineStages.find((stage) => stage.id === person.stage_id)
+      : null
+    const stage = person.pipeline_stage || configuredStage
+    if (person.stage_id) {
+      return {
+        key: `stage:${person.stage_id}`,
+        name: stage?.name || person.stage,
+        stageId: person.stage_id,
+        order: stage?.order ?? null,
+        allowedNextStageIds: stage?.allowed_next_stage_ids || [],
+      }
+    }
+    return {
+      key: `legacy:${person.stage}`,
+      name: person.stage,
+      stageId: null,
+      order: null,
+      allowedNextStageIds: [],
     }
   }
 
-  const toggleSelectPerson = (id: string) => {
-    setSelectedPersonIds((prev) =>
-      prev.includes(id) ? prev.filter((pId) => pId !== id) : [...prev, id]
-    )
+  const pageCategoryKeys = new Set(people.map((person) => getPersonCategory(person).key))
+  const selectAllDisabled = people.length === 0 || (!selectionCategory && pageCategoryKeys.size > 1)
+  const eligiblePeople = selectionCategory
+    ? people.filter((person) => getPersonCategory(person).key === selectionCategory.key)
+    : people
+  const allEligiblePeopleSelected = eligiblePeople.length > 0
+    && eligiblePeople.every((person) => selectedPersonIds.includes(person.id))
+
+  const clearSelection = () => {
+    setSelectedPersonIds([])
+    setSelectionCategory(null)
+  }
+
+  const toggleSelectAll = () => {
+    if (selectAllDisabled) return
+    const activeCategory = selectionCategory || getPersonCategory(people[0])
+    const eligibleIds = people
+      .filter((person) => getPersonCategory(person).key === activeCategory.key)
+      .map((person) => person.id)
+    if (allEligiblePeopleSelected) {
+      const nextSelection = selectedPersonIds.filter((id) => !eligibleIds.includes(id))
+      setSelectedPersonIds(nextSelection)
+      if (nextSelection.length === 0) setSelectionCategory(null)
+      return
+    }
+    setSelectionCategory(activeCategory)
+    setSelectedPersonIds(Array.from(new Set([...selectedPersonIds, ...eligibleIds])))
+  }
+
+  const toggleSelectPerson = (person: Person) => {
+    if (selectedPersonIds.includes(person.id)) {
+      const nextSelection = selectedPersonIds.filter((id) => id !== person.id)
+      setSelectedPersonIds(nextSelection)
+      if (nextSelection.length === 0) setSelectionCategory(null)
+      return
+    }
+    const category = getPersonCategory(person)
+    if (selectionCategory && selectionCategory.key !== category.key) return
+    setSelectionCategory(selectionCategory || category)
+    setSelectedPersonIds([...selectedPersonIds, person.id])
   }
 
   const handleSort = (key: SortKey) => {
@@ -373,8 +429,9 @@ export function PeopleListPage() {
   const totalPages = Math.ceil(total / 20)
 
   const handleApplySavedView = (newFilters: any, newSortBy: string, newSortOrder: string) => {
-    setFilterDraft(newFilters)
-    setFilters(newFilters)
+    const normalizedFilters = { ...emptyFilters, ...newFilters }
+    setFilterDraft(normalizedFilters)
+    setFilters(normalizedFilters)
     setSortBy(newSortBy as SortKey)
     setSortOrder(newSortOrder as 'asc' | 'desc')
     setPage(1)
@@ -473,6 +530,17 @@ export function PeopleListPage() {
           />
           <Input label="Processed from" type="date" value={filterDraft.processedFrom} onChange={(e) => setFilterDraft({ ...filterDraft, processedFrom: e.target.value })} />
           <Input label="Processed to" type="date" value={filterDraft.processedTo} onChange={(e) => setFilterDraft({ ...filterDraft, processedTo: e.target.value })} />
+          <label className="flex items-center gap-2 self-end pb-2 text-sm font-medium text-gray-700">
+            <input
+              type="checkbox"
+              checked={filterDraft.inviteAcceptedOnly}
+              onChange={(event) => setFilterDraft({
+                ...filterDraft,
+                inviteAcceptedOnly: event.target.checked,
+              })}
+            />
+            Invite accepted values present
+          </label>
           <div>
             <Select
               label="Stage"
@@ -534,6 +602,12 @@ export function PeopleListPage() {
 
       {/* People List */}
       <div className="mt-6">
+        {selectionCategory && (
+          <div className="mb-3 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            Selection locked to <span className="font-medium">{selectionCategory.name}</span>.
+            {' '}Rows in other categories are unavailable.
+          </div>
+        )}
         {people.length === 0 ? (
           <EmptyState
             title="No people found"
@@ -549,7 +623,10 @@ export function PeopleListPage() {
                     <input
                       type="checkbox"
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      checked={people.length > 0 && people.every(p => selectedPersonIds.includes(p.id))}
+                      checked={allEligiblePeopleSelected}
+                      disabled={selectAllDisabled}
+                      aria-label="Select all eligible people"
+                      title={selectAllDisabled ? 'Select a row first to lock the category.' : undefined}
                       onChange={toggleSelectAll}
                     />
                   </th>
@@ -573,7 +650,12 @@ export function PeopleListPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {people.map((person) => (
+                {people.map((person) => {
+                  const category = getPersonCategory(person)
+                  const selectionDisabled = Boolean(
+                    selectionCategory && selectionCategory.key !== category.key,
+                  )
+                  return (
                   <tr
                     key={person.id}
                     onClick={() => navigate(`/people/${person.id}`)}
@@ -592,7 +674,12 @@ export function PeopleListPage() {
                         type="checkbox"
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         checked={selectedPersonIds.includes(person.id)}
-                        onChange={() => toggleSelectPerson(person.id)}
+                        disabled={selectionDisabled}
+                        aria-label={`Select ${person.name}`}
+                        title={selectionDisabled
+                          ? `Selection is locked to ${selectionCategory?.name}.`
+                          : undefined}
+                        onChange={() => toggleSelectPerson(person)}
                       />
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
@@ -660,7 +747,8 @@ export function PeopleListPage() {
                     <td className="whitespace-nowrap px-4 py-3 text-gray-600">{octopusDate(person.invite_accepted_at)}</td>
                     <td className="whitespace-nowrap px-4 py-3 font-mono text-gray-600">{person.invite_accepted_at_millis ?? ''}</td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -698,12 +786,13 @@ export function PeopleListPage() {
         <BulkActionBar
           workspaceId={currentWorkspace.id}
           selectedIds={selectedPersonIds}
-          onClearSelection={() => setSelectedPersonIds([])}
+          onClearSelection={clearSelection}
           onSuccess={() => {
-            setSelectedPersonIds([])
+            clearSelection()
             fetchPeople()
           }}
           pipelineStages={pipelineStages}
+          currentCategory={selectionCategory}
           members={members}
         />
       )}

@@ -169,6 +169,7 @@ class PeopleService:
         premium: bool | None = None,
         processed_from: datetime | None = None,
         processed_to: datetime | None = None,
+        invite_accepted_only: bool = False,
         favorite: bool | None = None,
         favorite_notes: str | None = None,
         include_deleted: bool = False,
@@ -266,6 +267,11 @@ class PeopleService:
             query = query.where(Person.processed_at >= processed_from)
         if processed_to:
             query = query.where(Person.processed_at <= processed_to)
+        if invite_accepted_only:
+            query = query.where(
+                Person.invite_accepted_at.is_not(None),
+                Person.invite_accepted_at_millis.is_not(None),
+            )
         if favorite is not None:
             query = query.where(Person.is_favorite == favorite)
         if favorite_notes:
@@ -342,6 +348,19 @@ class PeopleService:
                     if resolved_tags is not None
                     else await self._resolve_tags(workspace_id, tag_ids)
                 )
+            elif field == "linkedin_url":
+                normalized = normalize_linkedin_url(value)
+                if not normalized:
+                    raise ValidationError("Invalid LinkedIn profile URL")
+                normalized_url, slug = normalized
+                existing = await self._find_by_url(workspace_id, normalized_url)
+                if existing and existing.id != person.id:
+                    raise ConflictError(
+                        "A person with this LinkedIn profile already exists",
+                        details={"person_id": str(existing.id), "name": existing.name},
+                    )
+                person.linkedin_url = normalized_url
+                person.linkedin_slug = slug
             elif field == "stage_id":
                 if value is not None:
                     await self._require_pipeline_stage(workspace_id, value)

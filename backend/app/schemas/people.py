@@ -50,6 +50,7 @@ class PersonUpdate(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=200)
     first_name: str | None = Field(None, max_length=100)
     last_name: str | None = Field(None, max_length=100)
+    linkedin_url: str | None = Field(None, min_length=1)
     role: str | None = Field(None, max_length=200)
     company: str | None = Field(None, max_length=200)
     location: str | None = Field(None, max_length=200)
@@ -57,9 +58,14 @@ class PersonUpdate(BaseModel):
     phone_number: str | None = Field(None, max_length=100)
     premium: bool | None = None
     company_website: str | None = None
+    processed_at: datetime | None = None
+    processed_at_millis: int | None = None
+    invite_accepted_at: datetime | None = None
+    invite_accepted_at_millis: int | None = None
     is_favorite: bool | None = None
     favorite_notes: str | None = None
     priority: str | None = Field(None, pattern=r"^[ABC]$")
+    connection_note: str | None = None
     notes: str | None = None
     tag_ids: list[uuid.UUID] | None = Field(None, max_length=20)
     stage_id: uuid.UUID | None = None

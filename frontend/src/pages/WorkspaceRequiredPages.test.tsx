@@ -101,6 +101,7 @@ describe('workspace-required pages', () => {
     fireEvent.change(screen.getByLabelText('Favourite'), { target: { value: 'true' } })
     fireEvent.change(screen.getByLabelText('Favourite notes contain'), { target: { value: 'candidate' } })
     fireEvent.change(screen.getByLabelText('Contact owner'), { target: { value: 'user-1' } })
+    fireEvent.click(screen.getByLabelText('Invite accepted values present'))
     fireEvent.click(screen.getByRole('button', { name: 'Apply Filters' }))
     await waitFor(() => expect(peopleApi.list).toHaveBeenLastCalledWith(expect.objectContaining({
       company: 'Acme',
@@ -108,6 +109,7 @@ describe('workspace-required pages', () => {
       favorite: 'true',
       favorite_notes: 'candidate',
       owner_id: 'user-1',
+      invite_accepted_only: 'true',
     })))
 
     fireEvent.click(screen.getByRole('button', { name: 'Sort by Company' }))
@@ -115,6 +117,80 @@ describe('workspace-required pages', () => {
       sort_by: 'company',
       sort_order: 'desc',
     })))
+  })
+
+  it('locks multi-row selection to the first selected category', async () => {
+    useWorkspaceStore.setState({
+      currentWorkspace: {
+        id: 'workspace-1', name: 'Workspace', owner_id: 'user-1',
+        default_follow_up_delay_days: 3, default_acceptance_check_delay_days: 7,
+        daily_reminder_time: '09:00', timezone: 'UTC', quiet_hours_start: null,
+        quiet_hours_end: null, email_reminders_enabled: true, daily_digest_enabled: true,
+        overdue_alerts_enabled: true,
+      },
+    })
+    const followUp1 = {
+      id: 'follow-up-1',
+      name: 'Follow-up 1',
+      order: 1,
+      allowed_next_stage_ids: ['follow-up-2'],
+    }
+    const followUp2 = {
+      id: 'follow-up-2',
+      name: 'Follow-up 2',
+      order: 2,
+      allowed_next_stage_ids: [],
+    }
+    const person = (id: string, name: string, stage: typeof followUp1) => ({
+      id,
+      name,
+      first_name: name,
+      last_name: null,
+      company: null,
+      role: null,
+      location: null,
+      email: null,
+      phone_number: null,
+      premium: null,
+      company_website: null,
+      processed_at: null,
+      processed_at_millis: null,
+      invite_accepted_at: null,
+      invite_accepted_at_millis: null,
+      is_favorite: false,
+      favorite_notes: null,
+      linkedin_url: `linkedin.com/in/${id}`,
+      stage: stage.name,
+      stage_id: stage.id,
+      pipeline_stage: stage,
+      priority: 'B',
+      status: 'active',
+      next_action_type: null,
+      next_action_date: null,
+      tags: [],
+      owner_id: null,
+    })
+    vi.mocked(peopleApi.list).mockResolvedValue({
+      total: 3,
+      page: 1,
+      limit: 20,
+      items: [
+        person('person-1', 'Person One', followUp1),
+        person('person-2', 'Person Two', followUp1),
+        person('person-3', 'Person Three', followUp2),
+      ],
+    })
+
+    renderPage(<PeopleListPage />)
+    await screen.findByText('Person One')
+
+    expect(screen.getByLabelText('Select all eligible people')).toBeDisabled()
+    fireEvent.click(screen.getByLabelText('Select Person One'))
+
+    expect(screen.getByText(/Selection locked to/)).toHaveTextContent('Follow-up 1')
+    expect(screen.getByLabelText('Select Person Two')).not.toBeDisabled()
+    expect(screen.getByLabelText('Select Person Three')).toBeDisabled()
+    expect(screen.getByLabelText('Select all eligible people')).not.toBeDisabled()
   })
 
   it('shows a no-workspace state on Templates without loading templates', () => {

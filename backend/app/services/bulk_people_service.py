@@ -4,6 +4,7 @@ from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.errors import NotFoundError, ValidationError
 from app.core.logging import mask_id
@@ -72,10 +73,16 @@ class BulkPeopleService:
         self, workspace_id: uuid.UUID, person_ids: list[uuid.UUID]
     ) -> list[Person]:
         result = await self.db.execute(
-            select(Person).where(
+            select(Person)
+            .where(
                 Person.id.in_(person_ids),
                 Person.workspace_id == workspace_id,
                 Person.deleted_at.is_(None),
+            )
+            .options(
+                selectinload(Person.tags),
+                selectinload(Person.pipeline_stage),
+                selectinload(Person.owner),
             )
         )
         people_by_id = {person.id: person for person in result.scalars().all()}
@@ -157,23 +164,41 @@ class BulkPeopleService:
         people: list[Person],
         resolved_stage: tuple[uuid.UUID | None, str | None] | None,
     ) -> None:
-        if not resolved_stage or resolved_stage[0] is None:
+        if not resolved_stage:
+            return
+        source_categories = {
+            (person.stage_id, None if person.stage_id else person.stage) for person in people
+        }
+        if len(source_categories) > 1:
+            raise ValidationError(
+                "Select people from the same current category before moving them."
+            )
+        if resolved_stage[0] is None:
             return
         target_id = resolved_stage[0]
-        source_ids = {person.stage_id for person in people if person.stage_id}
-        if not source_ids:
+        source_id = next(iter(source_categories))[0]
+        if source_id is None:
             return
         result = await self.db.execute(
             select(PipelineStage).where(
                 PipelineStage.workspace_id == workspace_id,
-                PipelineStage.id.in_(source_ids),
+                PipelineStage.id.in_({source_id, target_id}),
             )
         )
-        for stage in result.scalars().all():
-            if stage.allowed_next_stage_ids and str(target_id) not in stage.allowed_next_stage_ids:
-                raise ValidationError(
-                    f"The transition from '{stage.name}' to the selected stage is not allowed."
-                )
+        stages_by_id = {stage.id: stage for stage in result.scalars().all()}
+        source_stage = stages_by_id.get(source_id)
+        target_stage = stages_by_id.get(target_id)
+        if source_stage is None or target_stage is None:
+            raise NotFoundError("Pipeline stage")
+        if target_stage.order <= source_stage.order:
+            raise ValidationError("Move people only to a category after their current category.")
+        if (
+            source_stage.allowed_next_stage_ids
+            and str(target_id) not in source_stage.allowed_next_stage_ids
+        ):
+            raise ValidationError(
+                f"The transition from '{source_stage.name}' to the selected stage is not allowed."
+            )
 
     def _apply_to_person(
         self,
