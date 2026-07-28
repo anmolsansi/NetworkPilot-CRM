@@ -492,7 +492,6 @@ class TestPeopleAPI:
                 "company": "Other Co",
                 "role": "Engineer",
                 "location": "Boston",
-                "email": "bob@example.com",
                 "premium": True,
             },
         ]
@@ -569,6 +568,19 @@ class TestPeopleAPI:
         assert accepted_response.json()["items"][0]["first_name"] == "Zoe"
         assert accepted_response.json()["items"][0]["invite_accepted_at"] is not None
         assert accepted_response.json()["items"][0]["invite_accepted_at_millis"] is not None
+
+        email_response = await client.get(
+            "/api/v1/people",
+            params={
+                "workspace_id": workspace_id,
+                "email_present": "true",
+                "sort_by": "first_name",
+                "sort_order": "asc",
+            },
+            headers=mock_headers,
+        )
+        assert email_response.status_code == 200
+        assert [item["first_name"] for item in email_response.json()["items"]] == ["Amy", "Zoe"]
 
         workflow_stage_response = await client.get(
             "/api/v1/people",

@@ -165,6 +165,7 @@ class PeopleService:
         company: str | None = None,
         role: str | None = None,
         email: str | None = None,
+        email_present: bool = False,
         location: str | None = None,
         premium: bool | None = None,
         processed_from: datetime | None = None,
@@ -262,6 +263,8 @@ class PeopleService:
             query = query.where(Person.role.ilike(f"%{role}%"))
         if email:
             query = query.where(Person.email.ilike(f"%{email}%"))
+        if email_present:
+            query = query.where(Person.email.is_not(None), func.trim(Person.email) != "")
         if location:
             query = query.where(Person.location.ilike(f"%{location}%"))
         if premium is not None:
