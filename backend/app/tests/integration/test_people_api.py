@@ -496,6 +496,7 @@ class TestPeopleAPI:
                 "premium": True,
             },
         ]
+        created_people = []
         for person in people:
             response = await client.post(
                 f"/api/v1/people?workspace_id={workspace_id}",
@@ -503,6 +504,15 @@ class TestPeopleAPI:
                 headers=mock_headers,
             )
             assert response.status_code == 201
+            created_people.append(response.json())
+
+        accepted_activity = await client.post(
+            f"/api/v1/people/{created_people[0]['id']}/activities",
+            params={"workspace_id": workspace_id},
+            json={"action_type": "accepted", "source": "web_app"},
+            headers=mock_headers,
+        )
+        assert accepted_activity.status_code == 201
 
         response = await client.get(
             "/api/v1/people",
@@ -559,6 +569,30 @@ class TestPeopleAPI:
         assert accepted_response.json()["items"][0]["first_name"] == "Zoe"
         assert accepted_response.json()["items"][0]["invite_accepted_at"] is not None
         assert accepted_response.json()["items"][0]["invite_accepted_at_millis"] is not None
+
+        workflow_stage_response = await client.get(
+            "/api/v1/people",
+            params={"workspace_id": workspace_id, "stage": "accepted"},
+            headers=mock_headers,
+        )
+        assert workflow_stage_response.status_code == 200
+        assert [item["first_name"] for item in workflow_stage_response.json()["items"]] == ["Zoe"]
+
+        invite_stage_response = await client.get(
+            "/api/v1/people",
+            params={
+                "workspace_id": workspace_id,
+                "stage": "invite_pending",
+                "sort_by": "first_name",
+                "sort_order": "asc",
+            },
+            headers=mock_headers,
+        )
+        assert invite_stage_response.status_code == 200
+        assert [item["first_name"] for item in invite_stage_response.json()["items"]] == [
+            "Amy",
+            "Bob",
+        ]
 
     async def test_list_people_requires_auth(self, client: AsyncClient):
         response = await client.get(

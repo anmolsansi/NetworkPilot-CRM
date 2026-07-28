@@ -205,7 +205,10 @@ class PeopleService:
 
         # Apply filters
         if stage:
-            query = query.where(Person.stage == stage)
+            if stage == "invite_pending":
+                query = query.where(Person.stage.in_(("invite_sent", "invite_pending")))
+            else:
+                query = query.where(Person.stage == stage)
         if stage_id:
             query = query.where(Person.stage_id == stage_id)
         if tag_ids:
