@@ -53,6 +53,12 @@ class TestCalculateTransition:
         assert result.next_action_type == "follow_up_2"
         assert result.next_action_date == date.today() + timedelta(days=3)
 
+    def test_follow_up_2_sent(self):
+        result = calculate_transition("follow_up_2_sent", previous_stage="unknown")
+        assert result.new_stage == "follow_up_2_sent"
+        assert result.next_action_type is None
+        assert result.next_action_date is None
+
     def test_reply_received(self):
         result = calculate_transition("reply_received", previous_stage="unknown")
         assert result.new_stage == "replied"

@@ -6,19 +6,10 @@ import { Input } from '../../components/common/Input'
 import { ErrorAlert } from '../../components/common/ErrorAlert'
 import { peopleApi } from '../../api/httpClient'
 
-export interface PipelineStage {
-  id: string
-  name: string
-  order: number
-  allowed_next_stage_ids: string[]
-}
-
 export interface SelectionCategory {
   key: string
   name: string
-  stageId: string | null
-  order: number | null
-  allowedNextStageIds: string[]
+  nextActionLabel: string | null
 }
 
 interface BulkActionBarProps {
@@ -26,7 +17,6 @@ interface BulkActionBarProps {
   selectedIds: string[]
   onClearSelection: () => void
   onSuccess: () => void
-  pipelineStages: PipelineStage[]
   currentCategory: SelectionCategory | null
   members: { user_id: string; email: string; display_name: string | null }[]
 }
@@ -42,7 +32,6 @@ export function BulkActionBar({
   selectedIds,
   onClearSelection,
   onSuccess,
-  pipelineStages,
   currentCategory,
   members,
 }: BulkActionBarProps) {
@@ -50,34 +39,14 @@ export function BulkActionBar({
   const [error, setError] = useState<string | null>(null)
 
   // Modal states
-  const [modalType, setModalType] = useState<'stage' | 'priority' | 'tags_add' | 'tags_remove' | 'next_action' | 'owner' | null>(null)
+  const [modalType, setModalType] = useState<'workflow' | 'priority' | 'tags_add' | 'tags_remove' | 'owner' | null>(null)
   
   // Form states
-  const [stageValue, setStageValue] = useState('')
   const [priorityValue, setPriorityValue] = useState(priorityOptions[0].value)
   const [tagsValue, setTagsValue] = useState('')
-  const [nextActionType, setNextActionType] = useState('')
-  const [nextActionDate, setNextActionDate] = useState('')
   const [ownerId, setOwnerId] = useState('')
 
   if (selectedIds.length === 0) return null
-
-  const stageOptions = pipelineStages.map((stage) => {
-    const isCurrentOrEarlier = currentCategory?.order != null
-      ? stage.order <= currentCategory.order
-      : stage.id === currentCategory?.stageId
-    const isDisallowedTransition = Boolean(
-      currentCategory?.allowedNextStageIds.length
-      && !currentCategory.allowedNextStageIds.includes(stage.id),
-    )
-    const disabled = isCurrentOrEarlier || isDisallowedTransition
-    return {
-      value: stage.id,
-      label: disabled ? `${stage.name} (unavailable)` : stage.name,
-      disabled,
-    }
-  })
-  const hasAvailableStage = stageOptions.some((option) => !option.disabled)
 
   const handleBulkAction = async (action: string, payload: any) => {
     setLoading(true)
@@ -110,27 +79,16 @@ export function BulkActionBar({
         <div className="space-y-4">
           {error && <ErrorAlert message={error} onRetry={() => setError(null)} />}
 
-          {modalType === 'stage' && (
-            <>
-              {currentCategory && (
-                <p className="text-sm text-gray-600">
-                  Current category: <span className="font-medium">{currentCategory.name}</span>.
-                  {' '}Only later allowed categories can be selected.
-                </p>
-              )}
-              <Select
-                label="Move to category"
-                options={[
-                  { value: '', label: 'Choose a category' },
-                  ...stageOptions,
-                ]}
-                value={stageValue}
-                onChange={(e) => setStageValue(e.target.value)}
-              />
-              {!hasAvailableStage && (
-                <p className="text-sm text-amber-700">No later category is available.</p>
-              )}
-            </>
+          {modalType === 'workflow' && currentCategory?.nextActionLabel && (
+            <div className="rounded-md border border-blue-200 bg-blue-50 p-4">
+              <p className="font-medium text-gray-900">
+                Advance {selectedIds.length} people to {currentCategory.nextActionLabel}?
+              </p>
+              <p className="mt-1 text-sm text-gray-600">
+                Current step: {currentCategory.name}. This records the action and schedules the
+                next follow-up automatically.
+              </p>
+            </div>
           )}
 
           {modalType === 'priority' && (
@@ -151,23 +109,6 @@ export function BulkActionBar({
             />
           )}
 
-          {modalType === 'next_action' && (
-            <>
-              <Input
-                label="Next Action"
-                value={nextActionType}
-                onChange={(e) => setNextActionType(e.target.value)}
-                placeholder="e.g. Send email"
-              />
-              <Input
-                label="Date"
-                type="date"
-                value={nextActionDate}
-                onChange={(e) => setNextActionDate(e.target.value)}
-              />
-            </>
-          )}
-
           {modalType === 'owner' && (
             <Select
               label="Contact owner"
@@ -186,13 +127,12 @@ export function BulkActionBar({
           <div className="flex justify-end gap-2 mt-6">
             <Button variant="secondary" onClick={() => setModalType(null)}>Cancel</Button>
             <Button
-              disabled={loading || (modalType === 'stage' && !stageValue)}
+              disabled={loading}
               onClick={() => {
-                if (modalType === 'stage') handleBulkAction('set_stage', { stage_id: stageValue || null })
+                if (modalType === 'workflow') handleBulkAction('advance_workflow', {})
                 if (modalType === 'priority') handleBulkAction('set_priority', { priority: priorityValue })
                 if (modalType === 'tags_add') handleBulkAction('add_tags', { tags: tagsValue.split(',').map(t => t.trim()).filter(Boolean) })
                 if (modalType === 'tags_remove') handleBulkAction('remove_tags', { tags: tagsValue.split(',').map(t => t.trim()).filter(Boolean) })
-                if (modalType === 'next_action') handleBulkAction('set_next_action', { next_action_type: nextActionType || null, next_action_date: nextActionDate || null })
                 if (modalType === 'owner') handleBulkAction('set_owner', { owner_id: ownerId || null })
               }}
             >
@@ -218,19 +158,19 @@ export function BulkActionBar({
           <Button variant="secondary" size="sm" onClick={() => handleBulkAction('set_favorite', { is_favorite: true })}>★ Favourite</Button>
           <Button variant="secondary" size="sm" onClick={() => handleBulkAction('set_favorite', { is_favorite: false })}>☆ Unfavourite</Button>
           <Button variant="secondary" size="sm" onClick={() => setModalType('priority')}>Priority</Button>
+          <Button variant="secondary" size="sm" onClick={() => setModalType('tags_add')}>+ Tags</Button>
+          <Button variant="secondary" size="sm" onClick={() => setModalType('tags_remove')}>- Tags</Button>
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => {
-              setStageValue('')
-              setModalType('stage')
-            }}
+            disabled={!currentCategory?.nextActionLabel}
+            title={currentCategory?.nextActionLabel ? undefined : 'This workflow is complete.'}
+            onClick={() => setModalType('workflow')}
           >
-            Move category
+            {currentCategory?.nextActionLabel
+              ? `Next: ${currentCategory.nextActionLabel}`
+              : 'Workflow complete'}
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => setModalType('tags_add')}>+ Tags</Button>
-          <Button variant="secondary" size="sm" onClick={() => setModalType('tags_remove')}>- Tags</Button>
-          <Button variant="secondary" size="sm" onClick={() => setModalType('next_action')}>Next Action</Button>
           <Button variant="secondary" size="sm" onClick={() => setModalType('owner')}>Owner</Button>
           <Button 
             size="sm" 
