@@ -254,7 +254,7 @@ export const importsApi = {
   commit: async (
     workspaceId: string,
     file: File,
-    duplicateStrategy: 'skip' | 'update' = 'skip',
+    duplicateStrategy: 'skip' | 'update' = 'update',
   ): Promise<any> => {
     const formData = new FormData()
     formData.append('workspace_id', workspaceId)

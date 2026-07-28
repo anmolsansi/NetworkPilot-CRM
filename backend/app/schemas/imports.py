@@ -86,7 +86,7 @@ class ImportCommitRow(BaseModel):
 class ImportCommitRequest(BaseModel):
     workspace_id: uuid.UUID
     default_initial_action_type: str = Field(default="invite_sent")
-    duplicate_strategy: str = Field(default="skip")
+    duplicate_strategy: str = Field(default="update")
     default_priority: str = Field(default="B")
     provided_headers: list[str] = Field(default_factory=list)
     rows: list[ImportCommitRow]
