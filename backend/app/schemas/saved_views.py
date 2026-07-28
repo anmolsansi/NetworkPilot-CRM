@@ -9,6 +9,7 @@ ALLOWED_FILTERS = {
     "company",
     "role",
     "email",
+    "emailPresent",
     "location",
     "premium",
     "favorite",

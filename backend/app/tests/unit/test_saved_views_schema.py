@@ -6,6 +6,7 @@ def test_saved_view_accepts_invite_and_owner_filters():
         name="Accepted follow-ups",
         filters={
             "inviteAcceptedOnly": True,
+            "emailPresent": True,
             "ownerId": "00000000-0000-0000-0000-000000000001",
         },
         sort_by="invite_accepted_at",
@@ -13,4 +14,5 @@ def test_saved_view_accepts_invite_and_owner_filters():
     )
 
     assert view.filters["inviteAcceptedOnly"] is True
+    assert view.filters["emailPresent"] is True
     assert view.filters["ownerId"] == "00000000-0000-0000-0000-000000000001"

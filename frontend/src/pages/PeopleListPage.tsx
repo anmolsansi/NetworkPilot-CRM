@@ -64,6 +64,7 @@ interface PeopleFilters {
   company: string
   role: string
   email: string
+  emailPresent: boolean
   location: string
   premium: string
   favorite: string
@@ -83,6 +84,7 @@ const emptyFilters: PeopleFilters = {
   company: '',
   role: '',
   email: '',
+  emailPresent: false,
   location: '',
   premium: '',
   favorite: '',
@@ -247,6 +249,7 @@ export function PeopleListPage() {
       if (filters.company) params.company = filters.company
       if (filters.role) params.role = filters.role
       if (filters.email) params.email = filters.email
+      if (filters.emailPresent) params.email_present = 'true'
       if (filters.location) params.location = filters.location
       if (filters.premium) params.premium = filters.premium
       if (filters.favorite) params.favorite = filters.favorite
@@ -523,6 +526,17 @@ export function PeopleListPage() {
           <Input label="Company" value={filterDraft.company} onChange={(e) => setFilterDraft({ ...filterDraft, company: e.target.value })} />
           <Input label="Position" value={filterDraft.role} onChange={(e) => setFilterDraft({ ...filterDraft, role: e.target.value })} />
           <Input label="Email" value={filterDraft.email} onChange={(e) => setFilterDraft({ ...filterDraft, email: e.target.value })} />
+          <label className="flex items-center gap-2 self-end pb-2 text-sm font-medium text-gray-700">
+            <input
+              type="checkbox"
+              checked={filterDraft.emailPresent}
+              onChange={(event) => setFilterDraft({
+                ...filterDraft,
+                emailPresent: event.target.checked,
+              })}
+            />
+            Email present
+          </label>
           <Input label="Location" value={filterDraft.location} onChange={(e) => setFilterDraft({ ...filterDraft, location: e.target.value })} />
           <Select
             label="Premium"
