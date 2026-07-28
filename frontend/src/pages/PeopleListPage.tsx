@@ -147,6 +147,17 @@ const workflowSteps: Record<string, { name: string; nextActionLabel: string | nu
   replied: { name: 'Reply Received', nextActionLabel: null },
 }
 
+const workflowStageOptions = [
+  { value: 'invite_pending', label: 'Invite Sent' },
+  { value: 'accepted', label: 'Accepted' },
+  { value: 'waiting_for_reply', label: 'Message Sent' },
+  { value: 'follow_up_1_sent', label: 'Follow-up 1' },
+  { value: 'follow_up_2_sent', label: 'Follow-up 2' },
+  { value: 'replied', label: 'Reply Received' },
+  { value: 'archived', label: 'Archived' },
+]
+const workflowStageValues = new Set(workflowStageOptions.map((option) => option.value))
+
 function octopusDate(value: string | null) {
   if (!value) return ''
   return new Intl.DateTimeFormat('en-US', {
@@ -243,10 +254,12 @@ export function PeopleListPage() {
       if (filters.processedFrom) params.processed_from = `${filters.processedFrom}T00:00:00.000Z`
       if (filters.processedTo) params.processed_to = `${filters.processedTo}T23:59:59.999Z`
       if (filters.inviteAcceptedOnly) params.invite_accepted_only = 'true'
-      if (filters.stage) params.stage = filters.stage
-      if (filters.stage && filters.stage !== 'archived') {
-        delete params.stage
-        params.stage_id = filters.stage
+      if (filters.stage) {
+        if (workflowStageValues.has(filters.stage)) {
+          params.stage = filters.stage
+        } else {
+          params.stage_id = filters.stage
+        }
       }
       if (filters.priority) params.priority = filters.priority
       if (filters.tagId) params.tag_id = filters.tagId
@@ -546,8 +559,8 @@ export function PeopleListPage() {
               label="Stage"
               options={[
                 { value: '', label: 'All Stages' },
+                ...workflowStageOptions,
                 ...pipelineStages.map(s => ({ value: s.id, label: s.name })),
-                { value: 'archived', label: 'Archived (Legacy)' }
               ]}
               value={filterDraft.stage}
               onChange={(e) => setFilterDraft({ ...filterDraft, stage: e.target.value })}

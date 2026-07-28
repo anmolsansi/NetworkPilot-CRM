@@ -96,11 +96,23 @@ describe('workspace-required pages', () => {
     renderPage(<PeopleListPage />)
     await screen.findByText('Ada')
 
+    for (const stage of [
+      'Invite Sent',
+      'Accepted',
+      'Message Sent',
+      'Follow-up 1',
+      'Follow-up 2',
+      'Reply Received',
+      'Archived',
+    ]) {
+      expect(screen.getByRole('option', { name: stage })).toBeInTheDocument()
+    }
     fireEvent.change(screen.getByLabelText('Company'), { target: { value: 'Acme' } })
     fireEvent.change(screen.getByLabelText('Premium'), { target: { value: 'true' } })
     fireEvent.change(screen.getByLabelText('Favourite'), { target: { value: 'true' } })
     fireEvent.change(screen.getByLabelText('Favourite notes contain'), { target: { value: 'candidate' } })
     fireEvent.change(screen.getByLabelText('Contact owner'), { target: { value: 'user-1' } })
+    fireEvent.change(screen.getByLabelText('Stage'), { target: { value: 'accepted' } })
     fireEvent.click(screen.getByLabelText('Invite accepted values present'))
     fireEvent.click(screen.getByRole('button', { name: 'Apply Filters' }))
     await waitFor(() => expect(peopleApi.list).toHaveBeenLastCalledWith(expect.objectContaining({
@@ -109,6 +121,7 @@ describe('workspace-required pages', () => {
       favorite: 'true',
       favorite_notes: 'candidate',
       owner_id: 'user-1',
+      stage: 'accepted',
       invite_accepted_only: 'true',
     })))
 
