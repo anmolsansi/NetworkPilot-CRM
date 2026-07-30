@@ -494,6 +494,12 @@ class TestPeopleAPI:
                 "location": "Boston",
                 "premium": True,
             },
+            {
+                "name": "Cara Empty",
+                "first_name": "Cara",
+                "linkedin_url": "https://linkedin.com/in/cara-empty/",
+                "email": "   ",
+            },
         ]
         created_people = []
         for person in people:
@@ -582,6 +588,50 @@ class TestPeopleAPI:
         assert email_response.status_code == 200
         assert [item["first_name"] for item in email_response.json()["items"]] == ["Amy", "Zoe"]
 
+        email_missing_response = await client.get(
+            "/api/v1/people",
+            params={
+                "workspace_id": workspace_id,
+                "email_missing": "true",
+                "sort_by": "first_name",
+                "sort_order": "asc",
+            },
+            headers=mock_headers,
+        )
+        assert email_missing_response.status_code == 200
+        assert [item["first_name"] for item in email_missing_response.json()["items"]] == [
+            "Bob",
+            "Cara",
+        ]
+
+        invite_missing_response = await client.get(
+            "/api/v1/people",
+            params={
+                "workspace_id": workspace_id,
+                "invite_accepted_missing": "true",
+                "sort_by": "first_name",
+                "sort_order": "asc",
+            },
+            headers=mock_headers,
+        )
+        assert invite_missing_response.status_code == 200
+        assert [item["first_name"] for item in invite_missing_response.json()["items"]] == [
+            "Amy",
+            "Bob",
+            "Cara",
+        ]
+
+        conflicting_presence_response = await client.get(
+            "/api/v1/people",
+            params={
+                "workspace_id": workspace_id,
+                "email_present": "true",
+                "email_missing": "true",
+            },
+            headers=mock_headers,
+        )
+        assert conflicting_presence_response.status_code == 422
+
         workflow_stage_response = await client.get(
             "/api/v1/people",
             params={"workspace_id": workspace_id, "stage": "accepted"},
@@ -604,6 +654,7 @@ class TestPeopleAPI:
         assert [item["first_name"] for item in invite_stage_response.json()["items"]] == [
             "Amy",
             "Bob",
+            "Cara",
         ]
 
     async def test_list_people_requires_auth(self, client: AsyncClient):

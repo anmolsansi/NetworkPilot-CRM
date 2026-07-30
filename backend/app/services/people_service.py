@@ -166,11 +166,13 @@ class PeopleService:
         role: str | None = None,
         email: str | None = None,
         email_present: bool = False,
+        email_missing: bool = False,
         location: str | None = None,
         premium: bool | None = None,
         processed_from: datetime | None = None,
         processed_to: datetime | None = None,
         invite_accepted_only: bool = False,
+        invite_accepted_missing: bool = False,
         favorite: bool | None = None,
         favorite_notes: str | None = None,
         include_deleted: bool = False,
@@ -188,6 +190,12 @@ class PeopleService:
             limit,
             bool(search),
         )
+        if email_present and email_missing:
+            raise ValidationError("Choose either email present or email missing, not both.")
+        if invite_accepted_only and invite_accepted_missing:
+            raise ValidationError(
+                "Choose either invite accepted values present or missing, not both."
+            )
         query = (
             select(Person)
             .where(
@@ -265,6 +273,8 @@ class PeopleService:
             query = query.where(Person.email.ilike(f"%{email}%"))
         if email_present:
             query = query.where(Person.email.is_not(None), func.trim(Person.email) != "")
+        if email_missing:
+            query = query.where(or_(Person.email.is_(None), func.trim(Person.email) == ""))
         if location:
             query = query.where(Person.location.ilike(f"%{location}%"))
         if premium is not None:
@@ -277,6 +287,13 @@ class PeopleService:
             query = query.where(
                 Person.invite_accepted_at.is_not(None),
                 Person.invite_accepted_at_millis.is_not(None),
+            )
+        if invite_accepted_missing:
+            query = query.where(
+                or_(
+                    Person.invite_accepted_at.is_(None),
+                    Person.invite_accepted_at_millis.is_(None),
+                )
             )
         if favorite is not None:
             query = query.where(Person.is_favorite == favorite)

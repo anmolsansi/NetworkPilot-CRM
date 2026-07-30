@@ -65,6 +65,7 @@ interface PeopleFilters {
   role: string
   email: string
   emailPresent: boolean
+  emailMissing: boolean
   location: string
   premium: string
   favorite: string
@@ -72,6 +73,7 @@ interface PeopleFilters {
   processedFrom: string
   processedTo: string
   inviteAcceptedOnly: boolean
+  inviteAcceptedMissing: boolean
   stage: string
   priority: string
   tagId: string
@@ -85,6 +87,7 @@ const emptyFilters: PeopleFilters = {
   role: '',
   email: '',
   emailPresent: false,
+  emailMissing: false,
   location: '',
   premium: '',
   favorite: '',
@@ -92,6 +95,7 @@ const emptyFilters: PeopleFilters = {
   processedFrom: '',
   processedTo: '',
   inviteAcceptedOnly: false,
+  inviteAcceptedMissing: false,
   stage: '',
   priority: '',
   tagId: '',
@@ -250,6 +254,7 @@ export function PeopleListPage() {
       if (filters.role) params.role = filters.role
       if (filters.email) params.email = filters.email
       if (filters.emailPresent) params.email_present = 'true'
+      if (filters.emailMissing) params.email_missing = 'true'
       if (filters.location) params.location = filters.location
       if (filters.premium) params.premium = filters.premium
       if (filters.favorite) params.favorite = filters.favorite
@@ -257,6 +262,7 @@ export function PeopleListPage() {
       if (filters.processedFrom) params.processed_from = `${filters.processedFrom}T00:00:00.000Z`
       if (filters.processedTo) params.processed_to = `${filters.processedTo}T23:59:59.999Z`
       if (filters.inviteAcceptedOnly) params.invite_accepted_only = 'true'
+      if (filters.inviteAcceptedMissing) params.invite_accepted_missing = 'true'
       if (filters.stage) {
         if (workflowStageValues.has(filters.stage)) {
           params.stage = filters.stage
@@ -526,17 +532,32 @@ export function PeopleListPage() {
           <Input label="Company" value={filterDraft.company} onChange={(e) => setFilterDraft({ ...filterDraft, company: e.target.value })} />
           <Input label="Position" value={filterDraft.role} onChange={(e) => setFilterDraft({ ...filterDraft, role: e.target.value })} />
           <Input label="Email" value={filterDraft.email} onChange={(e) => setFilterDraft({ ...filterDraft, email: e.target.value })} />
-          <label className="flex items-center gap-2 self-end pb-2 text-sm font-medium text-gray-700">
-            <input
-              type="checkbox"
-              checked={filterDraft.emailPresent}
-              onChange={(event) => setFilterDraft({
-                ...filterDraft,
-                emailPresent: event.target.checked,
-              })}
-            />
-            Email present
-          </label>
+          <div className="space-y-2 self-end pb-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <input
+                type="checkbox"
+                checked={filterDraft.emailPresent}
+                onChange={(event) => setFilterDraft({
+                  ...filterDraft,
+                  emailPresent: event.target.checked,
+                  emailMissing: event.target.checked ? false : filterDraft.emailMissing,
+                })}
+              />
+              Email present
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <input
+                type="checkbox"
+                checked={filterDraft.emailMissing}
+                onChange={(event) => setFilterDraft({
+                  ...filterDraft,
+                  emailMissing: event.target.checked,
+                  emailPresent: event.target.checked ? false : filterDraft.emailPresent,
+                })}
+              />
+              Email missing
+            </label>
+          </div>
           <Input label="Location" value={filterDraft.location} onChange={(e) => setFilterDraft({ ...filterDraft, location: e.target.value })} />
           <Select
             label="Premium"
@@ -557,17 +578,36 @@ export function PeopleListPage() {
           />
           <Input label="Processed from" type="date" value={filterDraft.processedFrom} onChange={(e) => setFilterDraft({ ...filterDraft, processedFrom: e.target.value })} />
           <Input label="Processed to" type="date" value={filterDraft.processedTo} onChange={(e) => setFilterDraft({ ...filterDraft, processedTo: e.target.value })} />
-          <label className="flex items-center gap-2 self-end pb-2 text-sm font-medium text-gray-700">
-            <input
-              type="checkbox"
-              checked={filterDraft.inviteAcceptedOnly}
-              onChange={(event) => setFilterDraft({
-                ...filterDraft,
-                inviteAcceptedOnly: event.target.checked,
-              })}
-            />
-            Invite accepted values present
-          </label>
+          <div className="space-y-2 self-end pb-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <input
+                type="checkbox"
+                checked={filterDraft.inviteAcceptedOnly}
+                onChange={(event) => setFilterDraft({
+                  ...filterDraft,
+                  inviteAcceptedOnly: event.target.checked,
+                  inviteAcceptedMissing: event.target.checked
+                    ? false
+                    : filterDraft.inviteAcceptedMissing,
+                })}
+              />
+              Invite accepted values present
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <input
+                type="checkbox"
+                checked={filterDraft.inviteAcceptedMissing}
+                onChange={(event) => setFilterDraft({
+                  ...filterDraft,
+                  inviteAcceptedMissing: event.target.checked,
+                  inviteAcceptedOnly: event.target.checked
+                    ? false
+                    : filterDraft.inviteAcceptedOnly,
+                })}
+              />
+              Invite accepted values missing
+            </label>
+          </div>
           <div>
             <Select
               label="Stage"
