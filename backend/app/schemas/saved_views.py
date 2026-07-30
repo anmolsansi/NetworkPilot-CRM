@@ -10,6 +10,7 @@ ALLOWED_FILTERS = {
     "role",
     "email",
     "emailPresent",
+    "emailMissing",
     "location",
     "premium",
     "favorite",
@@ -17,6 +18,7 @@ ALLOWED_FILTERS = {
     "processedFrom",
     "processedTo",
     "inviteAcceptedOnly",
+    "inviteAcceptedMissing",
     "stage",
     "priority",
     "deleted",
@@ -70,6 +72,10 @@ class SavedViewCreate(StrictModel):
             raise ValueError(f"Unsupported saved filter: {sorted(unknown)[0]}")
         if any(isinstance(item, (dict, list)) for item in value.values()):
             raise ValueError("Saved filter values must be scalar.")
+        if value.get("emailPresent") and value.get("emailMissing"):
+            raise ValueError("Choose either email present or email missing.")
+        if value.get("inviteAcceptedOnly") and value.get("inviteAcceptedMissing"):
+            raise ValueError("Choose either invite accepted values present or missing.")
         return value
 
     @field_validator("sort_by")
