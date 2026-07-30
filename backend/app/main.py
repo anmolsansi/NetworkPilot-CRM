@@ -4,7 +4,7 @@ import time
 import uuid
 from contextlib import asynccontextmanager, suppress
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -121,6 +121,11 @@ def create_app() -> FastAPI:
 
     # API routes
     app.include_router(api_router)
+
+    @app.get("/status")
+    async def status(response: Response):
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        return "Hello World Net"
 
     return app
 
